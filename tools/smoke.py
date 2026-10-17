@@ -41,6 +41,7 @@ PLAN = (
     "### C1 - Add a greeting\n- role: implementer\n- files: greeting.txt\n"
     "- done-when: `test -f greeting.txt`\n- docs: không có — a one-line text file\n"
 )
+REPLAN = "# Replan\n\n## Mục roadmap đã hoàn thành\nkhông có\n\n## Đề xuất cải tiến quy trình\nkhông có\n"
 
 
 def main() -> int:
@@ -109,6 +110,15 @@ def main() -> int:
         expect(s.git("tag", "-l", tag) == tag and s.git("cat-file", "-t", tag) == "tag", "approval tag is annotated")
         summary = (repo / ".agentflow" / "tasks" / TASK_ID / "summary.md").read_text(encoding=ENCODING)
         expect("### C1 - Add a greeting" in summary, "summary.md lists the plan item")
+        delta = (repo / ".agentflow" / "tasks" / TASK_ID / "spec-delta.md").read_text(encoding=ENCODING)
+        expect("- A greeting.txt" in delta and "T-001: add greeting" in delta, "the seal wrote a spec delta from git")
+        expect(s.af("replan", "status").stdout.splitlines()[0] == "replan: pending", "a finished task waits for its replan")
+        s.af("replan", "write", stdin=REPLAN)
+        expect(s.af("replan", "status").stdout.splitlines()[0] == "replan: proposed", "the replan is only proposed")
+        asked = json.loads(s.af("guard", stdin=json.dumps({"command": "agentflow replan done", "cwd": str(repo)})).stdout)
+        expect(asked["decision"] == "deny", "guard keeps `replan done` for a person", str(asked))
+        s.af("replan", "done")  # what a person runs after reading replan.md
+        expect(s.af("replan", "status").stdout.splitlines()[0] == "replan: done", "a person closed the replan")
 
         s.af("task", "new", "Second task")
         s.af("task", "cancel")

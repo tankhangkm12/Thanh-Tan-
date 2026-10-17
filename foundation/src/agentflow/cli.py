@@ -12,7 +12,7 @@ from pathlib import Path
 from agentflow.assign import ProjectAgentNames, WorkflowAgentNames, assignment_lines
 from agentflow.convention_sources import load_effective_conventions
 from agentflow.services import WorkspaceServices
-from agentflow.constants import ConfirmState, KnowledgeCommand, KnowledgePlace, McpCommand, ProjectCommand, RoadmapCommand, RoadmapStatus, RoleCommand
+from agentflow.constants import ConfirmState, KnowledgeCommand, KnowledgePlace, McpCommand, ProjectCommand, ReplanCommand, ReplanState, RoadmapCommand, RoadmapStatus, RoleCommand
 from agentflow.interfaces import AgentNames
 from agentflow.roles import RoleGrants
 from agentflow.constants import ANSWER_OPTION, DECISION_SCOPE_PROJECT, CheckKind
@@ -22,6 +22,7 @@ from agentflow.project import load_conventions
 from agentflow.userconfig import knowledge_dir, save_knowledge_dir
 from agentflow.confirmations import Confirmations
 from agentflow.project import confirm_project, mission_state, roadmap_state, status_lines, unconfirmed_conventions
+from agentflow.replan import ReplanStatus, confirm_replan, replan_status, skip_replan
 from agentflow.roadmap import find_item, is_code, items_of, read_roadmap, require_linkable, set_status
 from agentflow.constants import (
     CONTAINER_TOOLS,
@@ -232,6 +233,15 @@ def build_parser() -> argparse.ArgumentParser:
     roadmap_set.add_argument("code", help="roadmap item, e.g. R3")
     roadmap_set.add_argument("status", choices=[str(status) for status in RoadmapStatus])
 
+    replan = commands.add_parser(Command.REPLAN, help="after a task: the replan of the project documents (proposed by the scout, closed by a person)")
+    replan_commands = replan.add_subparsers(dest="replan_command", metavar="<replan command>", required=True)
+    replan_commands.add_parser(ReplanCommand.STATUS, help="where the replan of the latest finished task stands (read-only)")
+    replan_commands.add_parser(ReplanCommand.WRITE, help="store the replan (read from stdin) as a proposal for the latest finished task")
+    replan_commands.add_parser(ReplanCommand.DONE, help="for a person: the proposed replan is done (after reading replan.md)")
+    replan_skip = replan_commands.add_parser(ReplanCommand.SKIP, help="for a person: decide not to replan a finished task, and say why")
+    replan_skip.add_argument("task_id", help="the latest finished task, e.g. T-001")
+    replan_skip.add_argument("--reason", required=True, help="why the replan is not needed")
+
     knowledge = commands.add_parser(Command.KNOWLEDGE, help="your personal knowledge store (outside every repository)")
     knowledge_commands = knowledge.add_subparsers(dest="knowledge_command", metavar="<knowledge command>", required=True)
     k_init = knowledge_commands.add_parser(KnowledgeCommand.INIT, help="for a person: create the store's folders and files")
@@ -380,6 +390,7 @@ def cmd_task(args: argparse.Namespace) -> ExitCode:
         case TaskCommand.NEW:
             if args.roadmap is not None:
                 require_linkable(opened.paths.dir, args.roadmap)
+            before = replan_status(opened.paths.dir, opened.state, SubprocessGit(opened.paths.root))
             task = new_task(store, opened.workflow, SubprocessGit(opened.paths.root), args.title, args.type, utc_now, args.size, args.roadmap)
             if task.roadmap:
                 set_status(opened.paths.dir, task.roadmap, RoadmapStatus.DOING)
@@ -393,6 +404,7 @@ def cmd_task(args: argparse.Namespace) -> ExitCode:
                     "a person confirms them with `agentflow project confirm`"
                 )
             _warn_project_documents(opened.paths.dir, task)
+            _warn_replan(before)
         case TaskCommand.ADVANCE:
             task = advance_task(store, opened.workflow, args.result, utc_now, _gates(opened), _sealer(opened))
             print(f"{task.id}: step '{task.current_step}' is now {task.step_status} (task {task.status})")
@@ -431,6 +443,21 @@ def _warn_project_documents(workspace_dir: Path, task: Task) -> None:
         _err(f"{WARNING_PREFIX}this task is not tied to a roadmap item: start it with `{ROADMAP_OPTION} Rn` (see `agentflow roadmap list`)")
     elif task.roadmap in unconfirmed:
         _err(f"{WARNING_PREFIX}the roadmap item {task.roadmap} you linked is unconfirmed: a person confirms it with `agentflow project confirm {task.roadmap}`")
+
+
+def _warn_replan(before: ReplanStatus) -> None:
+    """The task finished before this one was neither replanned nor skipped (a warning; nothing stops the new task)."""
+    task = before.task_id
+    if before.state is ReplanState.PENDING:
+        _err(
+            f"{WARNING_PREFIX}task {task} was approved but never replanned: have the scout replan it (replan skill), "
+            f'or a person skips it with `agentflow replan skip {task} --reason "..."`'
+        )
+    elif before.state is ReplanState.PROPOSED:
+        _err(
+            f"{WARNING_PREFIX}the replan of task {task} is only proposed: a person reads .agentflow/tasks/{task}/replan.md "
+            f'and runs `agentflow replan done` (or `agentflow replan skip {task} --reason "..."`)'
+        )
 
 
 def _release_roadmap_item(workspace_dir: Path, state: State, cancelled: Task) -> None:
@@ -793,6 +820,28 @@ def cmd_roadmap(args: argparse.Namespace) -> ExitCode:
     return ExitCode.OK
 
 
+def cmd_replan(args: argparse.Namespace) -> ExitCode:
+    opened = _open_workspace()
+    git = SubprocessGit(opened.paths.root)
+    match args.replan_command:
+        case ReplanCommand.STATUS:
+            status = replan_status(opened.paths.dir, opened.state, git)
+            print(f"replan: {status.state}")
+            if status.task_id:
+                print(f"task: {status.task_id}")
+        case ReplanCommand.WRITE:
+            info = WorkspaceServices(opened.paths).write_replan(sys.stdin.read())
+            print(f"replan saved: {info.path}")
+            print("proposed only: a person reads it, then runs `agentflow replan done` (or `agentflow replan skip`)")
+        case ReplanCommand.DONE:
+            task = confirm_replan(_store(opened), opened.paths.dir, git, utc_now())
+            print(f"{task.id}: replan done")
+        case ReplanCommand.SKIP:
+            path = skip_replan(_store(opened), opened.paths.dir, git, args.task_id, args.reason, utc_now())
+            print(f"{args.task_id}: replan skipped; decision: {path}")
+    return ExitCode.OK
+
+
 def cmd_mcp(args: argparse.Namespace) -> ExitCode:
     # argparse requires an mcp subcommand, and serve is the only one so far.
     from agentflow.mcp_server import serve  # imported here: hooks start often and must stay fast
@@ -835,6 +884,7 @@ HANDLERS: dict[str, Handler] = {
     Command.MCP: cmd_mcp,
     Command.PROJECT: cmd_project,
     Command.ROADMAP: cmd_roadmap,
+    Command.REPLAN: cmd_replan,
     Command.CONVENTIONS: cmd_conventions,
     Command.KNOWLEDGE: cmd_knowledge,
 }

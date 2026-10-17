@@ -97,7 +97,7 @@ MCP_SERVER_PREFIX = "mcp__plugin_dev-core_agentflow__"
 WORKSPACE_TOOL_NAMES = (
     "status", "next_step", "plan_check", "report_write", "scan_summary", "conventions", "knowledge_search", "knowledge_read",
 )  # fmt: skip
-PROJECT_TOOL_NAMES = ("project_write",)
+PROJECT_TOOL_NAMES = ("project_write", "replan_write")
 WORKSPACE_TOOLS = tuple(MCP_SERVER_PREFIX + name for name in WORKSPACE_TOOL_NAMES)
 PROJECT_TOOLS = tuple(MCP_SERVER_PREFIX + name for name in PROJECT_TOOL_NAMES)
 CLAUDE_TOOLS = {

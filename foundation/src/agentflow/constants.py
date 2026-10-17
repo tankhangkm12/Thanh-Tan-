@@ -72,6 +72,20 @@ COMMIT_PREFIX_SEPARATOR = ": "
 # Git trailer that ties a commit to a plan item.
 PLAN_ITEM_TRAILER = "Plan-Item"
 SUMMARY_FILE = "summary.md"
+SPEC_DELTA_FILE = "spec-delta.md"
+REPLAN_FILE = "replan.md"
+# Per-task replan history in project/history/: replan-<task id>-<time>.md
+REPLAN_HISTORY_NAME = "replan-{task_id}"
+REPLAN_SKIP_HISTORY_NAME = "replan-skip-{task_id}"
+REPLAN_SKIP_SUFFIX = "-replan-skip"
+# The sections of replan.md: which roadmap items the task finished (a proposal) and what to change in the workflow.
+REPLAN_DONE_HEADING = "Mục roadmap đã hoàn thành"
+REPLAN_PROCESS_HEADING = "Đề xuất cải tiến quy trình"
+# The sections of spec-delta.md.
+SPEC_DELTA_PROPOSALS_HEADING = "Đề xuất của reviewer"
+SPEC_DELTA_CHANGES_HEADING = "Thay đổi thật của task"
+SPEC_DELTA_LINKS_HEADING = "Liên kết"
+NO_REVIEW_REPORT_TEXT = "không có báo cáo review"
 LESSONS_DIR = "lessons"
 LESSONS_HEADING = "Bài học đề xuất"
 # The review report section where the reviewer says whether the project documents must change.
@@ -138,6 +152,7 @@ class ToolName(StrEnum):
     CONVENTIONS = "conventions"
     KNOWLEDGE_SEARCH = "knowledge_search"
     KNOWLEDGE_READ = "knowledge_read"
+    REPLAN_WRITE = "replan_write"
 
 
 MCP_SERVER_NAME = "agentflow"
@@ -355,6 +370,7 @@ class Command(StrEnum):
     CONVENTIONS = "conventions"
     KNOWLEDGE = "knowledge"
     ROADMAP = "roadmap"
+    REPLAN = "replan"
     PLAN = "plan"
     SCAN = "scan"
     DECIDE = "decide"
@@ -371,6 +387,25 @@ class ProjectCommand(StrEnum):
 class RoadmapCommand(StrEnum):
     LIST = "list"
     SET = "set"
+
+
+class ReplanCommand(StrEnum):
+    STATUS = "status"
+    WRITE = "write"
+    DONE = "done"
+    SKIP = "skip"
+
+
+class ReplanState(StrEnum):
+    """Where the replan of the latest finished task stands (``agentflow replan status``)."""
+
+    NO_FINISHED_TASK = "no-finished-task"
+    TASK_OPEN = "task-open"
+    NOT_SEALED = "not-sealed"
+    PENDING = "pending"
+    PROPOSED = "proposed"
+    DONE = "done"
+    SKIPPED = "skipped"
 
 
 class RoadmapStatus(StrEnum):
@@ -669,6 +704,7 @@ class StateKey(StrEnum):
     BRANCH = "branch"
     SIZE = "size"
     ROADMAP = "roadmap"
+    REPLANNED_AT = "replanned_at"
     HISTORY = "history"
     AT = "at"
     STEP = "step"

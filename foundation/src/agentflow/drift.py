@@ -63,3 +63,18 @@ def _entry_problems(entries: list[str]) -> list[str]:
     if none_seen and bullets:
         problems.append(f"{_PREFIX} says `{DRIFT_NONE_TEXT}` and also lists proposals: keep one of the two")
     return problems
+
+
+def drift_section(text: str) -> str | None:
+    """The body of the section as written (code blocks and comments left out), or ``None`` when it is missing or empty."""
+    lines = visible_lines(text)
+    starts = [number for number, line in enumerate(lines) if matches(_HEADING, line)]
+    if not starts:
+        return None
+    body: list[str] = []
+    for line in lines[starts[0] + 1 :]:
+        if is_top_heading(line):
+            break
+        body.append(line.rstrip())
+    found = "\n".join(body).strip("\n")
+    return found if found.strip() else None

@@ -188,6 +188,17 @@ Ba chỗ cần bạn duyệt: `confirm`, `plan`, `review`. Duyệt bằng `/dev-
 - [ ] `summary.md` và kết quả scan (`.agentflow/tasks/<task>/scans/`) không còn phát hiện chặn nào chưa giải thích.
 - [ ] "Bài học đề xuất" đáng giữ thì đưa về kho: `agentflow knowledge push .agentflow/tasks/<task>/lessons/L1.md`.
 
+## Replan sau mỗi task
+
+Vòng làm việc: `setup` (một lần) → mission + roadmap → `task new --roadmap Rn` → confirm → plan → implement → test → security → review → **replan** → task kế. Replan là bước giữa hai task: cập nhật hồ sơ dự án cho đúng với cái task thật sự đã làm. Nó **chỉ đề xuất**; bạn đọc rồi quyết.
+
+1. Khi task xong, agentflow ghi cạnh `summary.md` một file `spec-delta.md`: đề xuất của reviewer (mục `## Đề xuất cập nhật hồ sơ`), thay đổi thật của task (mục kế hoạch, commit, file đổi do git báo, gom theo thư mục) và liên kết (mục roadmap, mission/profile/architecture đã xác nhận hay chưa). File do agentflow sinh lúc seal nên agent làm việc không sửa được.
+2. Gõ `/dev-core:replan` (Antigravity: nhờ agent dùng skill `replan`; cùng thư mục skill). Skill kiểm `agentflow replan status` rồi giao cho scout: scout đọc `summary.md` và `spec-delta.md`, ghi lại các tài liệu không còn đúng bằng `project_write` (chúng thành `unconfirmed`), rồi lưu `replan.md` bằng tool `replan_write` với hai mục `## Mục roadmap đã hoàn thành` (đề xuất `- Rn: <bằng chứng>` hoặc `không có`) và `## Đề xuất cải tiến quy trình` (hoặc `không có`). Lúc này trạng thái là `proposed`; ghi lại thì bản cũ vào `.agentflow/project/history/replan-<task>-<thời điểm>.md`.
+3. Bạn đọc `replan.md`, `spec-delta.md` và các tài liệu scout vừa sửa (`agentflow project status` cho biết cái nào `unconfirmed` và dòng `removed:`). Rồi tự chạy: `agentflow project confirm profile architecture ...` cho cái bạn đồng ý, `agentflow roadmap set R1 done` cho mục đã xong (replan **không bao giờ** tự đóng mục), và cuối cùng `agentflow replan done`. Chỉ lúc này task mới được đánh dấu đã replan (`replanned_at` trong `state.json`, `Replan: done (ngày)` trong `summary.md`) và các dòng `removed:` biến mất.
+4. Không muốn replan task này: `agentflow replan skip <task> --reason "..."` (ghi vào `decisions/`). Đề xuất về quy trình trong `replan.md` là để bạn xem xét; không có gì tự áp vào workflow.
+
+`agentflow replan status` (chỉ đọc) in `replan: <trạng thái>`: `pending` (chưa có replan), `proposed` (scout đã ghi, chờ bạn), `done`, `skipped`, `task-open` (đang có task mở hoặc `blocked`), `not-sealed` (task xong chưa có tag: `agentflow task seal <id>`), `no-finished-task`. `agentflow task new` cảnh báo (không chặn) khi trạng thái là `pending` hoặc `proposed`.
+
 ## Lệnh của người
 
 Các lệnh dưới đây mang quyền quyết định của bạn. Hook của `dev-core` từ chối khi agent tự chạy (`agentflow guard` trả `deny`), nên bạn tự chạy.
@@ -202,7 +213,9 @@ Các lệnh dưới đây mang quyền quyết định của bạn. Hook của `
 | `agentflow knowledge init` / `pull <file...>` / `push <file>` | Tạo kho cá nhân; chép file vào dự án; đưa một bài học về kho |
 | `agentflow ext add <extension.yaml>` / `ext sync` | Đăng ký, đồng bộ extension của plugin con |
 | `agentflow config set <khóa> <giá trị>` | Đặt cài đặt dự án (ví dụ `backend.*`) |
-| `agentflow task seal <id>` | Ghi `summary.md` và tag duyệt cho task đã xong mà chưa có |
+| `agentflow task seal <id>` | Ghi `summary.md`, `spec-delta.md` và tag duyệt cho task đã xong mà chưa có |
+| `agentflow replan done` | Sau khi đọc `replan.md`: replan của task xong gần nhất (đang `proposed`) là xong; đánh dấu task, cập nhật `summary.md`, xóa dòng `removed:` |
+| `agentflow replan skip <task> --reason "..."` | Chủ động bỏ qua replan của task xong gần nhất (đang `pending` hoặc `proposed`) |
 | `agentflow role grant\|revoke\|sync` | Cấp, thu hồi, sinh lại tool MCP theo dự án cho role |
 
 Hai lệnh sau không bị hook từ chối nhưng phải luôn hỏi bạn nhờ quy tắc `ask` trong khối permissions: `agentflow task approve` (hoặc `/dev-core:approve`) và `agentflow task cancel`.
@@ -236,5 +249,7 @@ Chi phí tăng theo kích thước ngữ cảnh: mỗi yêu cầu gửi lại c�
 **Cảnh báo khi `task new`.** Cảnh báo không chặn, nhưng đáng đọc: *mission* hoặc *roadmap* chưa có hay chưa xác nhận (xác nhận bằng `agentflow project confirm mission` / `R1 ...`), task không gắn mục *roadmap* nào (thêm `--roadmap Rn`), hoặc mục gắn vào chưa xác nhận. `agentflow project status` cho cái nhìn tổng; dòng `removed: R4 (confirmed)` nghĩa là một agent đã bỏ khỏi roadmap một mục bạn từng xác nhận, bản trước ở `.agentflow/project/history/`; nếu không muốn, nhờ scout ghi lại mục đó (nó sẽ `unconfirmed`, bạn xác nhận lại).
 
 **Mục roadmap bị từ chối.** `task new --roadmap Rn` từ chối mục đã `done` hoặc `dropped`: mở lại bằng `agentflow roadmap set Rn doing`. Agent ghi roadmap sai khuôn bị từ chối (mã 35) và không thể bỏ mục đã `doing`/`done`/`dropped` hay tự đổi trạng thái; mục đã `done` do **bạn** đặt.
+
+**Cảnh báo chưa replan, hoặc replan chưa chạy được.** `agentflow task new` cảnh báo khi task xong gần nhất còn `pending` (chưa ai replan) hoặc `proposed` (scout đã đề xuất nhưng bạn chưa chạy `agentflow replan done`); cảnh báo không chặn. `/dev-core:replan` và `replan_write` bị từ chối khi đang có task mở, kể cả task `blocked` (nó vẫn là task mở): hoàn tất hoặc hủy task đó trước. Replan đã `done` thì không ghi lại được; muốn đổi, sửa tay tài liệu rồi xác nhận lại.
 
 **Task xong nhưng thiếu tag duyệt.** `agentflow task new` từ chối khi task xong gần nhất chưa có tag `agentflow/<task>/approved`. Tạo bù bằng `agentflow task seal <id>`.

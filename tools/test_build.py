@@ -151,7 +151,7 @@ def test_real_generated_agents_are_all_declared_in_the_manifest():
 
 def test_real_skills_use_only_portable_frontmatter():
     skills = {path.parent.name: path for path in (REAL_PLUGIN / "skills").glob("*/SKILL.md")}
-    assert set(skills) == {"start", "continue", "status", "approve", "setup"}
+    assert set(skills) == {"start", "continue", "status", "approve", "setup", "replan"}
     for name, path in skills.items():
         data = frontmatter(path)
         assert set(data) == {"name", "description"} and data["name"] == name
@@ -287,7 +287,7 @@ def test_other_roles_may_not_write_project_documents(plugin, role):
 def test_every_real_agent_can_use_the_workspace_tools(plugin_dir):
     for path in sorted((plugin_dir / "claude" / "agents").glob("*.md")):
         tools = frontmatter(path)["tools"].split(", ")
-        assert [MCP_PREFIX + name for name in WORKSPACE_TOOL_NAMES] == [t for t in tools if t.startswith(MCP_PREFIX) and not t.endswith("project_write")], path
+        assert [MCP_PREFIX + name for name in WORKSPACE_TOOL_NAMES] == [t for t in tools if t.startswith(MCP_PREFIX) and not t.endswith(("project_write", "replan_write"))], path
         assert (MCP_PREFIX + "project_write" in tools) is (path.stem == "scout"), path
 
 

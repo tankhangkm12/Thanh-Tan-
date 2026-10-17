@@ -9,22 +9,29 @@ from agentflow.constants import (
     BRANCH_SEPARATOR,
     DEVELOP_BRANCH,
     ENCODING,
+    SPEC_DELTA_FILE,
     SUMMARY_FILE,
     TASK_BASE_BRANCH,
     TASKS_DIR,
+    ConfirmUnit,
     ExitCode,
     GateKind,
+    ProjectSection,
+    ReplanState,
     TaskStatus,
     TaskType,
 )
+from agentflow.confirmations import Confirmations
 from agentflow.errors import AgentflowError
 from agentflow.fsutil import write_text_atomic
 from agentflow.gates import plan_report_path
-from agentflow.interfaces import GitClient
+from agentflow.interfaces import GitClient, SealingGit
 from agentflow.lessons import read_lessons, write_lessons
 from agentflow.models import State, Task, Workflow
 from agentflow.plan import PlanItem, parse_plan
+from agentflow.project import document_state, mission_state
 from agentflow.roadmap import find_item, items_of
+from agentflow.specdelta import build_spec_delta
 from agentflow.summary import build_summary
 
 ScanLines = Callable[[Task], list[str]]
@@ -61,7 +68,7 @@ def require_sealed(state: State, git: GitClient) -> None:
 class TaskSealer:
     def __init__(
         self,
-        git: GitClient,
+        git: SealingGit,
         workspace_dir: Path,
         workflow: Workflow,
         clock: Callable[[], str],
@@ -86,6 +93,20 @@ class TaskSealer:
         item = find_item(items_of(self.workspace_dir), task.roadmap)
         return item.label if item is not None else task.roadmap
 
+    def _review_report(self, task: Task) -> str | None:
+        """The review report: the step that checks the reviewer's proposals, else the last step; ``None`` when there is none."""
+        step = next((s for s in self.workflow.steps if GateKind.DRIFT_REVIEWED in s.gates), self.workflow.steps[-1])
+        path = plan_report_path(self.workspace_dir, task.id, step.id)
+        return path.read_text(encoding=ENCODING) if path.is_file() else None
+
+    def _document_states(self) -> dict[str, str]:
+        confirmations = Confirmations.load(self.workspace_dir)
+        return {
+            ConfirmUnit.MISSION: str(mission_state(self.workspace_dir, confirmations)),
+            ConfirmUnit.PROFILE: str(document_state(self.workspace_dir, ProjectSection.PROFILE, confirmations)),
+            ConfirmUnit.ARCHITECTURE: str(document_state(self.workspace_dir, ProjectSection.ARCHITECTURE, confirmations)),
+        }
+
     def seal(self, task: Task, commit: str | None = None) -> Path:
         """Write summary.md and tag the task's last commit; raises (changing no state) when that is not possible."""
         if task.branch is None:
@@ -99,13 +120,23 @@ class TaskSealer:
             raise AgentflowError(f"tag '{tag}' already exists", ExitCode.TASK_CONFLICT)
         approver, at = self.git.identity(), self.clock()
         base = base_branch(task)
-        commits = self.git.commits_between(base, tip) if self.git.branch_exists(base) else []
+        has_base = self.git.branch_exists(base)
+        commits = self.git.commits_between(base, tip) if has_base else []
+        files = list(self.git.changed_entries(base, tip)) if has_base else []
         lessons = read_lessons(plan_report_path(self.workspace_dir, task.id, self.workflow.steps[-1].id))
+        items, roadmap = self.plan_items(task), self._roadmap_label(task)
+        # Everything is worked out before anything is written: a seal that fails leaves no half-written file behind.
+        delta = build_spec_delta(task, self._review_report(task), items, commits, files, roadmap, self._document_states())
+        task_dir = self.workspace_dir / TASKS_DIR / task.id
+        text = build_summary(
+            task, items, commits, self.scan_lines(task), approver, at, lessons, roadmap,
+            f"{TASKS_DIR}/{task.id}/{SPEC_DELTA_FILE}", str(ReplanState.PENDING),
+        )  # fmt: skip
         write_lessons(self.workspace_dir, task.id, lessons)
-        text = build_summary(task, self.plan_items(task), commits, self.scan_lines(task), approver, at, lessons, self._roadmap_label(task))
-        path = self.workspace_dir / TASKS_DIR / task.id / SUMMARY_FILE
+        path = task_dir / SUMMARY_FILE
         path.parent.mkdir(parents=True, exist_ok=True)
         write_text_atomic(path, text)
+        write_text_atomic(task_dir / SPEC_DELTA_FILE, delta)
         message = f"agentflow approved {task.id}: {task.title}\nApproved by: {approver}\nApproved at: {at}"
         self.git.create_tag(tag, tip, message)
         return path

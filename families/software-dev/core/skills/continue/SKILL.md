@@ -45,7 +45,7 @@ Stop and tell the person where things stand only when:
 - the next action is `await_approval` or `blocked`;
 - a question is genuinely theirs to decide (do not guess);
 - a command was refused for a reason you cannot fix (for example a gate or an unavailable container engine);
-- the task is done. Say that `.agentflow/tasks/<task>/summary.md` has the summary and that the approval tag `agentflow/<task>/approved` is on the task branch. Merging and pushing are the person's job.
+- the task is done. Say that `.agentflow/tasks/<task>/summary.md` has the summary, that `.agentflow/tasks/<task>/spec-delta.md` shows what the task changed in the specification, and that the approval tag `agentflow/<task>/approved` is on the task branch. Offer the replan skill (`replan`) before the next task. Merging and pushing are the person's job.
 
 A failing test, security or review step sends the task back to `implement` by itself; after 3 rounds the task is blocked.
 

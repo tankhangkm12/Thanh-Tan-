@@ -73,6 +73,7 @@ _PERSON_ONLY = frozenset(
         ("decide",), ("ext", "add"), ("ext", "sync"), ("config", "set"), ("task", "seal"), ("project", "confirm"),
         ("knowledge", "init"), ("knowledge", "pull"), ("knowledge", "push"),
         ("role", "grant"), ("role", "revoke"), ("role", "sync"), ("roadmap", "set"),
+        ("replan", "done"), ("replan", "skip"),
     }  # fmt: skip
 )
 _SWITCH = "switch"

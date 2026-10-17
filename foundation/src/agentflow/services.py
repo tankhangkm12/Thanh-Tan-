@@ -48,7 +48,9 @@ from agentflow.mission import mission_warnings
 from agentflow.project import keep_previous
 from agentflow.projectcontext import load_project_context
 from agentflow.roadmap import describe, items_of, merge_agent_roadmap, next_item, read_roadmap, render_roadmap
+from agentflow.git import SubprocessGit
 from agentflow.render import describe_action
+from agentflow.replan import write_replan
 from agentflow.scan import unsuppressed_blocking
 from agentflow.scan_store import ScanStore, suppressed_ids
 from agentflow.state import JsonStateStore
@@ -117,6 +119,12 @@ class WorkspaceServices:
     def write_report(self, step: str, content: str) -> ReportInfo:
         workflow, state = self._open()
         path = write_report(self.paths.dir, workflow, require_active_task(state), step, content)
+        return ReportInfo(str(path), path.stat().st_size)
+
+    def write_replan(self, content: str) -> ReportInfo:
+        """Propose the replan of the latest finished task. Only a person (`agentflow replan done`) makes it done."""
+        _, state = self._open()
+        path = write_replan(self.paths.dir, state, SubprocessGit(self.paths.root), content)
         return ReportInfo(str(path), path.stat().st_size)
 
     # ------------------------------------------------------ project documents

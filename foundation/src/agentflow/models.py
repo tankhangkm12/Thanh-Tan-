@@ -144,6 +144,17 @@ class Task:
     size: str | None = None
     # The roadmap item (R3) the task serves; ``None`` when it is not tied to one.
     roadmap: str | None = None
+    # When a person confirmed the replan of this finished task (``agentflow replan done``); ``None`` until then.
+    replanned_at: str | None = None
+
+
+@dataclass(frozen=True)
+class FileChange:
+    """One file a task changed, as git reports it: ``status`` is A (added), M (modified), D (deleted) or R (renamed)."""
+
+    status: str
+    path: str
+    old_path: str | None = None
 
 
 @dataclass(frozen=True)
@@ -182,6 +193,7 @@ def _task_from_dict(data: Mapping[str, Any]) -> Task:
         branch=data[StateKey.BRANCH],
         size=data.get(StateKey.SIZE),
         roadmap=data.get(StateKey.ROADMAP),
+        replanned_at=data.get(StateKey.REPLANNED_AT),
         history=tuple(
             HistoryEntry(
                 at=entry[StateKey.AT],
@@ -220,6 +232,8 @@ def _task_to_dict(task: Task) -> dict[str, Any]:
         data[StateKey.SIZE] = task.size
     if task.roadmap is not None:
         data[StateKey.ROADMAP] = task.roadmap
+    if task.replanned_at is not None:
+        data[StateKey.REPLANNED_AT] = task.replanned_at
     return data
 
 

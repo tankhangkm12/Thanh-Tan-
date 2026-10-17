@@ -101,6 +101,8 @@ Plugin con khai báo một file `extension.yaml` (ví dụ `families/software-de
   workflow.yaml   bản chép của workflow: status/next dùng bản này
   decisions/      mỗi lần người duyệt tiếp một task bị blocked ghi một file
   tasks/T-001/reports/<bước>.md   báo cáo của từng bước (agentflow report)
+  tasks/T-001/summary.md, spec-delta.md   do agentflow sinh lúc seal (spec-delta: cái task thật sự đổi)
+  tasks/T-001/replan.md                   đề xuất replan của scout (replan_write); chỉ "proposed" tới khi người chạy replan done
   project/        profile.md (có mục ## Mission), architecture.md, sources.md, conventions.md, roadmap.md,
                   confirmations.json (hash của cái người đã xác nhận), history/ (bản trước của tài liệu bị ghi đè)
   knowledge/
@@ -145,6 +147,9 @@ Task trong `state.json` có `id` (`T-001`), `title`, `status` (`open`/`blocked`/
 | `agentflow conventions` | Liệt kê quy ước đã gộp từ decisions, project và kho cá nhân (quy ước chưa xác nhận ghi rõ là gợi ý) | |
 | `agentflow decide --answer <Q1\|S1> --text ... --check plan\|semgrep\|review [--rule r] [--overrides code] [--global]` | Việc của người: trả lời câu hỏi (của plan hoặc của setup), sinh quy ước `DC-NN` trong `decisions/`; `--global` ghi thêm `KC-NN` vào kho cá nhân | Không có câu hỏi đó, thiếu `--text`/`--check`, đã trả lời, quy ước không hợp lệ |
 | `agentflow knowledge init [--dir D]` / `pull <file...>` / `push <file> [--as lessons\|patterns]` | Việc của người: tạo khung kho cá nhân; chép file người chọn vào `.agentflow/knowledge/`; đưa một bài học từ workspace về kho | Đường dẫn ra ngoài kho/workspace, file đã có ở đích |
+| `agentflow replan status` | Chỉ đọc: `replan: no-finished-task\|task-open\|not-sealed\|pending\|proposed\|done\|skipped` và `task: <id>` |
+| `agentflow replan write` | stdin: đề xuất replan của task xong gần nhất (`tasks/<task>/replan.md`); từ chối khi có task mở/blocked, thiếu hai mục bắt buộc hay nêu mục roadmap lạ |
+| `agentflow replan done` / `agentflow replan skip <task> --reason ...` | Việc của người: xác nhận replan đã `proposed` là xong (`replanned_at`, summary, xóa `removed:`) / chủ động bỏ qua |
 | `agentflow mcp serve` | Chạy server MCP trên stdio (do Claude Code/Antigravity khởi động) | |
 | `agentflow hook <pre-tool\|session-start\|stop> --cli claude\|antigravity` | Trả lời hook của CLI (JSON trên stdin): chặn lệnh và ghi nguy hiểm, nạp tóm tắt task đầu phiên, nhắc khi dừng | Không bao giờ: lỗi chỉ báo ra stderr, hook luôn thoát 0 để không làm hỏng agent |
 | `agentflow guard` | Đọc `{"command","cwd"}` từ stdin, in `{"decision","rule","reason"}` | Input không phải JSON hợp lệ |
@@ -157,7 +162,7 @@ Task trong `state.json` có `id` (`T-001`), `title`, `status` (`open`/`blocked`/
 
 `agentflow commit` chỉ chạy khi đang ở nhánh của task và có file staged. Gitleaks (image ghim phiên bản, chạy qua Docker, dự phòng Podman, mount chỉ đọc) quét phần staged; engine không chạy hoặc có secret thì báo lỗi và **không commit**.
 
-`agentflow guard` chặn: `git push` mọi dạng; mọi dạng `git commit` trong dự án đã có `.agentflow/` (chỉ cho commit qua `agentflow commit`; repo không có `.agentflow/` thì không chặn); `merge`/`commit`/`rebase`/`cherry-pick`/`revert`/`am` khi đang ở `main` hoặc `develop`; `reset --hard`; `clean` có cả `-f` và `-d`; `branch -D` (và `-d -f`); xóa tag; tạo tag hoặc ref dưới `agentflow/` (tag duyệt chỉ do `task approve` tạo); các lệnh của người (`decide`, `ext add`, `ext sync`, `config set`, `task seal`, `project confirm`, `roadmap set`, `knowledge init|pull|push`) khi agent tự chạy. Hiểu lệnh ghép (`&&`, `;`, `|`), `git -C`, `bash -c "..."` và việc `git switch` sang nhánh được bảo vệ ngay trong chuỗi lệnh. Đây là lưới an toàn cho agent, không phải sandbox: alias git, script hay biến môi trường vẫn có thể vượt qua.
+`agentflow guard` chặn: `git push` mọi dạng; mọi dạng `git commit` trong dự án đã có `.agentflow/` (chỉ cho commit qua `agentflow commit`; repo không có `.agentflow/` thì không chặn); `merge`/`commit`/`rebase`/`cherry-pick`/`revert`/`am` khi đang ở `main` hoặc `develop`; `reset --hard`; `clean` có cả `-f` và `-d`; `branch -D` (và `-d -f`); xóa tag; tạo tag hoặc ref dưới `agentflow/` (tag duyệt chỉ do `task approve` tạo); các lệnh của người (`decide`, `ext add`, `ext sync`, `config set`, `task seal`, `project confirm`, `roadmap set`, `replan done`, `replan skip`, `knowledge init|pull|push`) khi agent tự chạy. Hiểu lệnh ghép (`&&`, `;`, `|`), `git -C`, `bash -c "..."` và việc `git switch` sang nhánh được bảo vệ ngay trong chuỗi lệnh. Đây là lưới an toàn cho agent, không phải sandbox: alias git, script hay biến môi trường vẫn có thể vượt qua.
 
 ### Bảo vệ workspace
 
@@ -176,7 +181,7 @@ Claude Code (theo tài liệu sub-agents và plugins-reference): `tools` của a
 
 ### Tool MCP
 
-`agentflow mcp serve` (SDK `mcp` 2.x, stdio) cho agent chín tool, mỗi tool gọi `WorkspaceService` (`services.py`), cùng mã với CLI nên cùng luật; luật bị vi phạm trả về dưới dạng lỗi tool kèm thông báo rõ.
+`agentflow mcp serve` (SDK `mcp` 2.x, stdio) cho agent mười tool, mỗi tool gọi `WorkspaceService` (`services.py`), cùng mã với CLI nên cùng luật; luật bị vi phạm trả về dưới dạng lỗi tool kèm thông báo rõ.
 
 | Tool | Việc |
 |---|---|
@@ -184,6 +189,7 @@ Claude Code (theo tài liệu sub-agents và plugins-reference): `tools` của a
 | `plan_check` | Kiểm kế hoạch; plan sai là kết quả `{ok, problems}`, không phải lỗi tool |
 | `report_write(step, content)` | Ghi báo cáo. **Chỉ cho bước hiện tại của task đang mở, khi bước còn `in_progress`**: từ chối bước khác và từ chối ghi đè báo cáo của bước đã qua/đang chờ duyệt (cả `agentflow report`) |
 | `project_write(section, content)` | Ghi `project/{profile,architecture,sources,conventions}.md`; từ chối khi còn task mở |
+| `replan_write(content)` | Đề xuất replan của task xong gần nhất; chỉ khi không có task mở; chỉ đề xuất (`proposed`), người chạy `replan done` mới xong |
 | `scan_summary` | Kết quả scan và phát hiện chặn còn lại |
 | `conventions` | Quy ước đã gộp từ decisions, project, kho cá nhân; `enforced=false` là quy ước dự án chưa xác nhận |
 | `knowledge_search`, `knowledge_read` | Chỉ đọc bản chép trong `.agentflow/knowledge/` |
@@ -191,6 +197,14 @@ Claude Code (theo tài liệu sub-agents và plugins-reference): `tools` của a
 Không có tool cho việc của người: duyệt, hủy, seal, `decide`, extension, `config set`, push kiến thức. Một test giữ danh sách tool là danh sách đóng.
 
 Plugin khai báo server ở `.mcp.json` (Claude Code) và `mcp_config.json` (Antigravity), cùng lệnh `agentflow mcp serve`. Điều đã thử thật nằm trong [mcp-notes.md](mcp-notes.md): tên tool ở Claude Code, tên tool của agent plugin, việc Antigravity chạy server ở thư mục plugin (nên server tìm dự án qua `cwd`, `AGENTFLOW_PROJECT_DIR`, `PWD`, rồi con trỏ `~/.agentflow/active-project.txt` mà hook Antigravity để lại), và việc Antigravity không cho giới hạn tool MCP theo role.
+
+### Spec delta và replan
+
+Khi seal một task (`TaskSealer`), agentflow ghi `tasks/<task>/spec-delta.md` cạnh `summary.md`: mục `## Đề xuất của reviewer` (chép mục `## Đề xuất cập nhật hồ sơ` của báo cáo review, ở bước mang gate `drift-reviewed`, nếu workflow không có gate thì bước cuối), `## Thay đổi thật của task` (mục kế hoạch, commit, file đổi từ `git diff --name-status -z -M`, gom theo thư mục cấp đầu) và `## Liên kết` (mục roadmap; mission, profile, architecture là `missing|unconfirmed|confirmed`). Mọi thứ được tính trước khi ghi nên seal lỗi không để lại file dở.
+
+Replan có bốn trạng thái do `replan_status` suy ra: `pending` (chưa có `replan.md`), `proposed` (có `replan.md`), `done` (task có `replanned_at` trong `state.json`, trường tùy chọn, vắng với task cũ), `skipped` (có `decisions/<task>-replan-skip.md`); task mở hoặc `blocked` thắng mọi trạng thái, và task xong chưa có tag là `not-sealed`. `replan write` / `replan_write` chỉ chuyển sang `proposed` (không ghi `replanned_at`, không xóa dòng `removed:`, không đổi trạng thái roadmap); bản `replan.md` cũ vào `project/history/replan-<task>-...`. Chỉ người chạy `replan done` mới chuyển sang `done`; lệnh này và `replan skip` nằm trong danh sách lệnh của người mà guard từ chối khi agent chạy.
+
+Tham chiếu: ý tưởng này gần với luồng thay đổi theo đặc tả của [OpenSpec](https://github.com/Fission-AI/OpenSpec) (không phụ thuộc, *not a dependency*: không cài gì): `spec-delta.md` tương ứng *propose* (cái thay đổi so với đặc tả), task tương ứng *apply*, `agentflow project confirm` là chấp nhận thay đổi vào hồ sơ, còn seal cùng tag duyệt tương ứng *archive*.
 
 ### Hồ sơ dự án và quy ước
 

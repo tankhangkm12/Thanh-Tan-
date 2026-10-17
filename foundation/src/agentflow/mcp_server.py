@@ -28,8 +28,8 @@ from agentflow.services import WorkspaceServices
 
 INSTRUCTIONS = (
     "agentflow keeps the state of a software task in .agentflow/. Use these tools instead of editing files there. "
-    "A tool that refuses says why; follow its message. Approving a step, cancelling, sealing, deciding and "
-    "changing settings are for a person and are not offered."
+    "A tool that refuses says why; follow its message. Approving a step, cancelling, sealing, deciding, "
+    "confirming a replan and changing settings are for a person and are not offered."
 )
 
 
@@ -59,6 +59,9 @@ class CurrentProjectServices:
 
     def write_project(self, section, content):
         return self._service().write_project(section, content)
+
+    def write_replan(self, content):
+        return self._service().write_replan(content)
 
     def scan_summary(self):
         return self._service().scan_summary()
@@ -111,6 +114,9 @@ def build_server(service: WorkspaceService) -> MCPServer:
     def project_write(section: ProjectSection, content: str) -> dict[str, Any]:
         return service.write_project(section, content)
 
+    def replan_write(content: str) -> dict[str, Any]:
+        return service.write_replan(content)
+
     def scan_summary() -> dict[str, Any]:
         return service.scan_summary()
 
@@ -140,6 +146,12 @@ def build_server(service: WorkspaceService) -> MCPServer:
         "Save a project document (profile, architecture, sources or conventions) under .agentflow/project/. "
         "Refused while a task is open.",
         project_write,
+    )
+    register(
+        ToolName.REPLAN_WRITE,
+        "Propose the replan of the latest finished task (Markdown with the sections 'Mục roadmap đã hoàn thành' and "
+        "'Đề xuất cải tiến quy trình'). It only proposes: a person reads it and says it is done. Refused while a task is open.",
+        replan_write,
     )
     register(ToolName.SCAN_SUMMARY, "Results of the scans run for the active task and the blocking findings left.", scan_summary)
     register(

@@ -5,7 +5,7 @@ from pathlib import Path
 
 from agentflow.constants import ENCODING, GIT_EXECUTABLE, PLAN_ITEM_TRAILER, ExitCode
 from agentflow.errors import AgentflowError
-from agentflow.models import CommitInfo
+from agentflow.models import CommitInfo, FileChange
 
 CURRENT_BRANCH_ARGS = ("symbolic-ref", "--quiet", "--short", "HEAD")
 STATUS_ARGS = ("status", "--porcelain")
@@ -121,6 +121,27 @@ class SubprocessGit:
     def changed_files(self, base: str, head: str) -> list[str]:
         output = _checked(self.root, "diff", "--name-only", "--diff-filter=ACMR", f"{base}...{head}")
         return [line for line in output.splitlines() if line]
+
+    def changed_entries(self, base: str, head: str) -> list[FileChange]:
+        # NUL-separated so that a name with unusual characters comes out as it is, not quoted.
+        done = run_git(self.root, "diff", "--name-status", "-z", "-M", f"{base}...{head}")
+        if done.returncode != 0:
+            raise AgentflowError(f"git diff failed: {(done.stderr or done.stdout).strip()}", ExitCode.GIT_FAILED)
+        fields = done.stdout.split("\0")
+        changes: list[FileChange] = []
+        position = 0
+        while position < len(fields) and fields[position]:
+            code = fields[position][0]
+            if code in {"R", "C"} and position + 2 < len(fields):
+                old, new = fields[position + 1], fields[position + 2]
+                changes.append(FileChange("R" if code == "R" else "A", new, old if code == "R" else None))
+                position += 3
+            elif position + 1 < len(fields):
+                changes.append(FileChange({"A": "A", "D": "D"}.get(code, "M"), fields[position + 1]))
+                position += 2
+            else:
+                break
+        return changes
 
     def identity(self) -> str:
         name = run_git(self.root, *CONFIG_GET_ARGS, "user.name").stdout.strip()
