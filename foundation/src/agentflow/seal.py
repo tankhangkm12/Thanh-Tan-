@@ -24,6 +24,7 @@ from agentflow.interfaces import GitClient
 from agentflow.lessons import read_lessons, write_lessons
 from agentflow.models import State, Task, Workflow
 from agentflow.plan import PlanItem, parse_plan
+from agentflow.roadmap import find_item, items_of
 from agentflow.summary import build_summary
 
 ScanLines = Callable[[Task], list[str]]
@@ -79,6 +80,12 @@ class TaskSealer:
         path = plan_report_path(self.workspace_dir, task.id, step.id)
         return parse_plan(path.read_text(encoding=ENCODING)).items if path.is_file() else ()
 
+    def _roadmap_label(self, task: Task) -> str | None:
+        if not task.roadmap:
+            return None
+        item = find_item(items_of(self.workspace_dir), task.roadmap)
+        return item.label if item is not None else task.roadmap
+
     def seal(self, task: Task, commit: str | None = None) -> Path:
         """Write summary.md and tag the task's last commit; raises (changing no state) when that is not possible."""
         if task.branch is None:
@@ -95,7 +102,7 @@ class TaskSealer:
         commits = self.git.commits_between(base, tip) if self.git.branch_exists(base) else []
         lessons = read_lessons(plan_report_path(self.workspace_dir, task.id, self.workflow.steps[-1].id))
         write_lessons(self.workspace_dir, task.id, lessons)
-        text = build_summary(task, self.plan_items(task), commits, self.scan_lines(task), approver, at, lessons)
+        text = build_summary(task, self.plan_items(task), commits, self.scan_lines(task), approver, at, lessons, self._roadmap_label(task))
         path = self.workspace_dir / TASKS_DIR / task.id / SUMMARY_FILE
         path.parent.mkdir(parents=True, exist_ok=True)
         write_text_atomic(path, text)

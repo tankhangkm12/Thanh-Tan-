@@ -142,6 +142,8 @@ class Task:
     history: tuple[HistoryEntry, ...] = ()
     # The workflow size the task was started with; ``None`` when the workflow has no sizes.
     size: str | None = None
+    # The roadmap item (R3) the task serves; ``None`` when it is not tied to one.
+    roadmap: str | None = None
 
 
 @dataclass(frozen=True)
@@ -179,6 +181,7 @@ def _task_from_dict(data: Mapping[str, Any]) -> Task:
         loop_round=data[StateKey.LOOP_ROUND],
         branch=data[StateKey.BRANCH],
         size=data.get(StateKey.SIZE),
+        roadmap=data.get(StateKey.ROADMAP),
         history=tuple(
             HistoryEntry(
                 at=entry[StateKey.AT],
@@ -215,6 +218,8 @@ def _task_to_dict(task: Task) -> dict[str, Any]:
     }
     if task.size is not None:
         data[StateKey.SIZE] = task.size
+    if task.roadmap is not None:
+        data[StateKey.ROADMAP] = task.roadmap
     return data
 
 
@@ -387,6 +392,7 @@ class TaskInfo:
     loop_round: int
     max_rounds: int
     size: str | None = None
+    roadmap: str | None = None
 
 
 @dataclass(frozen=True)
@@ -395,6 +401,8 @@ class StatusInfo:
     workflow: str
     active_task: TaskInfo | None
     next: str
+    # The roadmap item to take up next, as ``R2 - Title`` plus ``(unconfirmed)`` when nobody confirmed it.
+    next_roadmap: str | None = None
 
 
 @dataclass(frozen=True)
@@ -423,6 +431,8 @@ class ProjectWriteInfo:
     open_questions: int = 0
     # Conventions that were confirmed (or written as confirmed) and are now unconfirmed, because an agent cannot confirm.
     demoted: tuple[str, ...] = ()
+    # Things the writer should know: a mission that is incomplete, a status that was kept, a confirmed item that is gone.
+    warnings: tuple[str, ...] = ()
 
 
 @dataclass(frozen=True)

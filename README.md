@@ -118,7 +118,7 @@ agentflow init --workflow "<repo>/families/software-dev/core/workflow.yaml"
 `.agentflow/` được tạo ở local và tự thêm vào `.git/info/exclude` (không bị commit). Sau đó, trong Claude Code gõ `/dev-core:start` (Antigravity: nhờ agent dùng skill `start`) rồi làm theo hướng dẫn; hoặc tự chạy:
 
 ```
-agentflow task new "Tiêu đề" --type feature    # tạo nhánh feature/T-001-...
+agentflow task new "Tiêu đề" --type feature --roadmap R1   # tạo nhánh feature/T-001-..., gắn task với mục R1 của roadmap
 agentflow status
 agentflow task advance --result pass           # xong bước; bước cần duyệt thì tiếp theo là:
 agentflow task approve
@@ -207,7 +207,7 @@ uv run tools/trial_cli.py --modes --only agy          # Antigravity thật: agen
 
 ### Quy ước và kho kiến thức
 
-Lần đầu trên một dự án có sẵn: gọi skill `setup` (xem hướng dẫn dùng thử ở cuối). Scout đọc tài liệu bạn chỉ và code, rồi viết `.agentflow/project/{profile,architecture,sources,conventions}.md`; mọi quy ước ban đầu là `unconfirmed`. Bạn đọc, trả lời câu hỏi mở (`S1`...) và xác nhận bằng `agentflow project confirm PC-01 PC-02` (hoặc `--all`). `agentflow task new` cảnh báo khi còn quy ước chưa xác nhận.
+Lần đầu trên một dự án có sẵn: gọi skill `setup` (xem hướng dẫn dùng thử ở cuối). Scout đọc tài liệu bạn chỉ và code, rồi viết `.agentflow/project/{profile,architecture,sources,conventions,roadmap}.md`; mọi quy ước ban đầu là `unconfirmed`. Bạn đọc, trả lời câu hỏi mở (`S1`...) và xác nhận bằng `agentflow project confirm PC-01 PC-02` (hoặc `--all`, chỉ gồm quy ước). Scout cũng viết **mission** (mục `## Mission` của `profile.md`, lấy từ tài liệu bạn đưa) và đề xuất **roadmap** (`project/roadmap.md`, mục `R1`, `R2`...): bạn xác nhận bằng `agentflow project confirm mission` và `agentflow project confirm R1 R2`, xem tình trạng bằng `agentflow project status`, đổi trạng thái một mục bằng `agentflow roadmap set R3 dropped`. Tài liệu đã xác nhận mà agent sửa nội dung thì tự về `unconfirmed`. `agentflow task new --roadmap Rn` gắn task với một mục (chuyển sang `doing`; task xong không tự đóng mục, bạn đặt `done`) và cảnh báo khi còn quy ước, mission hoặc mục roadmap chưa xác nhận hay task không gắn mục nào.
 
 Mỗi quy ước có `check:` là `plan` (luật `item-order`: mục `kind: interface` đứng trước mục `kind: implement` đụng cùng file; luật `layer-order`: các mục theo thứ tự lớp của dự án, xem [Tier và thứ tự lớp](#tier-và-thứ-tự-lớp)), `semgrep` (rule do **bạn** viết, để trong `.agentflow/knowledge/semgrep/`, chạy cùng scan ở bước security) hoặc `review` (reviewer ghi `PC-01: đạt` hoặc `vi phạm PC-01 ở file:dòng` cho từng mã). Ưu tiên: `decisions/` > `project/conventions.md` > `knowledge/conventions.md`. Xem bằng `agentflow conventions`.
 
@@ -312,9 +312,9 @@ Hướng dẫn đầy đủ (chọn plugin, khuôn yêu cầu task, checklist du
 2. Cài plugin vào Claude Code (`claude plugin marketplace add "<repo>"`, `claude plugin install dev-core@thanh-tan-plugins`, `dev-backend@thanh-tan-plugins`) và/hoặc Antigravity (`agy plugin install "<repo>/families/software-dev/core"` và `.../backend`). Mở lại CLI để nạp skill, agent, hook và server MCP.
 3. Dán khối `permissions` ở **Bước 4** vào `.claude/settings.json` của dự án. Quy tắc `ask` là bắt buộc.
 4. Trong dự án (repo git có `main` và `develop`, cây làm việc sạch): `agentflow init --workflow "<repo>/families/software-dev/core/workflow.yaml"`. Với dev-backend, thêm bước của **bạn**: `agentflow ext add "<repo>/families/software-dev/backend/extension.yaml"`, `agentflow config set backend.*`, `agentflow config check`.
-5. **Hồ sơ hóa dự án:** gõ `/dev-core:setup` (Antigravity: nhờ agent dùng skill `setup`). Bạn đưa đường dẫn tài liệu; scout đọc rồi viết `.agentflow/project/*.md`. Mở các file đó, trả lời câu hỏi mở `S1...` bằng `agentflow decide --answer S1 --text "..." --check review`, rồi xác nhận quy ước đồng ý: `agentflow project confirm PC-01 PC-02` (hoặc `--all`).
+5. **Hồ sơ hóa dự án:** gõ `/dev-core:setup` (Antigravity: nhờ agent dùng skill `setup`). Bạn đưa đường dẫn tài liệu; scout đọc rồi viết `.agentflow/project/*.md`. Mở các file đó, trả lời câu hỏi mở `S1...` bằng `agentflow decide --answer S1 --text "..." --check review`, rồi xác nhận quy ước đồng ý: `agentflow project confirm PC-01 PC-02` (hoặc `--all`), cùng mission và các mục roadmap: `agentflow project confirm mission R1 R2`.
 6. **Kho kiến thức (tùy chọn):** `agentflow knowledge init`; đặt rule Semgrep của bạn vào `<kho>/semgrep/` và quy ước cá nhân vào `<kho>/conventions.md`; chép vào dự án bằng `agentflow knowledge pull semgrep/<rule>.yaml conventions.md`.
-7. **Làm việc:** `/dev-core:start`, rồi `/dev-core:continue`. Agent tự chạy các bước không cần duyệt và dừng ở `confirm`, `plan`, `review` để bạn `agentflow task approve` (hoặc `/dev-core:approve`). Plan có mục `## Chưa có quy ước` thì bạn trả lời bằng `agentflow decide --answer Q1 ...` rồi để agent chạy tiếp. Phát hiện chặn của scan mà bạn xác nhận là báo nhầm: `agentflow decide --suppress <id> --reason "..."`.
+7. **Làm việc:** `/dev-core:start` (chọn mục roadmap `Rn` cho task; `agentflow roadmap list` để xem), rồi `/dev-core:continue`. Agent tự chạy các bước không cần duyệt và dừng ở `confirm`, `plan`, `review` để bạn `agentflow task approve` (hoặc `/dev-core:approve`). Plan có mục `## Chưa có quy ước` thì bạn trả lời bằng `agentflow decide --answer Q1 ...` rồi để agent chạy tiếp. Phát hiện chặn của scan mà bạn xác nhận là báo nhầm: `agentflow decide --suppress <id> --reason "..."`.
 8. **Sau khi xong:** xem `.agentflow/tasks/<task>/summary.md` (mục, commit, scan, "Bài học đề xuất") và tag `git tag -l "agentflow/*"`. Bài học đáng giữ: `agentflow knowledge push .agentflow/tasks/<task>/lessons/L1.md`. Merge và push là việc của bạn.
 
-Các lệnh của người (`decide`, `project confirm`, `knowledge init|pull|push`, `ext add|sync`, `config set`, `task seal`): trong Claude Code gõ với tiền tố `!`; agent tự chạy sẽ bị hook từ chối.
+Các lệnh của người (`decide`, `project confirm`, `roadmap set`, `knowledge init|pull|push`, `ext add|sync`, `config set`, `task seal`): trong Claude Code gõ với tiền tố `!`; agent tự chạy sẽ bị hook từ chối.

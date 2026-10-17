@@ -138,6 +138,8 @@ def render_state_md(state: State, workflow: Workflow) -> str:
         ]
         if task.size:
             lines.append(f"- Size: {task.size}")
+        if task.roadmap:
+            lines.append(f"- Roadmap: {task.roadmap}")
     lines += [f"- Next: {describe_action(next_action(workflow, task))}", "", "## Tasks", ""]
     if not state.tasks:
         lines.append("No tasks yet.")

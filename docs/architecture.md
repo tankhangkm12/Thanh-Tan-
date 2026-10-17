@@ -101,7 +101,9 @@ Plugin con khai báo một file `extension.yaml` (ví dụ `families/software-de
   workflow.yaml   bản chép của workflow: status/next dùng bản này
   decisions/      mỗi lần người duyệt tiếp một task bị blocked ghi một file
   tasks/T-001/reports/<bước>.md   báo cáo của từng bước (agentflow report)
-  project/  knowledge/
+  project/        profile.md (có mục ## Mission), architecture.md, sources.md, conventions.md, roadmap.md,
+                  confirmations.json (hash của cái người đã xác nhận), history/ (bản trước của tài liệu bị ghi đè)
+  knowledge/
 ```
 
 - Chạy lại `init` không ghi đè `state.json` hay bản chép workflow; chỉ tạo phần còn thiếu và cập nhật `source_path`. Đổi sang workflow của nhóm khác thì bị từ chối.
@@ -121,7 +123,7 @@ Task trong `state.json` có `id` (`T-001`), `title`, `status` (`open`/`blocked`/
 | `agentflow status` | Task đang mở, bước hiện tại, việc tiếp theo | Chưa có workspace, state hỏng |
 | `agentflow next` | Bước tiếp theo, dạng `<loại>: <mô tả>` | Như `status` |
 | `agentflow workflow sync [--force]` | Thay bản chép workflow bằng bản gốc đã kiểm | Bản gốc lỗi hoặc mất, khác nhóm, có task đang chạy |
-| `agentflow task new "<tiêu đề>" --type feature\|bugfix\|hotfix [--size <cỡ>]` | Tạo nhánh gitflow `<type>/T-001-<slug>` và ghi task | Cây làm việc chưa sạch, đã có task mở, thiếu nhánh gốc |
+| `agentflow task new "<tiêu đề>" --type feature\|bugfix\|hotfix [--size <cỡ>] [--roadmap Rn]` | Tạo nhánh gitflow `<type>/T-001-<slug>` và ghi task; `--roadmap` gắn task với một mục roadmap (chuyển mục sang `doing`). Cảnh báo (không chặn) khi thiếu mission/roadmap, chưa xác nhận, hoặc không có `--roadmap` | Cây làm việc chưa sạch, đã có task mở, thiếu nhánh gốc; `--roadmap` sai mã, không có roadmap, mục `done`/`dropped` |
 | `agentflow task advance --result pass\|fail` | Ghi kết quả bước hiện tại | Không có task, bước không ở trạng thái cho phép |
 | `agentflow task approve [--reason ...]` | Duyệt bước đang chờ; với task `blocked` là người cho làm tiếp (ghi `decisions/`) | Như trên |
 | `agentflow task cancel` | Hủy task đang mở | Không có task đang mở |
@@ -136,7 +138,10 @@ Task trong `state.json` có `id` (`T-001`), `title`, `status` (`open`/`blocked`/
 | `agentflow role list` | Grant của dự án, agent đang mang chúng và trạng thái (`current`, `stale`, `missing`), ghi chú Antigravity | |
 | `agentflow report --step <bước>` | Ghi stdin vào `tasks/<task>/reports/<bước>.md` | Bước không có trong workflow, nội dung rỗng |
 | `agentflow commit "<nội dung>" [--item C1]` | Scan secret rồi commit với tiền tố `T-001: `; `--item` ghi trailer `Plan-Item: C1` | Sai nhánh, không có gì staged, thấy secret, engine container không chạy, mục không có trong plan |
-| `agentflow project confirm <mã...>\|--all` | Việc của người: đánh dấu quy ước `confirmed` trong `project/conventions.md` | Chưa có quy ước, mã không có, file có lỗi |
+| `agentflow project confirm <mã...>\|--all` | Việc của người: xác nhận quy ước (`PC-01`, `status: confirmed` trong `project/conventions.md`), mission (`mission`), `profile`, `architecture` hoặc mục roadmap (`R1`), lưu hash trong `project/confirmations.json`; `--all` chỉ gồm quy ước | Mã không có, tài liệu chưa có, mission thiếu trường, file có lỗi; một mã sai thì không xác nhận gì |
+| `agentflow project status` | Chỉ đọc: `mission:`, `profile:`, `architecture:`, `conventions:`, `roadmap:` là `missing`/`unconfirmed`/`confirmed`, và `removed: R4 (confirmed)` cho mục roadmap đã xác nhận mà agent bỏ đi | Chưa có workspace |
+| `agentflow roadmap list` | Chỉ đọc: `R1 [todo] Tiêu đề` kèm `(unconfirmed)` | Chưa có workspace |
+| `agentflow roadmap set <Rn> todo\|doing\|done\|dropped` | Việc của người: đổi trạng thái một mục roadmap (không làm mục mất xác nhận) | Mã không có, chưa có roadmap |
 | `agentflow conventions` | Liệt kê quy ước đã gộp từ decisions, project và kho cá nhân (quy ước chưa xác nhận ghi rõ là gợi ý) | |
 | `agentflow decide --answer <Q1\|S1> --text ... --check plan\|semgrep\|review [--rule r] [--overrides code] [--global]` | Việc của người: trả lời câu hỏi (của plan hoặc của setup), sinh quy ước `DC-NN` trong `decisions/`; `--global` ghi thêm `KC-NN` vào kho cá nhân | Không có câu hỏi đó, thiếu `--text`/`--check`, đã trả lời, quy ước không hợp lệ |
 | `agentflow knowledge init [--dir D]` / `pull <file...>` / `push <file> [--as lessons\|patterns]` | Việc của người: tạo khung kho cá nhân; chép file người chọn vào `.agentflow/knowledge/`; đưa một bài học từ workspace về kho | Đường dẫn ra ngoài kho/workspace, file đã có ở đích |
@@ -152,7 +157,7 @@ Task trong `state.json` có `id` (`T-001`), `title`, `status` (`open`/`blocked`/
 
 `agentflow commit` chỉ chạy khi đang ở nhánh của task và có file staged. Gitleaks (image ghim phiên bản, chạy qua Docker, dự phòng Podman, mount chỉ đọc) quét phần staged; engine không chạy hoặc có secret thì báo lỗi và **không commit**.
 
-`agentflow guard` chặn: `git push` mọi dạng; mọi dạng `git commit` trong dự án đã có `.agentflow/` (chỉ cho commit qua `agentflow commit`; repo không có `.agentflow/` thì không chặn); `merge`/`commit`/`rebase`/`cherry-pick`/`revert`/`am` khi đang ở `main` hoặc `develop`; `reset --hard`; `clean` có cả `-f` và `-d`; `branch -D` (và `-d -f`); xóa tag; tạo tag hoặc ref dưới `agentflow/` (tag duyệt chỉ do `task approve` tạo); các lệnh của người (`decide`, `ext add`, `ext sync`, `config set`, `task seal`, `project confirm`, `knowledge init|pull|push`) khi agent tự chạy. Hiểu lệnh ghép (`&&`, `;`, `|`), `git -C`, `bash -c "..."` và việc `git switch` sang nhánh được bảo vệ ngay trong chuỗi lệnh. Đây là lưới an toàn cho agent, không phải sandbox: alias git, script hay biến môi trường vẫn có thể vượt qua.
+`agentflow guard` chặn: `git push` mọi dạng; mọi dạng `git commit` trong dự án đã có `.agentflow/` (chỉ cho commit qua `agentflow commit`; repo không có `.agentflow/` thì không chặn); `merge`/`commit`/`rebase`/`cherry-pick`/`revert`/`am` khi đang ở `main` hoặc `develop`; `reset --hard`; `clean` có cả `-f` và `-d`; `branch -D` (và `-d -f`); xóa tag; tạo tag hoặc ref dưới `agentflow/` (tag duyệt chỉ do `task approve` tạo); các lệnh của người (`decide`, `ext add`, `ext sync`, `config set`, `task seal`, `project confirm`, `roadmap set`, `knowledge init|pull|push`) khi agent tự chạy. Hiểu lệnh ghép (`&&`, `;`, `|`), `git -C`, `bash -c "..."` và việc `git switch` sang nhánh được bảo vệ ngay trong chuỗi lệnh. Đây là lưới an toàn cho agent, không phải sandbox: alias git, script hay biến môi trường vẫn có thể vượt qua.
 
 ### Bảo vệ workspace
 
@@ -197,7 +202,13 @@ Quyền xác nhận thuộc về người:
 - Quy ước agent ghi luôn là `unconfirmed`. Ghi `confirmed` thì bị đưa về `unconfirmed` (tool báo trong `demoted`).
 - Quy ước đã `confirmed` mà nội dung (tiêu đề, check, rule, source, description, overrides) bị đổi thì tự về `unconfirmed`; giữ nguyên thì vẫn `confirmed`.
 - Xóa một quy ước đã `confirmed` bị từ chối; chỉ người làm (sửa tay file).
-- `agentflow project confirm <mã...>|--all` (chỉ người chạy, guard từ chối khi agent chạy) đánh dấu `confirmed`. `agentflow task new` cảnh báo (không chặn) khi còn quy ước `unconfirmed`.
+- `agentflow project confirm <mã...>|--all` (chỉ người chạy, guard từ chối khi agent chạy) đánh dấu `confirmed` cho quy ước. `agentflow task new` cảnh báo (không chặn) khi còn quy ước `unconfirmed`.
+
+**Mission và roadmap.** `profile.md` có mục `## Mission` (`- why:`, `- for:`, `- scope:`, `- out-of-scope:`, `- source:`); scout lấy từ tài liệu người đưa và không suy từ code. `project_write profile` không từ chối mission thiếu, chỉ trả `warnings` (thiếu mục hoặc trường, trường rỗng, hai mục Mission, Mission chỉ nằm trong khối code). `project/roadmap.md` là danh sách mục `### R1 - tiêu đề` với `- status: todo|doing|done|dropped`, `- goal:`, `- docs:` (link, `file:dòng` hoặc `không có — lý do`); thứ tự file là thứ tự ưu tiên. Sai khuôn thì `project_write roadmap` bị từ chối (mã 35 `ROADMAP_INVALID`, file cũ giữ nguyên).
+
+Hồ sơ nào cũng có thể được xác nhận bằng **hash**, không bằng cờ trong file: `project confirm mission|profile|architecture|R1` lưu sha256 (đã chuẩn hóa xuống dòng và khoảng trắng cuối dòng) vào `project/confirmations.json`, file chỉ agentflow ghi. Tài liệu hay mục `confirmed` khi nội dung hiện tại còn khớp hash đã lưu; agent ghi lại khác đi thì tự `unconfirmed`, ghi lại đúng văn bản đã xác nhận thì lại `confirmed`. Hash của một mục roadmap không gồm dòng `status:`, nên đổi trạng thái không làm mất xác nhận. Quyền của agent với roadmap: mục mới luôn `todo`; trạng thái mục đã có luôn được giữ (agent ghi khác thì `warnings` nói); không bỏ được mục `doing`/`done`/`dropped` (mã 31); bỏ mục `todo` chưa xác nhận thì tự do, còn mục đã xác nhận thì vẫn bỏ được nhưng có warning, và `project status` ghi dòng `removed: R4 (confirmed)` để replan thấy (dòng này mất khi mục được thêm lại). Mỗi lần ghi đè một tài liệu dự án, bản cũ được lưu ở `project/history/<tài-liệu>-<thời-điểm>.md`.
+
+`agentflow task new --roadmap R3` gắn task với mục (trường `roadmap` trong `state.json`, `STATE.md`, `status`, `summary.md`) và chuyển mục sang `doing`; mục `done`/`dropped` bị từ chối. Task xong hay được duyệt **không** đổi mục sang `done` (một mục có thể cần nhiều task): người quyết, bằng `agentflow roadmap set R3 done`. Hủy task trả mục `doing` về `todo` nếu không còn task nào khác (không bị hủy) dùng nó. `agentflow status` gợi ý mục tiếp theo: mục `doing` chưa có task mở đầu tiên theo thứ tự file, rồi mục `todo` đầu tiên (kèm `(unconfirmed)` khi chưa xác nhận); tool MCP `status` trả thêm `next_roadmap`.
 
 ### Quy ước, kho kiến thức và bài học
 

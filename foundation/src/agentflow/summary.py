@@ -20,12 +20,14 @@ def build_summary(
     approver: str,
     approved_at: str,
     lessons: Sequence[Lesson] = (),
+    roadmap: str | None = None,
 ) -> str:
     lines = [
         f"# {task.id}: {task.title}",
         "",
         f"- Branch: {task.branch}",
         *([f"- Size: {task.size}"] if task.size else []),
+        *([f"- Roadmap: {roadmap}"] if roadmap else []),
         f"- Approved by: {approver}",
         f"- Approved at: {approved_at}",
         "",

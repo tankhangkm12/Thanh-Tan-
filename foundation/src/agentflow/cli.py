@@ -12,7 +12,7 @@ from pathlib import Path
 from agentflow.assign import ProjectAgentNames, WorkflowAgentNames, assignment_lines
 from agentflow.convention_sources import load_effective_conventions
 from agentflow.services import WorkspaceServices
-from agentflow.constants import KnowledgeCommand, KnowledgePlace, McpCommand, ProjectCommand, RoleCommand
+from agentflow.constants import ConfirmState, KnowledgeCommand, KnowledgePlace, McpCommand, ProjectCommand, RoadmapCommand, RoadmapStatus, RoleCommand
 from agentflow.interfaces import AgentNames
 from agentflow.roles import RoleGrants
 from agentflow.constants import ANSWER_OPTION, DECISION_SCOPE_PROJECT, CheckKind
@@ -20,7 +20,9 @@ from agentflow.convention_sources import next_code, write_answer
 from agentflow.knowledge import add_personal_convention, init_store, pull_files, push_file
 from agentflow.project import load_conventions
 from agentflow.userconfig import knowledge_dir, save_knowledge_dir
-from agentflow.project import confirm_conventions, unconfirmed_conventions
+from agentflow.confirmations import Confirmations
+from agentflow.project import confirm_project, mission_state, roadmap_state, status_lines, unconfirmed_conventions
+from agentflow.roadmap import find_item, is_code, items_of, read_roadmap, require_linkable, set_status
 from agentflow.constants import (
     CONTAINER_TOOLS,
     ENCODING,
@@ -44,6 +46,7 @@ from agentflow.constants import (
     SyncOutcome,
     TaskCommand,
     TaskEvent,
+    TaskStatus,
     TaskType,
     ToolStatus,
     WorkflowCommand,
@@ -96,6 +99,7 @@ from agentflow.workspace import (
 CLI_OPTION = "--cli"
 TYPE_OPTION = "--type"
 SIZE_OPTION = "--size"
+ROADMAP_OPTION = "--roadmap"
 RESULT_OPTION = "--result"
 REASON_OPTION = "--reason"
 STEP_OPTION = "--step"
@@ -139,6 +143,7 @@ def build_parser() -> argparse.ArgumentParser:
     new.add_argument("title", help="what the task is about")
     new.add_argument(TYPE_OPTION, type=TaskType, choices=list(TaskType), default=TaskType.FEATURE)
     new.add_argument(SIZE_OPTION, help="task size, one of the sizes the workflow defines (default: the workflow's default size)")
+    new.add_argument(ROADMAP_OPTION, help="the roadmap item (R1, R2 ...) the task serves; moves it to doing")
     advance = task_commands.add_parser(TaskCommand.ADVANCE, help="record that the current step passed or failed")
     advance.add_argument(RESULT_OPTION, required=True, type=TaskEvent, choices=list(STEP_RESULTS))
     approve = task_commands.add_parser(TaskCommand.APPROVE, help="approve the step, or resume a blocked task")
@@ -213,9 +218,19 @@ def build_parser() -> argparse.ArgumentParser:
 
     project = commands.add_parser(Command.PROJECT, help="the project documents a scout wrote (.agentflow/project/)")
     project_commands = project.add_subparsers(dest="project_command", metavar="<project command>", required=True)
-    confirm = project_commands.add_parser(ProjectCommand.CONFIRM, help="for a person: confirm conventions (PC-01 ... or --all)")
+    confirm = project_commands.add_parser(
+        ProjectCommand.CONFIRM, help="for a person: confirm conventions (PC-01 ...), the mission, profile, architecture or roadmap items (R1 ...)"
+    )
     confirm.add_argument("codes", nargs="*", metavar="CODE")
-    confirm.add_argument("--all", action="store_true", dest="everything", help="confirm every convention")
+    confirm.add_argument("--all", action="store_true", dest="everything", help="confirm every convention (not the mission, profile, architecture or roadmap)")
+    project_commands.add_parser(ProjectCommand.STATUS, help="which project documents exist and which a person has confirmed")
+
+    roadmap = commands.add_parser(Command.ROADMAP, help="the project's roadmap (.agentflow/project/roadmap.md)")
+    roadmap_commands = roadmap.add_subparsers(dest="roadmap_command", metavar="<roadmap command>", required=True)
+    roadmap_commands.add_parser(RoadmapCommand.LIST, help="the items with their status")
+    roadmap_set = roadmap_commands.add_parser(RoadmapCommand.SET, help="for a person: move an item to todo, doing, done or dropped")
+    roadmap_set.add_argument("code", help="roadmap item, e.g. R3")
+    roadmap_set.add_argument("status", choices=[str(status) for status in RoadmapStatus])
 
     knowledge = commands.add_parser(Command.KNOWLEDGE, help="your personal knowledge store (outside every repository)")
     knowledge_commands = knowledge.add_subparsers(dest="knowledge_command", metavar="<knowledge command>", required=True)
@@ -322,9 +337,15 @@ def cmd_status(args: argparse.Namespace) -> ExitCode:
         print(f"task status: {task.status}; rework rounds: {rounds}; branch: {task.branch or NONE_TEXT}")
         if task.size:
             print(f"size: {task.size}")
+        if task.roadmap:
+            item = find_item(items_of(opened.paths.dir), task.roadmap)
+            print(f"roadmap: {item.label if item else task.roadmap}")
     others = [t for t in state.tasks if t.status in IN_FLIGHT_TASK_STATUSES and t is not task]
     if others:
         print("other open tasks: " + ", ".join(f"{t.id} ({t.current_step}, {t.status})" for t in others))
+    suggestion = WorkspaceServices(opened.paths).next_roadmap(state)
+    if suggestion is not None:
+        print(f"next roadmap: {suggestion}")
     print(f"next: {describe_action(next_action(workflow, task))}")
     return ExitCode.OK
 
@@ -357,15 +378,21 @@ def cmd_task(args: argparse.Namespace) -> ExitCode:
     store = _store(opened)
     match args.task_command:
         case TaskCommand.NEW:
-            task = new_task(store, opened.workflow, SubprocessGit(opened.paths.root), args.title, args.type, utc_now, args.size)
+            if args.roadmap is not None:
+                require_linkable(opened.paths.dir, args.roadmap)
+            task = new_task(store, opened.workflow, SubprocessGit(opened.paths.root), args.title, args.type, utc_now, args.size, args.roadmap)
+            if task.roadmap:
+                set_status(opened.paths.dir, task.roadmap, RoadmapStatus.DOING)
             size_note = f" (size {task.size})" if task.size else ""
-            print(f"{task.id} created on branch {task.branch}{size_note}")
+            roadmap_note = f" (roadmap {task.roadmap})" if task.roadmap else ""
+            print(f"{task.id} created on branch {task.branch}{size_note}{roadmap_note}")
             unconfirmed = unconfirmed_conventions(opened.paths.dir)
             if unconfirmed:
                 _err(
                     f"{WARNING_PREFIX}{len(unconfirmed)} convention(s) are still unconfirmed ({', '.join(unconfirmed)}): "
                     "a person confirms them with `agentflow project confirm`"
                 )
+            _warn_project_documents(opened.paths.dir, task)
         case TaskCommand.ADVANCE:
             task = advance_task(store, opened.workflow, args.result, utc_now, _gates(opened), _sealer(opened))
             print(f"{task.id}: step '{task.current_step}' is now {task.step_status} (task {task.status})")
@@ -377,6 +404,7 @@ def cmd_task(args: argparse.Namespace) -> ExitCode:
                 print(f"decision recorded: {result.decision_file}")
         case TaskCommand.CANCEL:
             task = cancel_task(store, opened.workflow, utc_now)
+            _release_roadmap_item(opened.paths.dir, store.load(), task)
             print(f"{task.id} cancelled")
         case TaskCommand.SEAL:
             path = seal_finished_task(store, _sealer(opened), args.task_id, args.commit)
@@ -384,6 +412,37 @@ def cmd_task(args: argparse.Namespace) -> ExitCode:
     state = store.load()
     print(f"next: {describe_action(next_action(opened.workflow, state.active_task()))}")
     return ExitCode.OK
+
+
+def _warn_project_documents(workspace_dir: Path, task: Task) -> None:
+    """Warnings (never errors) about the mission and roadmap a new task rests on."""
+    confirmations = Confirmations.load(workspace_dir)
+    mission = mission_state(workspace_dir, confirmations)
+    if mission is ConfirmState.MISSING:
+        _err(f"{WARNING_PREFIX}the project has no mission yet: the scout writes it from your documents (setup skill), then a person confirms it with `agentflow project confirm mission`")
+    elif mission is ConfirmState.UNCONFIRMED:
+        _err(f"{WARNING_PREFIX}the mission is unconfirmed: a person confirms it with `agentflow project confirm mission`")
+    state, unconfirmed = roadmap_state(workspace_dir, confirmations)
+    if state is ConfirmState.MISSING:
+        _err(f"{WARNING_PREFIX}the project has no roadmap (roadmap missing): the scout proposes one (setup skill), then a person confirms its items")
+    elif unconfirmed:
+        _err(f"{WARNING_PREFIX}the roadmap has unconfirmed items: {', '.join(unconfirmed)} (a person confirms them with `agentflow project confirm {unconfirmed[0]} ...`)")
+    if task.roadmap is None:
+        _err(f"{WARNING_PREFIX}this task is not tied to a roadmap item: start it with `{ROADMAP_OPTION} Rn` (see `agentflow roadmap list`)")
+    elif task.roadmap in unconfirmed:
+        _err(f"{WARNING_PREFIX}the roadmap item {task.roadmap} you linked is unconfirmed: a person confirms it with `agentflow project confirm {task.roadmap}`")
+
+
+def _release_roadmap_item(workspace_dir: Path, state: State, cancelled: Task) -> None:
+    """A cancelled task that was the only work on a roadmap item puts the item back to todo."""
+    if not cancelled.roadmap:
+        return
+    item = find_item(items_of(workspace_dir), cancelled.roadmap)
+    if item is None or item.status is not RoadmapStatus.DOING:
+        return
+    others = [t for t in state.tasks if t.id != cancelled.id and t.roadmap == cancelled.roadmap and t.status is not TaskStatus.CANCELLED]
+    if not others:
+        set_status(workspace_dir, cancelled.roadmap, RoadmapStatus.TODO)
 
 
 def _sealer(opened: _Opened) -> TaskSealer:
@@ -697,17 +756,40 @@ def cmd_conventions(args: argparse.Namespace) -> ExitCode:
 
 
 def cmd_project(args: argparse.Namespace) -> ExitCode:
-    # argparse requires a project subcommand, and confirm is the only one so far.
     paths = find_workspace(Path.cwd())
-    result = confirm_conventions(paths.dir, args.codes, args.everything)
+    if args.project_command == ProjectCommand.STATUS:
+        for line in status_lines(paths.dir):
+            print(line)
+        return ExitCode.OK
+    result = confirm_project(paths.dir, args.codes, args.everything)
     if result.confirmed:
         print(f"confirmed: {', '.join(result.confirmed)}")
     if result.already:
         print(f"already confirmed: {', '.join(result.already)}")
-    if result.unconfirmed:
-        print(f"still unconfirmed: {', '.join(result.unconfirmed)}")
-    if result.open_questions:
-        print(f"open questions: {', '.join(result.open_questions)} (see .agentflow/project/conventions.md)")
+    conventions = result.conventions
+    if conventions is not None and conventions.unconfirmed:
+        print(f"still unconfirmed: {', '.join(conventions.unconfirmed)}")
+    if conventions is not None and conventions.open_questions:
+        print(f"open questions: {', '.join(conventions.open_questions)} (see .agentflow/project/conventions.md)")
+    return ExitCode.OK
+
+
+def cmd_roadmap(args: argparse.Namespace) -> ExitCode:
+    paths = find_workspace(Path.cwd())
+    if args.roadmap_command == RoadmapCommand.LIST:
+        found = read_roadmap(paths.dir)
+        if found is None:
+            print("no roadmap yet (the setup skill has the scout propose one)")
+            return ExitCode.OK
+        confirmations = Confirmations.load(paths.dir)
+        for item in found[1]:
+            note = "" if confirmations.is_confirmed(item.code, item.content) else " (unconfirmed)"
+            print(f"{item.code} [{item.status}] {item.title}{note}")
+        return ExitCode.OK
+    if not is_code(args.code):
+        raise AgentflowError(f"'{args.code}' is not a roadmap item code (R and digits, for example R3)", ExitCode.INVALID_INPUT)
+    before = set_status(paths.dir, args.code, RoadmapStatus(args.status))
+    print(f"{args.code}: {before} -> {args.status}")
     return ExitCode.OK
 
 
@@ -752,6 +834,7 @@ HANDLERS: dict[str, Handler] = {
     Command.GUARD: cmd_guard,
     Command.MCP: cmd_mcp,
     Command.PROJECT: cmd_project,
+    Command.ROADMAP: cmd_roadmap,
     Command.CONVENTIONS: cmd_conventions,
     Command.KNOWLEDGE: cmd_knowledge,
 }

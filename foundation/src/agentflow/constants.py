@@ -122,6 +122,7 @@ class ExitCode(IntEnum):
     KNOWLEDGE_NOT_FOUND = 32
     CONVENTIONS_INVALID = 33
     ROLE_GRANT_REFUSED = 34
+    ROADMAP_INVALID = 35
 
 
 class ToolName(StrEnum):
@@ -230,6 +231,7 @@ class ProjectSection(StrEnum):
     ARCHITECTURE = "architecture"
     SOURCES = "sources"
     CONVENTIONS = "conventions"
+    ROADMAP = "roadmap"
 
 
 # Limits for what the knowledge tools hand to a model.
@@ -352,6 +354,7 @@ class Command(StrEnum):
     PROJECT = "project"
     CONVENTIONS = "conventions"
     KNOWLEDGE = "knowledge"
+    ROADMAP = "roadmap"
     PLAN = "plan"
     SCAN = "scan"
     DECIDE = "decide"
@@ -362,6 +365,61 @@ class Command(StrEnum):
 
 class ProjectCommand(StrEnum):
     CONFIRM = "confirm"
+    STATUS = "status"
+
+
+class RoadmapCommand(StrEnum):
+    LIST = "list"
+    SET = "set"
+
+
+class RoadmapStatus(StrEnum):
+    """Where a roadmap item stands. Only a person (or agentflow when a task is tied to the item) moves it."""
+
+    TODO = "todo"
+    DOING = "doing"
+    DONE = "done"
+    DROPPED = "dropped"
+
+
+class RoadmapField(StrEnum):
+    STATUS = "status"
+    GOAL = "goal"
+    DOCS = "docs"
+
+
+class MissionField(StrEnum):
+    """The bullets of the ``## Mission`` section of the project profile."""
+
+    WHY = "why"
+    FOR = "for"
+    SCOPE = "scope"
+    OUT_OF_SCOPE = "out-of-scope"
+    SOURCE = "source"
+
+
+class ConfirmUnit(StrEnum):
+    """Project documents (or parts of one) a person confirms by name; an agent can rewrite them but never confirm."""
+
+    MISSION = "mission"
+    PROFILE = "profile"
+    ARCHITECTURE = "architecture"
+    CONVENTIONS = "conventions"
+    ROADMAP = "roadmap"
+
+
+class ConfirmState(StrEnum):
+    MISSING = "missing"
+    UNCONFIRMED = "unconfirmed"
+    CONFIRMED = "confirmed"
+
+
+# Files under .agentflow/project/ that agentflow writes itself.
+CONFIRMATIONS_FILE = "confirmations.json"
+HISTORY_DIR = "history"
+MISSION_HEADING = "Mission"
+ROADMAP_ITEM_PATTERN = r"R[0-9]+"
+ROADMAP_FILE_STEM = "roadmap"
 
 
 class UserConfigKey(StrEnum):
@@ -610,6 +668,7 @@ class StateKey(StrEnum):
     LOOP_ROUND = "loop_round"
     BRANCH = "branch"
     SIZE = "size"
+    ROADMAP = "roadmap"
     HISTORY = "history"
     AT = "at"
     STEP = "step"

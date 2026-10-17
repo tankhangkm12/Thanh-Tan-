@@ -22,6 +22,7 @@ from agentflow.constants import (
     ProjectSection,
 )
 from agentflow.conventions import Convention, ConventionDoc, parse_conventions, render_conventions, validate_conventions
+from agentflow.confirmations import Confirmations
 from agentflow.engine import next_action
 from agentflow.errors import AgentflowError
 from agentflow.fsutil import write_text_atomic
@@ -43,7 +44,10 @@ from agentflow.models import (
     TaskInfo,
     Workflow,
 )
+from agentflow.mission import mission_warnings
+from agentflow.project import keep_previous
 from agentflow.projectcontext import load_project_context
+from agentflow.roadmap import describe, items_of, merge_agent_roadmap, next_item, read_roadmap, render_roadmap
 from agentflow.render import describe_action
 from agentflow.scan import unsuppressed_blocking
 from agentflow.scan_store import ScanStore, suppressed_ids
@@ -76,9 +80,19 @@ class WorkspaceServices:
         if task is not None:
             info = TaskInfo(
                 task.id, task.title, task.branch, str(task.status), task.current_step, str(task.step_status),
-                task.loop_round, workflow.max_rounds, task.size,
+                task.loop_round, workflow.max_rounds, task.size, task.roadmap,
             )  # fmt: skip
-        return StatusInfo(str(self.paths.dir), workflow.family, info, describe_action(next_action(workflow, task)))
+        return StatusInfo(
+            str(self.paths.dir), workflow.family, info, describe_action(next_action(workflow, task)), self.next_roadmap(state)
+        )
+
+    def next_roadmap(self, state: State) -> str | None:
+        """The roadmap item to take up next (see ``next_item``), described for a person; ``None`` when there is none."""
+        if read_roadmap(self.paths.dir) is None:
+            return None
+        busy = {task.roadmap for task in state.tasks if task.status in IN_FLIGHT_TASK_STATUSES and task.roadmap}
+        item = next_item(items_of(self.paths.dir), busy)
+        return None if item is None else describe(item, Confirmations.load(self.paths.dir))
 
     def next_step(self) -> NextInfo:
         workflow, state = self._open()
@@ -108,7 +122,13 @@ class WorkspaceServices:
     # ------------------------------------------------------ project documents
 
     def write_project(self, section: ProjectSection, content: str) -> ProjectWriteInfo:
-        """Store a project document. Documents change between tasks (during setup), not while a task is running."""
+        """Store a project document. Documents change between tasks (during setup), not while a task is running.
+
+        What an agent writes never confirms anything: conventions are put right (``_agent_conventions``), the roadmap
+        keeps its statuses (``merge_agent_roadmap``), and the other documents are confirmed by their hash, not by a flag.
+        The version that is replaced is kept in ``project/history/``.
+        """
+        section = ProjectSection(section)
         if not content.strip():
             raise AgentflowError("the document is empty", ExitCode.INVALID_INPUT)
         _, state = self._open()
@@ -121,12 +141,42 @@ class WorkspaceServices:
         text = content.replace(_CRLF, _LF)
         path = self.paths.dir / PROJECT_DIR / f"{section}{MARKDOWN_SUFFIX}"
         path.parent.mkdir(parents=True, exist_ok=True)
-        if section is not ProjectSection.CONVENTIONS:
-            write_text_atomic(path, text if text.endswith(_LF) else text + _LF)
-            return ProjectWriteInfo(str(path), path.stat().st_size)
-        document, demoted = _agent_conventions(text, path)
-        write_text_atomic(path, render_conventions(document))
-        return ProjectWriteInfo(str(path), path.stat().st_size, len(document.conventions), len(document.questions), demoted)
+        previous = path.read_text(encoding=ENCODING) if path.is_file() else None
+        warnings: tuple[str, ...] = ()
+        demoted: tuple[str, ...] = ()
+        counts = (0, 0)
+        merged = None
+        if section is ProjectSection.CONVENTIONS:
+            document, demoted = _agent_conventions(text, path)
+            final = render_conventions(document)
+            counts = (len(document.conventions), len(document.questions))
+        elif section is ProjectSection.ROADMAP:
+            confirmations = Confirmations.load(self.paths.dir)
+            merged = merge_agent_roadmap(text, self.paths.dir, confirmations)
+            final = render_roadmap(merged.preface, merged.items)
+            warnings = merged.warnings
+        else:
+            final = text if text.endswith(_LF) else text + _LF
+            if section is ProjectSection.PROFILE:
+                warnings = tuple(mission_warnings(final))
+        if previous is not None and previous != final:
+            keep_previous(self.paths.dir, str(section), previous)
+        write_text_atomic(path, final)
+        if merged is not None:
+            self._note_roadmap_changes(merged.removed_confirmed, merged.returned)
+        return ProjectWriteInfo(str(path), path.stat().st_size, counts[0], counts[1], demoted, warnings)
+
+    def _note_roadmap_changes(self, removed: Sequence[str], returned: Sequence[str]) -> None:
+        """Forget the confirmation of a confirmed item that left the roadmap and remember that it did; undo that if it comes back."""
+        confirmations = Confirmations.load(self.paths.dir)
+        before = (dict(confirmations.confirmed), list(confirmations.removed))
+        for code in removed:
+            confirmations.forget(code)
+            confirmations.mark_removed(code)
+        for code in returned:
+            confirmations.clear_removed(code)
+        if (confirmations.confirmed, confirmations.removed) != before:
+            confirmations.save()
 
     # ------------------------------------------------------------------ scans
 

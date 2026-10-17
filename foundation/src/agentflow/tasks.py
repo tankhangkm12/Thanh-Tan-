@@ -81,7 +81,14 @@ def branch_name(task_type: TaskType, task_id: str, title: str) -> str:
 
 
 def new_task(
-    store: StateStore, workflow: Workflow, git: GitClient, title: str, task_type: TaskType, clock: Clock, size: str | None = None
+    store: StateStore,
+    workflow: Workflow,
+    git: GitClient,
+    title: str,
+    task_type: TaskType,
+    clock: Clock,
+    size: str | None = None,
+    roadmap: str | None = None,
 ) -> Task:
     """Create the task's gitflow branch from its base, switch to it, and record the task as active."""
     title = title.strip()
@@ -112,7 +119,7 @@ def new_task(
         raise AgentflowError(f"branch '{branch}' already exists", ExitCode.BRANCH_PROBLEM)
 
     git.create_branch(branch, base)
-    task = start_task(workflow, task_id, title, branch, clock(), size)
+    task = start_task(workflow, task_id, title, branch, clock(), size, roadmap)
     store.save(replace(state, active_task_id=task.id, tasks=(*state.tasks, task)))
     return task
 

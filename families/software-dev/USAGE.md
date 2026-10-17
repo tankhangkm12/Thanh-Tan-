@@ -38,7 +38,8 @@ Dự án phải là repo git có nhánh `main` và `develop`, cây làm việc s
    ```
 
 3. **Hồ sơ hóa dự án.** Gõ `/dev-core:setup` (Antigravity: nhờ agent dùng skill `setup`). Skill hỏi bạn đường dẫn tài liệu rồi giao cho scout; scout chỉ đọc đúng các đường dẫn đó và code của dự án. Nên đưa cho scout:
-   - tài liệu yêu cầu và phạm vi sản phẩm;
+   - tài liệu yêu cầu, tầm nhìn và phạm vi sản phẩm (scout lấy **mission** từ đây, không suy từ code);
+   - backlog, TODO hoặc danh sách việc cần làm có sẵn (scout lấy **roadmap** từ đây và từ chú thích `TODO`/`FIXME` trong code);
    - ghi chú kiến trúc, ADR;
    - hướng dẫn đóng góp, hướng dẫn chạy build và test;
    - README, wiki export;
@@ -46,14 +47,21 @@ Dự án phải là repo git có nhánh `main` và `develop`, cây làm việc s
 
    Không có tài liệu nào thì nói "không có": scout làm việc từ code.
 
-4. **Duyệt hồ sơ và xác nhận.** Mở bốn file `profile`, `architecture`, `sources`, `conventions` trong `.agentflow/project/`. Mỗi câu hỏi mở `S1`, `S2`, ... (chỗ tài liệu và code mâu thuẫn) do bạn quyết, rồi xác nhận quy ước bạn đồng ý:
+4. **Duyệt hồ sơ và xác nhận.** Mở các file `profile` (có mục `## Mission`), `architecture`, `sources`, `conventions` và `roadmap.md` trong `.agentflow/project/`. Mỗi câu hỏi mở `S1`, `S2`, ... (chỗ tài liệu và code mâu thuẫn) do bạn quyết, rồi xác nhận quy ước bạn đồng ý:
 
    ```
    agentflow decide --answer S1 --text "<quy ước, một dòng>" --check review
    agentflow project confirm PC-01 PC-02
+   agentflow project confirm mission
+   agentflow project confirm R1 R2 R3
+   agentflow project status
    ```
 
-   Quy ước chưa xác nhận chỉ là gợi ý cho agent, chưa được kiểm. `agentflow task new` cảnh báo khi còn quy ước chưa xác nhận.
+   - **Mission** (vì sao, cho ai, phạm vi, ngoài phạm vi, nguồn) nằm ở mục `## Mission` của `profile.md`. Roadmap (`roadmap.md`) là danh sách mục `R1`, `R2`, ... theo thứ tự ưu tiên, mỗi mục có `goal`, `docs` và trạng thái `todo|doing|done|dropped`. Scout chỉ đề xuất; mission và từng mục chỉ có hiệu lực khi **bạn** `project confirm`. Scout (hay bất kỳ agent nào) ghi lại tài liệu đã xác nhận mà nội dung đổi thì nó về `unconfirmed`; ghi lại đúng văn bản đã xác nhận thì vẫn `confirmed`.
+   - `agentflow project status` (chỉ đọc) cho biết `mission`, `profile`, `architecture`, `conventions`, `roadmap` đang `missing`, `unconfirmed` hay `confirmed`, và các dòng `removed: R4 (confirmed)` cho mục roadmap **đã xác nhận mà agent bỏ khỏi roadmap** (bản trước nằm trong `.agentflow/project/history/`). `--all` của `project confirm` chỉ xác nhận mọi quy ước, không đụng mission hay roadmap.
+   - Trạng thái của mục roadmap là việc của bạn: `agentflow roadmap set R4 dropped`. Xem danh sách: `agentflow roadmap list`.
+
+   Quy ước chưa xác nhận chỉ là gợi ý cho agent, chưa được kiểm. `agentflow task new` cảnh báo (không chặn) khi còn quy ước, mission hoặc mục roadmap chưa xác nhận, khi dự án chưa có roadmap, và khi task không gắn với mục nào.
 
 5. **Khối permissions của Claude Code.** Bắt buộc, gồm cả quy tắc `ask` cho `task approve`, `task cancel`, `decide`. Nội dung ở [README gốc, Bước 4](../../README.md#bước-4-bắt-buộc-quy-tắc-permissions-của-claude-code); đừng chép lại vào chỗ khác để khỏi lệch.
 
@@ -75,9 +83,10 @@ Xong khi: <tiêu chí kiểm được>
 Trong phạm vi: <phần được đụng>
 Ngoài phạm vi: <không làm gì>
 Tài liệu: <link spec / màn hình thiết kế / contract API, hoặc "không có">
+Roadmap: <mục Rn trong `agentflow roadmap list`, hoặc "không có">
 ```
 
-Mục nào bỏ trống thì orchestrator hỏi lại ở bước `confirm`, trước khi bạn duyệt. Điền càng cụ thể, `done-when` của kế hoạch càng chặt.
+Dòng `Roadmap` được truyền cho `agentflow task new --roadmap Rn`: mục chuyển sang `doing`. Task xong **không tự** đóng mục roadmap (một mục có thể cần nhiều task): `done` do bạn quyết, hiện bằng `agentflow roadmap set Rn done`. Mục nào bỏ trống thì orchestrator hỏi lại ở bước `confirm`, trước khi bạn duyệt. Điền càng cụ thể, `done-when` của kế hoạch càng chặt.
 
 ### Không cần viết trong prompt
 
@@ -99,6 +108,7 @@ Xong khi: `<lệnh test của dự án>` xanh; có test cho trường hợp lị
 Trong phạm vi: màn hình lịch sử đơn hàng và phần xử lý phía sau nó.
 Ngoài phạm vi: đổi định dạng dữ liệu hiện có; các loại báo cáo khác.
 Tài liệu: <link spec yêu cầu tải lịch sử đơn hàng>
+Roadmap: <Rn của mục "người dùng xem lại đơn hàng">
 ```
 
 Bugfix:
@@ -110,6 +120,7 @@ Xong khi: có test tái hiện lỗi, đỏ trước khi sửa và xanh sau khi 
 Trong phạm vi: phần lọc theo ngày của danh sách đơn hàng.
 Ngoài phạm vi: giao diện danh sách; các bộ lọc khác.
 Tài liệu: không có
+Roadmap: không có
 ```
 
 Task small:
@@ -121,6 +132,7 @@ Xong khi: thông báo hiển thị đúng chính tả; `<lệnh test của dự 
 Trong phạm vi: chỉ chuỗi thông báo đó.
 Ngoài phạm vi: mọi thông báo khác.
 Tài liệu: không có
+Roadmap: không có
 ```
 
 ## Chọn chế độ
@@ -184,7 +196,9 @@ Các lệnh dưới đây mang quyền quyết định của bạn. Hook của `
 |---|---|
 | `agentflow decide --answer Q1 --text "..." --check review` | Trả lời câu hỏi "Chưa có quy ước" của plan (`Q1`) hoặc của setup (`S1`) |
 | `agentflow decide --suppress <id> --reason "..."` | Bỏ qua một phát hiện scan mà bạn xác nhận là báo nhầm |
-| `agentflow project confirm PC-01 PC-02` (hoặc `--all`) | Xác nhận quy ước trong hồ sơ dự án |
+| `agentflow project confirm PC-01 PC-02` (hoặc `--all`) | Xác nhận quy ước trong hồ sơ dự án (`--all` chỉ gồm quy ước) |
+| `agentflow project confirm mission` / `profile` / `architecture` / `R1 R2 ...` | Xác nhận mission, cả `profile`, cả `architecture` hoặc từng mục roadmap; sửa nội dung sau đó thì về `unconfirmed` |
+| `agentflow roadmap set R4 done\|doing\|todo\|dropped` | Đổi trạng thái một mục roadmap. Mục **không tự** `done` khi task xong: bạn quyết |
 | `agentflow knowledge init` / `pull <file...>` / `push <file>` | Tạo kho cá nhân; chép file vào dự án; đưa một bài học về kho |
 | `agentflow ext add <extension.yaml>` / `ext sync` | Đăng ký, đồng bộ extension của plugin con |
 | `agentflow config set <khóa> <giá trị>` | Đặt cài đặt dự án (ví dụ `backend.*`) |
@@ -218,5 +232,9 @@ Chi phí tăng theo kích thước ngữ cảnh: mỗi yêu cầu gửi lại c�
 **Câu hỏi "Chưa có quy ước".** Plan có mục `## Chưa có quy ước` bị chặn tới khi bạn trả lời từng câu: `agentflow decide --answer Q1 --text "<quy ước, một dòng>" --check plan|semgrep|review` (thêm `--global` để ghi cả vào kho cá nhân). Sau đó để agent chạy tiếp bằng `/dev-core:continue`.
 
 **Workflow gốc đổi.** Khi file `workflow.yaml` gốc của plugin đổi (sau khi cập nhật plugin), `agentflow status` cảnh báo. Khi không có task đang chạy, đồng bộ bằng `agentflow workflow sync`; có task đang chạy thì lệnh bị từ chối, trừ khi bạn thêm `--force`. Tương tự, `agentflow ext sync` cho extension và `agentflow role sync` cho agent cấp theo dự án.
+
+**Cảnh báo khi `task new`.** Cảnh báo không chặn, nhưng đáng đọc: *mission* hoặc *roadmap* chưa có hay chưa xác nhận (xác nhận bằng `agentflow project confirm mission` / `R1 ...`), task không gắn mục *roadmap* nào (thêm `--roadmap Rn`), hoặc mục gắn vào chưa xác nhận. `agentflow project status` cho cái nhìn tổng; dòng `removed: R4 (confirmed)` nghĩa là một agent đã bỏ khỏi roadmap một mục bạn từng xác nhận, bản trước ở `.agentflow/project/history/`; nếu không muốn, nhờ scout ghi lại mục đó (nó sẽ `unconfirmed`, bạn xác nhận lại).
+
+**Mục roadmap bị từ chối.** `task new --roadmap Rn` từ chối mục đã `done` hoặc `dropped`: mở lại bằng `agentflow roadmap set Rn doing`. Agent ghi roadmap sai khuôn bị từ chối (mã 35) và không thể bỏ mục đã `doing`/`done`/`dropped` hay tự đổi trạng thái; mục đã `done` do **bạn** đặt.
 
 **Task xong nhưng thiếu tag duyệt.** `agentflow task new` từ chối khi task xong gần nhất chưa có tag `agentflow/<task>/approved`. Tạo bù bằng `agentflow task seal <id>`.
