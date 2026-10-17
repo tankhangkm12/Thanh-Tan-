@@ -266,14 +266,14 @@ Tên tool là tên MCP đầy đủ như Claude Code đặt: `mcp__<server>__<to
 
 ### Tier và thứ tự lớp
 
-**Tier.** Mỗi mục kế hoạch có thể ghi `tier: fast` hoặc `tier: deep`; thiếu thì là `deep`. Planner đề xuất, bạn sửa trực tiếp trong báo cáo plan khi duyệt (hoặc nhờ planner sửa), và `agentflow plan check` từ chối giá trị khác. Skill `continue` chạy `agentflow plan assign` (in `mã role tier agent` cho từng mục) rồi giao mục `fast` cho `implementer-fast`, mục `deep` cho `implementer-deep`; role không chia tier (như `db-engineer` của dev-backend) luôn dùng một agent duy nhất, và agent đó đặt ở mức mạnh nhất.
+**Tier.** Mỗi mục kế hoạch có thể ghi `tier: fast` hoặc `tier: deep`; thiếu thì là `deep`. Planner đề xuất, bạn sửa trực tiếp trong báo cáo plan khi duyệt (hoặc nhờ planner sửa), và `agentflow plan check` từ chối giá trị khác. Skill `continue` chạy `agentflow plan assign` (in `mã role tier agent` cho từng mục) rồi giao mục `fast` cho `implementer-fast`, mục `deep` cho `implementer-deep`; role không chia tier (như `db-engineer` của dev-backend) luôn dùng một agent duy nhất, với model và effort do plugin của role đó đặt (`db-engineer`: Sonnet, effort `high`).
 
 | | fast | deep |
 |---|---|---|
-| Claude Code | `model: sonnet`, `effort: low` | `model: opus`, `effort: medium` |
+| Claude Code | `model: sonnet`, `effort: low` | `model: sonnet`, `effort: high` |
 | Antigravity | `model: flash` | `model: pro` |
 
-Giá trị nằm trong nguồn role (`families/software-dev/core/src/roles/implementer.md`, khối `variants`) và được `tools/build.py` sinh ra. **Lưu ý giới hạn sử dụng:** `deep` dùng Opus nên tốn giới hạn hơn Sonnet; `db-engineer` cũng dùng Opus. Muốn tiết kiệm, đổi `deep` của Claude Code thành `claude: {model: sonnet, effort: high}` trong nguồn role, chạy `uv run tools/build.py` rồi cài lại plugin. Antigravity không có trường effort. Build kiểm giá trị theo danh sách trong tài liệu từng CLI (`sonnet|opus|haiku|fable|inherit` và `low|medium|high|xhigh|max` cho Claude Code; `inherit|flash|pro` cho Antigravity) và từ chối giá trị khác.
+Giá trị nằm trong nguồn role (`families/software-dev/core/src/roles/implementer.md`, khối `variants`) và được `tools/build.py` sinh ra. **Lưu ý giới hạn sử dụng:** trên Claude Code cả `fast` và `deep` đều là Sonnet, chỉ khác effort (`low` và `high`), và `db-engineer` cũng là Sonnet `high`; Antigravity phân biệt bằng model (`flash` và `pro`) và không có trường effort. Muốn dùng Opus cho mục khó, đổi dòng `deep` của Claude Code thành `claude: {model: opus, effort: medium}` trong nguồn role (với `db-engineer`: khối `settings:` trong `families/software-dev/backend/src/roles/db-engineer.md`), chạy `uv run tools/build.py` rồi cài lại plugin; Opus tốn giới hạn sử dụng hơn Sonnet. Build kiểm giá trị theo danh sách trong tài liệu từng CLI (`sonnet|opus|haiku|fable|inherit` và `low|medium|high|xhigh|max` cho Claude Code; `inherit|flash|pro` cho Antigravity) và từ chối giá trị khác.
 
 **Thứ tự lớp (`layer-order`).** Quy ước do **dự án** khai báo; plugin không có sẵn quy ước nào. Ví dụ trong `project/conventions.md` (hoặc trả lời câu hỏi bằng `agentflow decide`):
 

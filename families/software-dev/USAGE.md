@@ -131,10 +131,10 @@ Tài liệu: không có
 
 | | fast | deep |
 |---|---|---|
-| Claude Code | `model: sonnet`, `effort: low` | `model: opus`, `effort: medium` |
+| Claude Code | `model: sonnet`, `effort: low` | `model: sonnet`, `effort: high` |
 | Antigravity | `model: flash` | `model: pro` |
 
-`deep` dùng Opus nên tốn giới hạn sử dụng hơn Sonnet (role `db-engineer` của dev-backend cũng dùng Opus). Muốn tiết kiệm, đổi `deep` của Claude Code sang Sonnet theo [README gốc](../../README.md#tier-và-thứ-tự-lớp): trong nguồn role `families/software-dev/core/src/roles/implementer.md`, khối `variants`, đổi dòng `claude` của `deep` thành `claude: {model: sonnet, effort: high}`, chạy `uv run tools/build.py`, rồi cài lại plugin. Antigravity không có trường effort.
+Trên Claude Code cả hai tier đều là Sonnet, khác nhau ở effort (`low` và `high`); role `db-engineer` của dev-backend cũng là Sonnet `high`. Muốn dùng Opus cho mục khó, đổi dòng `claude` của `deep` thành `claude: {model: opus, effort: medium}` theo [README gốc](../../README.md#tier-và-thứ-tự-lớp) (nguồn role `families/software-dev/core/src/roles/implementer.md`, khối `variants`), chạy `uv run tools/build.py`, rồi cài lại plugin; Opus tốn giới hạn sử dụng hơn. Antigravity không có trường effort.
 
 **Model và effort của phiên Claude Code.** Đây là phiên của bạn (cho skill, orchestrator và các bước đọc), tách khỏi model cố định trong từng agent. Gợi ý: đặt Sonnet (`/model`) với effort `high` (`/effort high`) khi lập kế hoạch, rồi hạ xuống `/effort medium` khi chạy các bước còn lại. Trang [chi phí](https://code.claude.com/docs/en/costs) của Claude Code khuyên giữ Opus cho việc phức tạp và hạ effort cho việc đơn giản. Đổi effort giữa phiên có thể hiện cảnh báo về prompt cache.
 
@@ -171,6 +171,7 @@ Ba chỗ cần bạn duyệt: `confirm`, `plan`, `review`. Duyệt bằng `/dev-
 **Review — mỗi quy ước có dòng đánh giá**
 - [ ] Mỗi quy ước `check: review` có đúng một dòng `PC-01: đạt` hoặc `vi phạm PC-01 ở file:dòng`.
 - [ ] Mục "must fix" đã xử lý hoặc có lý do rõ ràng.
+- [ ] Mục `## Đề xuất cập nhật hồ sơ` của báo cáo review: mỗi đề xuất (`profile`, `mission`, `architecture`, `conventions`, `roadmap`) là đúng và đủ, hoặc `không có` là đúng. Gate `drift-reviewed` chỉ kiểm hình thức (có mục, đúng khuôn), không kiểm đề xuất có đúng không: phần đó do bạn kiểm ở đây. Reviewer chỉ đề xuất, không sửa hồ sơ; đề xuất nào bạn đồng ý thì tự cập nhật hồ sơ (hoặc nhờ scout ghi lại rồi xác nhận).
 - [ ] Thay đổi đúng kế hoạch đã duyệt, không có việc ngoài phạm vi.
 - [ ] `summary.md` và kết quả scan (`.agentflow/tasks/<task>/scans/`) không còn phát hiện chặn nào chưa giải thích.
 - [ ] "Bài học đề xuất" đáng giữ thì đưa về kho: `agentflow knowledge push .agentflow/tasks/<task>/lessons/L1.md`.

@@ -8,7 +8,7 @@ Plugin phát triển phía server của nhóm **software-dev** (phiên bản 0.2
 |---|---|---|
 | Hợp đồng extension | `extension.yaml` | Role, quy tắc đường dẫn, quy tắc plan, tool scan, gate; `agentflow ext add` đọc file này |
 | Role `db-engineer` | nguồn `src/roles/db-engineer.md` | **Role duy nhất** được viết migration. Sinh agent cho cả Claude Code và Antigravity bằng `tools/build.py` |
-| Model | `src/roles/db-engineer.md` | `db-engineer` là một agent duy nhất, luôn ở mức mạnh nhất (Claude Code: `opus`, effort `medium`; Antigravity: `pro`) bất kể `tier` của mục; Opus tốn giới hạn hơn Sonnet, đổi trong `settings:` của nguồn role rồi `uv run tools/build.py --plugin families/software-dev/backend` |
+| Model | `src/roles/db-engineer.md` | `db-engineer` là một agent duy nhất (Claude Code: `sonnet`, effort `high`; Antigravity: `pro`) bất kể `tier` của mục; muốn dùng Opus cho migration khó, đổi `settings:` của nguồn role rồi `uv run tools/build.py --plugin families/software-dev/backend` (Opus tốn giới hạn hơn Sonnet) |
 | 6 skill | `skills/*/SKILL.md` | `api-implementation`, `business-logic`, `db-migration`, `query-review`, `backend-testing`, `contract-test` |
 
 ## Gate và tool

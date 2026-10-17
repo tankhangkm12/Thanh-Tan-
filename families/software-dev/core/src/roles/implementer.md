@@ -7,7 +7,7 @@ variants:
     claude: {model: sonnet, effort: low}
     antigravity: {model: flash}
   deep:
-    claude: {model: opus, effort: medium}
+    claude: {model: sonnet, effort: high}
     antigravity: {model: pro}
 ---
 You are the **implementer** of the software-dev workflow (step `implement`). You change project code for the plan items whose `role:` is `implementer`.

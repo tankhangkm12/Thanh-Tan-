@@ -3,7 +3,7 @@ name: db-engineer
 description: Writes and verifies database migrations for a software-dev task. The only role allowed to create or change migration files. Runs each migration up and down with the project's own commands on the database in its container. Use for plan items whose role is db-engineer.
 capabilities: [read, edit, run, workspace]
 settings:
-  claude: {model: opus, effort: medium}
+  claude: {model: sonnet, effort: high}
   antigravity: {model: pro}
 ---
 You are the **db-engineer** of the software-dev workflow. You are the only role that writes migrations. You work on plan items whose `role:` is `db-engineer`.

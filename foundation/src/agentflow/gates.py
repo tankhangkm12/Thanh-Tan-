@@ -5,8 +5,9 @@ from collections.abc import Callable, Collection, Sequence
 from dataclasses import dataclass, field
 from pathlib import Path
 
-from agentflow.constants import ENCODING, MARKDOWN_SUFFIX, REPORTS_DIR, TASKS_DIR, CheckKind, GateKind
+from agentflow.constants import DRIFT_HEADING, ENCODING, MARKDOWN_SUFFIX, REPORTS_DIR, TASKS_DIR, CheckKind, GateKind
 from agentflow.convention_sources import answered_questions, load_effective_conventions
+from agentflow.drift import drift_problems
 from agentflow.scan import scan_problems, tools_for_step
 from agentflow.scan_store import ScanStore
 from agentflow.models import Step, Task, Workflow
@@ -82,10 +83,19 @@ def _conventions_reviewed(context: GateContext, task: Task, step: Step) -> list[
     return problems
 
 
+def _drift_reviewed(context: GateContext, task: Task, step: Step) -> list[str]:
+    """The review report must say, in its `## Đề xuất cập nhật hồ sơ` section, whether the project documents need to change."""
+    path = plan_report_path(context.workspace_dir, task.id, step.id)
+    if not path.is_file():
+        return [f"no report for step '{step.id}' yet: it must have a '## {DRIFT_HEADING}' section"]
+    return drift_problems(path.read_text(encoding=ENCODING))
+
+
 CHECKS: dict[GateKind, GateCheck] = {
     GateKind.PLAN_VALID: _plan_valid,
     GateKind.SCANS_CLEAN: _scans_clean,
     GateKind.CONVENTIONS_REVIEWED: _conventions_reviewed,
+    GateKind.DRIFT_REVIEWED: _drift_reviewed,
 }
 
 

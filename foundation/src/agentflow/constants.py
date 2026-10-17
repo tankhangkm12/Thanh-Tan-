@@ -74,6 +74,9 @@ PLAN_ITEM_TRAILER = "Plan-Item"
 SUMMARY_FILE = "summary.md"
 LESSONS_DIR = "lessons"
 LESSONS_HEADING = "Bài học đề xuất"
+# The review report section where the reviewer says whether the project documents must change.
+DRIFT_HEADING = "Đề xuất cập nhật hồ sơ"
+DRIFT_NONE_TEXT = "không có"
 
 # Secret scanning with Gitleaks in a container. The image is pinned on purpose.
 GITLEAKS_IMAGE = "zricethezav/gitleaks:v8.24.0"
@@ -208,6 +211,16 @@ DECISION_SCOPE_PROJECT = "project"
 OPEN_QUESTIONS_HEADING = "## Câu hỏi mở"
 SETUP_QUESTION_PATTERN = r"S\d+"
 SEMGREP_RULE_SUFFIXES = (".yaml", ".yml")
+
+
+class DriftDoc(StrEnum):
+    """The project documents a review may propose to change (``- <document>: <proposal>``)."""
+
+    PROFILE = "profile"
+    MISSION = "mission"
+    ARCHITECTURE = "architecture"
+    CONVENTIONS = "conventions"
+    ROADMAP = "roadmap"
 
 
 class ProjectSection(StrEnum):
@@ -531,6 +544,7 @@ class GateKind(StrEnum):
     PLAN_VALID = "plan-valid"
     SCANS_CLEAN = "scans-clean"
     CONVENTIONS_REVIEWED = "conventions-reviewed"
+    DRIFT_REVIEWED = "drift-reviewed"
 
 
 class PlanCommand(StrEnum):

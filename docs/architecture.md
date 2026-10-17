@@ -63,7 +63,7 @@ Mỗi nhóm khai báo quy trình của mình trong một file `workflow.yaml` đ
 | `agent_dirs` | CLI → thư mục (tính từ file workflow) chứa file agent đã sinh, để `role grant` chép sang dự án. Tùy chọn |
 | `max_rounds` | Số lần một task được quay lại làm lại (cả workflow) |
 | `steps[].on_fail` | Bước đứng trước mà task quay về khi bước này fail |
-| `steps[].gates` | Gate bước phải qua trước khi `task advance --result pass` được nhận: `plan-valid` (kế hoạch qua `plan check`, kể cả quy ước `item-order` và mọi câu hỏi "Chưa có quy ước" đã được trả lời), `scans-clean` (kết quả scan không còn mục chặn), `conventions-reviewed` (báo cáo review có một dòng cho từng quy ước `check: review`) |
+| `steps[].gates` | Gate bước phải qua trước khi `task advance --result pass` được nhận: `plan-valid` (kế hoạch qua `plan check`, kể cả quy ước `item-order` và mọi câu hỏi "Chưa có quy ước" đã được trả lời), `scans-clean` (kết quả scan không còn mục chặn), `conventions-reviewed` (báo cáo review có một dòng cho từng quy ước `check: review`), `drift-reviewed` (báo cáo review có mục `## Đề xuất cập nhật hồ sơ` đúng khuôn; chỉ kiểm hình thức) |
 
 Các bước chạy theo thứ tự trong danh sách; không có bước "loop" riêng. Fail ở bước có `on_fail` thì task quay về bước đó và số vòng tăng 1. Hết `max_rounds`, hoặc bước không có `on_fail`, thì task chuyển `blocked`, cần người quyết định.
 
@@ -213,6 +213,8 @@ Quyền xác nhận thuộc về người:
 **Kho cá nhân** nằm ngoài mọi repo: đường dẫn ở `~/.agentflow/user.yaml` (`knowledge_dir`, mặc định `~/knowledge`; `AGENTFLOW_HOME` đổi thư mục `~/.agentflow`). Khung gồm `index.md`, `conventions.md`, `sources.md`, `lessons/`, `patterns/`, `semgrep/`. Chỉ người chạy `knowledge init/pull/push` (guard từ chối khi agent chạy) và agent không bao giờ ghi vào kho; tool MCP `knowledge_*` chỉ đọc bản chép trong `.agentflow/knowledge/`.
 
 **Bài học.** Cuối báo cáo review, reviewer có thể thêm `## Bài học đề xuất` (`### L1 - tiêu đề`). Khi seal, `agentflow` tách thành `tasks/<task>/lessons/L<n>.md`, liệt kê trong `summary.md`; người chọn bài nào đưa về kho bằng `agentflow knowledge push <file>`.
+
+**Lệch hồ sơ (drift).** Khi thay đổi làm `profile`, `mission`, `architecture`, `conventions` hoặc `roadmap` sai, reviewer ghi mục `## Đề xuất cập nhật hồ sơ` trong báo cáo review: `không có`, hoặc mỗi tài liệu một dòng `- <tài liệu>: <đề xuất>`. Gate `drift-reviewed` (bước `review`) chỉ kiểm **hình thức**: mục có đúng một lần (heading cấp 2, ngoài khối code và chú thích HTML), không rỗng, mỗi dòng đúng khuôn với tên tài liệu hợp lệ, không vừa `không có` vừa liệt kê. Gate không kiểm đề xuất có đúng không và không sửa hồ sơ: tính đúng do người kiểm ở checklist Review, và reviewer không bao giờ ghi vào hồ sơ. Tiêu đề và tên tài liệu là hằng `DRIFT_HEADING`, `DriftDoc` trong `constants.py`; `tools/test_reviewer_drift.py` giữ prompt, schema và tài liệu khớp với chúng.
 
 ### Kế hoạch, gate và tag duyệt
 

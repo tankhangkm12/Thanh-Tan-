@@ -1,0 +1,83 @@
+"""The ``## Đề xuất cập nhật hồ sơ`` section of a review report: does the change make a project document wrong?
+
+The reviewer only proposes. This module checks the form of the section (it exists once, and holds either
+``không có`` or bullets ``- <document>: <proposal>``); whether a proposal is right is for the person to judge.
+"""
+
+import re
+
+from agentflow.constants import DRIFT_HEADING, DRIFT_NONE_TEXT, DriftDoc
+
+_HEADING = re.compile(rf"^##[ \t]+{re.escape(DRIFT_HEADING)}[ \t]*$")
+_ANY_TOP_HEADING = re.compile(r"^#{1,2}[ \t]+\S")
+_NONE = re.compile(rf"^{re.escape(DRIFT_NONE_TEXT)}\.?$", re.IGNORECASE)
+_BULLET = re.compile(r"^-[ \t]+([A-Za-z][\w-]*)[ \t]*:[ \t]*(.*?)[ \t]*$")
+_HTML_COMMENT = re.compile(r"<!--.*?-->", re.DOTALL)
+_FENCE = re.compile(r"^[ \t]*(```|~~~)")
+_CRLF = "\r\n"
+_LF = "\n"
+_PREFIX = f'the "## {DRIFT_HEADING}" section'
+
+
+def _visible_lines(text: str) -> list[str]:
+    """Lines of the report outside HTML comments and fenced code blocks (neither counts as report content)."""
+    lines: list[str] = []
+    fence: str | None = None
+    for line in _HTML_COMMENT.sub("", text.replace(_CRLF, _LF)).split(_LF):
+        marker = _FENCE.match(line)
+        if marker:
+            fence = None if fence == marker.group(1) else (fence or marker.group(1))
+            continue
+        if fence is None:
+            lines.append(line)
+    return lines
+
+
+def drift_problems(text: str) -> list[str]:
+    """Problems with the section; empty when it is well formed."""
+    lines = _visible_lines(text)
+    starts = [number for number, line in enumerate(lines) if _HEADING.match(line)]
+    if not starts:
+        return [f"the report has no {_PREFIX}: write `{DRIFT_NONE_TEXT}`, or one `- <document>: <proposal>` per project document to change"]
+    if len(starts) > 1:
+        return [f"the report has {_PREFIX} {len(starts)} times: keep one"]
+    body: list[str] = []
+    for line in lines[starts[0] + 1 :]:
+        if _ANY_TOP_HEADING.match(line):
+            break
+        body.append(line)
+    entries = [line for line in body if line.strip()]
+    if not entries:
+        return [f"{_PREFIX} is empty: write `{DRIFT_NONE_TEXT}`, or the proposals"]
+    return _entry_problems(entries)
+
+
+def _entry_problems(entries: list[str]) -> list[str]:
+    problems: list[str] = []
+    none_seen = False
+    bullets = 0
+    allowed = ", ".join(f"`{doc}`" for doc in DriftDoc)
+    previous_was_bullet = False
+    for line in entries:
+        stripped = line.strip()
+        if _NONE.match(stripped):
+            none_seen = True
+            previous_was_bullet = False
+            continue
+        bullet = _BULLET.match(line) if not line[:1].isspace() else None
+        if bullet is not None:
+            bullets += 1
+            previous_was_bullet = True
+            document, proposal = bullet.group(1), bullet.group(2)
+            if document.lower() not in set(DriftDoc):
+                problems.append(f"{_PREFIX} names '{document}', which is not a project document ({allowed})")
+            elif not proposal:
+                problems.append(f"{_PREFIX}: the proposal for '{document}' is empty")
+            continue
+        if line[:1].isspace() and previous_was_bullet:
+            continue  # a continuation of the previous proposal
+        previous_was_bullet = False
+        problems.append(f"{_PREFIX} has a line that is neither `{DRIFT_NONE_TEXT}` nor `- <document>: <proposal>`: {stripped[:60]}")
+    if none_seen and bullets:
+        problems.append(f"{_PREFIX} says `{DRIFT_NONE_TEXT}` and also lists proposals: keep one of the two")
+    return problems

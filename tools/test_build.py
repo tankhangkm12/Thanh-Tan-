@@ -358,13 +358,13 @@ def test_model_settings_are_checked_against_the_documented_values(plugin, extra,
 
 
 def test_the_real_implementer_has_a_fast_and_a_deep_agent_and_db_engineer_is_deep():
-    for cli_dir, expected in (("claude/agents", ("sonnet", "opus")), ("agents", ("flash", "pro"))):
+    for cli_dir, expected in (("claude/agents", ("sonnet", "sonnet")), ("agents", ("flash", "pro"))):
         fast = frontmatter(CORE_DIR / cli_dir / "implementer-fast.md")
         deep = frontmatter(CORE_DIR / cli_dir / "implementer-deep.md")
         assert (fast["model"], deep["model"]) == expected
     assert frontmatter(CORE_DIR / "claude/agents/implementer-fast.md")["effort"] == "low"
-    assert frontmatter(CORE_DIR / "claude/agents/implementer-deep.md")["effort"] == "medium"
-    assert frontmatter(BACKEND_DIR / "claude/agents/db-engineer.md")["model"] == "opus"
+    assert frontmatter(CORE_DIR / "claude/agents/implementer-deep.md")["effort"] == "high"
+    assert frontmatter(BACKEND_DIR / "claude/agents/db-engineer.md")["model"] == "sonnet"
     assert frontmatter(BACKEND_DIR / "agents/db-engineer.md")["model"] == "pro"
 
 

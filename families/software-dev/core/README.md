@@ -35,11 +35,11 @@ variants:
     claude: {model: sonnet, effort: low}
     antigravity: {model: flash}
   deep:
-    claude: {model: opus, effort: medium}
+    claude: {model: sonnet, effort: high}
     antigravity: {model: pro}
 ```
 
-`deep` dùng Opus nên tốn giới hạn sử dụng hơn. Để dùng Sonnet cho cả hai, đổi dòng `deep` của `claude` thành `{model: sonnet, effort: high}` rồi `uv run tools/build.py`. Build chỉ nhận giá trị trong tài liệu của từng CLI (Claude Code: `sonnet|opus|haiku|fable|inherit`, `low|medium|high|xhigh|max`; Antigravity: `inherit|flash|pro`, không có effort). Role không khai báo gì thì `inherit`. `workflow.yaml` có `tiered_roles: [implementer]` để `agentflow plan assign` biết role nào có hai agent.
+Trên Claude Code cả hai tier đều là Sonnet, khác nhau ở effort. Để dùng Opus cho `deep`, đổi dòng `claude` của `deep` thành `{model: opus, effort: medium}` rồi `uv run tools/build.py`; Opus tốn giới hạn sử dụng hơn. Build chỉ nhận giá trị trong tài liệu của từng CLI (Claude Code: `sonnet|opus|haiku|fable|inherit`, `low|medium|high|xhigh|max`; Antigravity: `inherit|flash|pro`, không có effort). Role không khai báo gì thì `inherit`. `workflow.yaml` có `tiered_roles: [implementer]` để `agentflow plan assign` biết role nào có hai agent.
 
 Không sửa tay `claude/agents/` và `agents/`. `build.py` đổi quyền trừu tượng thành tên tool thật của từng CLI, từ chối tên tool lạ và từ chối cấp quyền sửa file cho `orchestrator`, `planner`, `security`, `reviewer`, `scout`.
 

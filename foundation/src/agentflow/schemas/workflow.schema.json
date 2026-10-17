@@ -92,7 +92,7 @@
         "gates": {
           "type": "array",
           "uniqueItems": true,
-          "items": { "enum": ["plan-valid", "scans-clean", "conventions-reviewed"] }
+          "items": { "enum": ["plan-valid", "scans-clean", "conventions-reviewed", "drift-reviewed"] }
         }
       }
     }
