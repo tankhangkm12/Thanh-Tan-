@@ -13,37 +13,72 @@ _ANY_TOP_HEADING = re.compile(r"^#{1,2}[ \t]+\S")
 _NONE = re.compile(rf"^{re.escape(DRIFT_NONE_TEXT)}\.?$", re.IGNORECASE)
 _BULLET = re.compile(r"^-[ \t]+([A-Za-z][\w-]*)[ \t]*:[ \t]*(.*?)[ \t]*$")
 _HTML_COMMENT = re.compile(r"<!--.*?-->", re.DOTALL)
-_FENCE = re.compile(r"^[ \t]*(```|~~~)")
+_FENCE = re.compile(r"^(`{3,}|~{3,})(.*)$")
 _CRLF = "\r\n"
 _LF = "\n"
+_TAB_STOP = 4
+# Markdown (CommonMark): up to three columns of indentation are still markup, four or more make a code block.
+_MAX_MARKUP_INDENT = 3
 _PREFIX = f'the "## {DRIFT_HEADING}" section'
 
 
+def _split_indent(line: str) -> tuple[int, str]:
+    """Columns of leading white space (a tab goes to the next multiple of four) and the rest of the line."""
+    columns = 0
+    for position, char in enumerate(line):
+        if char == " ":
+            columns += 1
+        elif char == "\t":
+            columns += _TAB_STOP - columns % _TAB_STOP
+        else:
+            return columns, line[position:]
+    return columns, ""
+
+
+def _markup(line: str) -> str | None:
+    """The line without its indentation, or ``None`` when it is indented so far that it is code."""
+    columns, rest = _split_indent(line)
+    return rest if columns <= _MAX_MARKUP_INDENT else None
+
+
+def _is(pattern: re.Pattern[str], line: str) -> bool:
+    marked = _markup(line)
+    return marked is not None and pattern.match(marked) is not None
+
+
 def _visible_lines(text: str) -> list[str]:
-    """Lines of the report outside HTML comments and fenced code blocks (neither counts as report content)."""
+    """Lines of the report outside HTML comments and fenced code blocks (neither counts as report content).
+
+    A fence opens with three or more backticks or tildes and closes with the same character, at least as many
+    of them and nothing else on the line; an unclosed fence runs to the end of the report.
+    """
     lines: list[str] = []
-    fence: str | None = None
+    fence: tuple[str, int] | None = None
     for line in _HTML_COMMENT.sub("", text.replace(_CRLF, _LF)).split(_LF):
-        marker = _FENCE.match(line)
-        if marker:
-            fence = None if fence == marker.group(1) else (fence or marker.group(1))
+        marked = _markup(line)
+        found = _FENCE.match(marked) if marked is not None else None
+        if fence is not None:
+            if found and found.group(1)[0] == fence[0] and len(found.group(1)) >= fence[1] and not found.group(2).strip():
+                fence = None
             continue
-        if fence is None:
-            lines.append(line)
+        if found and not (found.group(1)[0] == "`" and "`" in found.group(2)):
+            fence = (found.group(1)[0], len(found.group(1)))
+            continue
+        lines.append(line)
     return lines
 
 
 def drift_problems(text: str) -> list[str]:
     """Problems with the section; empty when it is well formed."""
     lines = _visible_lines(text)
-    starts = [number for number, line in enumerate(lines) if _HEADING.match(line)]
+    starts = [number for number, line in enumerate(lines) if _is(_HEADING, line)]
     if not starts:
         return [f"the report has no {_PREFIX}: write `{DRIFT_NONE_TEXT}`, or one `- <document>: <proposal>` per project document to change"]
     if len(starts) > 1:
         return [f"the report has {_PREFIX} {len(starts)} times: keep one"]
     body: list[str] = []
     for line in lines[starts[0] + 1 :]:
-        if _ANY_TOP_HEADING.match(line):
+        if _is(_ANY_TOP_HEADING, line):
             break
         body.append(line)
     entries = [line for line in body if line.strip()]
