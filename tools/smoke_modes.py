@@ -163,6 +163,7 @@ def small_task(s: Session, repo: Path) -> None:
     expect("semgrep: " in scan.stdout and "gitleaks: " in scan.stdout, "a small task still runs Gitleaks and Semgrep", scan.stdout)
     expect("trivy" not in scan.stdout, "a small task does not run Trivy", scan.stdout)
     s.af("task", "advance", "--result", "pass")  # security
+    s.af("report", "--step", "review", stdin="# Review\nNo findings.\n\n## Đề xuất cập nhật hồ sơ\nkhông có\n")
     waiting = s.af("task", "advance", "--result", "pass")  # review
     expect("awaiting_approval" in waiting.stdout, "review of a small task still waits for a person", waiting.stdout)
     s.af("task", "approve")
@@ -174,7 +175,7 @@ def small_task(s: Session, repo: Path) -> None:
 
 def main() -> int:
     if shutil.which(AGENTFLOW) is None or shutil.which("git") is None:
-        print("agentflow and git must be on PATH (see README: uv tool install)", file=sys.stderr)
+        print("git must be on PATH", file=sys.stderr)
         return 2
     base = Path(tempfile.mkdtemp(prefix="agentflow-modes-"))
     repo = base / "sample"

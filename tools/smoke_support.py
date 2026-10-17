@@ -8,10 +8,32 @@ import secrets
 import stat
 import string
 import subprocess
+import sys
 from pathlib import Path
 
 ENCODING = "utf-8"
-AGENTFLOW = "agentflow"
+FOUNDATION = Path(__file__).resolve().parent.parent / "foundation"
+
+
+def _repo_agentflow() -> str:
+    """The `agentflow` built from foundation/ of this repository, never the one installed on PATH.
+
+    A copy installed earlier can be older than the code under test (it did not know a gate and failed every smoke), so
+    the smoke tests sync foundation/'s own environment and use its script, and put it first on PATH for the tools
+    that call `agentflow` themselves.
+    """
+    scripts = FOUNDATION / ".venv" / ("Scripts" if sys.platform == "win32" else "bin")
+    exe = scripts / ("agentflow.exe" if sys.platform == "win32" else "agentflow")
+    done = subprocess.run(
+        ["uv", "sync", "--quiet", "--project", str(FOUNDATION)], capture_output=True, text=True, encoding=ENCODING, check=False
+    )
+    if done.returncode != 0 or not exe.is_file():
+        raise SystemExit(f"cannot build agentflow from {FOUNDATION}: {done.stderr or 'script missing'}")
+    os.environ["PATH"] = str(scripts) + os.pathsep + os.environ.get("PATH", "")
+    return str(exe)
+
+
+AGENTFLOW = _repo_agentflow()
 STEP_TIMEOUT = 900
 # A made-up GitHub-style token; the random part is generated at run time.
 FAKE_TOKEN_PREFIX = "ghp" + "_"

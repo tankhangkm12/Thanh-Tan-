@@ -45,7 +45,7 @@ PLAN = (
 
 def main() -> int:
     if shutil.which(AGENTFLOW) is None or shutil.which("git") is None:
-        print("agentflow and git must be on PATH (see README: uv tool install)", file=sys.stderr)
+        print("git must be on PATH", file=sys.stderr)
         return 2
     base = Path(tempfile.mkdtemp(prefix="agentflow-smoke-"))
     repo = base / "sample"
@@ -100,6 +100,7 @@ def main() -> int:
         scan = s.af("scan")  # Semgrep, Trivy, Gitleaks in containers
         expect("semgrep: " in scan.stdout and "trivy: " in scan.stdout and "gitleaks: " in scan.stdout, "scan runs three tools", scan.stdout)
         s.af("task", "advance", "--result", "pass")  # security
+        s.af("report", "--step", "review", stdin="# Review\nNo findings.\n\n## Đề xuất cập nhật hồ sơ\nkhông có\n")
         s.af("task", "advance", "--result", "pass")  # review passes -> awaiting approval
         s.af("task", "approve")
         state = json.loads((repo / ".agentflow" / "state.json").read_text(encoding=ENCODING))

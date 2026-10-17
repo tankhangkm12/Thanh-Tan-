@@ -9,10 +9,9 @@ import json
 from pathlib import Path
 from typing import Any
 
-from smoke_support import Session, expect
+from smoke_support import AGENTFLOW, Session, expect
 
 ENCODING = "utf-8"
-AGENTFLOW = "agentflow"
 RULE_FILE = "no-literal-status.yaml"
 RULE = """rules:
   - id: no-literal-status
@@ -61,6 +60,9 @@ The change matches the plan.
 PC-03: đạt
 DC-01: đạt
 DC-02: đạt
+
+## Đề xuất cập nhật hồ sơ
+không có
 
 ## Bài học đề xuất
 
