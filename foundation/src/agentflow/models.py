@@ -44,6 +44,8 @@ class Step:
     # What a person ticks before approving this step: fixed questions, and where the dynamic lines come from.
     approval_checklist: tuple[str, ...] = ()
     approval_items: tuple[ApprovalItem, ...] = ()
+    # When a person approves this step, the files named by its report are locked (see lockfiles.py).
+    lock_on_approval: bool = False
 
     @property
     def has_checklist(self) -> bool:
@@ -127,6 +129,7 @@ def _step_from_dict(data: Mapping[str, Any]) -> Step:
         gates=tuple(GateKind(item) for item in data.get(WorkflowKey.GATES, ())),
         approval_checklist=tuple(data.get(WorkflowKey.APPROVAL_CHECKLIST, ())),
         approval_items=tuple(ApprovalItem(item) for item in data.get(WorkflowKey.APPROVAL_ITEMS, ())),
+        lock_on_approval=bool(data.get(WorkflowKey.LOCK_ON_APPROVAL, False)),
     )
 
 

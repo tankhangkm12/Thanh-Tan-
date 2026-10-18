@@ -99,6 +99,7 @@ CHECKLIST_ROADMAP_CODE = "roadmap"
 CHECKLIST_FIXED_PREFIX = "K"
 CHECKLIST_PLAN_PREFIX = "C"
 CHECKLIST_DRIFT_PREFIX = "D"
+CHECKLIST_LOCK_PREFIX = "L"
 DRIFT_NONE_TEXT = "không có"
 
 # Secret scanning with Gitleaks in a container. The image is pinned on purpose.
@@ -396,6 +397,8 @@ class TestsCommand(StrEnum):
     __test__ = False  # not a pytest class
 
     VERIFY_RED = "verify-red"
+    CHECK = "check"
+    AMEND = "amend"
 
 
 class StateCommand(StrEnum):
@@ -615,6 +618,7 @@ class GuardRule(StrEnum):
     PERSON_CONFIRMS = "person-confirms"
     SCRIPT_UNREAD = "script-unread"
     WORKSPACE_WRITE = "workspace-write"
+    LOCKED_FILE = "locked-file"
 
 
 class GuardKey(StrEnum):
@@ -647,6 +651,7 @@ class WorkflowKey(StrEnum):
     GATES = "gates"
     APPROVAL_CHECKLIST = "approval_checklist"
     APPROVAL_ITEMS = "approval_items"
+    LOCK_ON_APPROVAL = "lock_on_approval"
     TIERED_ROLES = "tiered_roles"
     SIZES = "sizes"
     READ_ONLY_ROLES = "read_only_roles"
@@ -670,6 +675,7 @@ class ApprovalItem(StrEnum):
     REVIEW_CONVENTIONS = "review-conventions"
     DRIFT_PROPOSALS = "drift-proposals"
     SPEC_ITEMS = "spec-items"
+    LOCKED_FILES = "locked-files"
 
 
 class GateKind(StrEnum):
@@ -681,6 +687,7 @@ class GateKind(StrEnum):
     DRIFT_REVIEWED = "drift-reviewed"
     TEST_SPEC_VALID = "test-spec-valid"
     TESTS_PASS = "tests-pass"
+    LOCKED_FILES_INTACT = "locked-files-intact"
 
 
 class PlanCommand(StrEnum):

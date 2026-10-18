@@ -22,6 +22,8 @@ NOT_FOUND = 127
 _SECONDS_PER_MINUTE = 60
 _NOT_FOUND_TEXT = re.compile(r"is not recognized as an internal or external command|command not found|not recognized as the name of a cmdlet", re.I)
 _KILL_GRACE_SECONDS = 5
+# Variables that change what pytest runs: `PYTEST_ADDOPTS="-k nothing" agentflow task advance ...` must not reach the tests.
+SCRUBBED_ENVIRONMENT = frozenset({"PYTEST_ADDOPTS", "PYTEST_PLUGINS"})
 
 
 @dataclass(frozen=True)
@@ -57,7 +59,8 @@ def timeout_seconds(minutes: object) -> float:
 def run_command(command: str, cwd: str | Path, timeout: float) -> RunResult:
     """Run ``command`` in ``cwd``; ``timeout`` is in seconds."""
     started = time.monotonic()
-    options: dict = {"cwd": str(cwd), "shell": True, "stdout": subprocess.PIPE, "stderr": subprocess.STDOUT}
+    environment = {name: value for name, value in os.environ.items() if name.upper() not in SCRUBBED_ENVIRONMENT}
+    options: dict = {"cwd": str(cwd), "shell": True, "stdout": subprocess.PIPE, "stderr": subprocess.STDOUT, "env": environment}
     if os.name == "nt":
         options["creationflags"] = subprocess.CREATE_NEW_PROCESS_GROUP
     else:

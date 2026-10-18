@@ -1,6 +1,6 @@
 # dev-backend
 
-Plugin phát triển phía server của nhóm **software-dev** (phiên bản 0.2.0). Phụ thuộc `dev-core` (quy trình, gitflow, gate dùng chung) và chỉ thêm phần nghiệp vụ backend. Không giả định ngôn ngữ hay framework: mọi thông tin kỹ thuật lấy từ cấu hình dự án.
+Plugin phát triển phía server của nhóm **software-dev** (phiên bản 0.3.0). Phụ thuộc `dev-core` (quy trình, gitflow, gate dùng chung) và chỉ thêm phần nghiệp vụ backend. Không giả định ngôn ngữ hay framework: mọi thông tin kỹ thuật lấy từ cấu hình dự án.
 
 ## Có gì bên trong
 
@@ -44,7 +44,7 @@ Plugin phát triển phía server của nhóm **software-dev** (phiên bản 0.2
 
 Khuôn yêu cầu task chỉ có một, ở [USAGE.md](../USAGE.md#khuôn-yêu-cầu-task) của nhóm; dev-backend không thay khuôn đó, chỉ thêm dữ liệu và ví dụ done-when cho gate của nó.
 
-**Bước `test-spec` và migration.** `db-engineer` không có bước `test-spec` riêng: tester viết khối `test-spec` cho mọi mục kế hoạch, kể cả mục migration. Mục migration không có test đơn vị thì khai `- tests: không có — chạy lên/xuống/lên` (đúng lệnh lên và xuống trong `done-when`); `db-engineer` vẫn chứng minh bằng cách chạy chúng ở bước `implement`. Gate Squawk và Schemathesis ở bước `test` không đổi; gate `tests-pass` chạy thêm lệnh test của dự án.
+**Bước `test-spec` và migration.** `db-engineer` không có bước `test-spec` riêng: tester viết khối `test-spec` cho mọi mục kế hoạch, kể cả mục migration. Mục migration không có test đơn vị thì khai `- tests: không có — chạy lên/xuống/lên` (đúng lệnh lên và xuống trong `done-when`); `db-engineer` vẫn chứng minh bằng cách chạy chúng ở bước `implement`. Gate Squawk và Schemathesis ở bước `test` không đổi; gate `tests-pass` chạy thêm lệnh test của dự án. Sau khi bạn duyệt `test-spec`, test (kể cả test của migration) và cấu hình test bị khóa: `db-engineer` không sửa được chúng, và test `migration` cần đổi thì bạn chạy `agentflow tests amend <file> --reason "..."` (xem "Khóa test đã duyệt" trong [USAGE](../USAGE.md)).
 
 **Dữ liệu cần thêm khi tạo task backend**
 - **Contract API:** điền link tới contract OpenAPI vào dòng `Tài liệu` của khuôn. Có contract thì Schemathesis kiểm được dịch vụ có đúng contract không.

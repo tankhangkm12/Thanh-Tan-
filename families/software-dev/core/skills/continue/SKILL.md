@@ -34,7 +34,7 @@ Repeat these until one of the stop conditions below:
 
    The role saves its report with `report_write` (a report can only be written for the current step, and not again once the step has passed) and records the result with `agentflow task advance --result pass` (or `fail`).
 
-   **test-spec:** call the `tester`. After it passes the step always waits for a person, small task or not: tell them the report (`reports/test-spec.md`), the result agentflow recorded (`verify-red.json`) and the checklist (`approve-test-spec.md`), then stop (the approve skill). The implementer must not start before that approval.
+   **test-spec:** call the `tester`. After it passes the step always waits for a person, small task or not: tell them the report (`reports/test-spec.md`), the result agentflow recorded (`verify-red.json`) and the checklist (`approve-test-spec.md`), then stop (the approve skill). The implementer must not start before that approval. The approval locks the tests: the test files of the report, the test infrastructure it lists and the test configuration of the project are locked from then on (hook, `agentflow commit` and the gate `locked-files-intact`, see `agentflow tests check`). Tell the implementer agents not to touch them; if a locked test looks wrong the implementer stops and you tell the person, who alone can change it with `agentflow tests amend`.
 
    **plan:** in a small task (`size: small` in `agentflow status`) the plan needs no approval: once it passes the check, `agentflow next` goes straight on to implement. If the plan check lists unanswered questions (`## Chưa có quy ước`), stop: tell the person to answer each with `agentflow decide --answer Q1 --text "..." --check <plan, semgrep or review>`, then continue.
 

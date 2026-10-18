@@ -188,8 +188,9 @@ Ba chỗ cần bạn duyệt: `confirm`, `plan`, `review`. Duyệt bằng `/dev-
 - [ ] Các test đo đúng `done-when` của mục, không phải thứ dễ qua hơn.
 - [ ] Mỗi test đỏ vì đúng lý do: tính năng chưa có, không phải lỗi cú pháp, thiếu import hay môi trường (đọc `reason` và `output` trong báo cáo).
 - [ ] Lệnh của mỗi mục chạy đúng các test đã khai, không phải lệnh chạy cho có (như `false`); agentflow đã tự chạy lại và ghi `exit` ở dòng dưới.
-- [ ] Danh sách file test đã khai là đủ: sau khi bạn duyệt, đây là các file implementer không được sửa.
+- [ ] Các dòng L (danh sách file sẽ khóa) là đủ: file test, file hạ tầng test (conftest.py, cấu hình pytest/jest/vitest, script chạy test) và phần cấu hình test của pyproject.toml, setup.cfg, package.json. Sau khi bạn duyệt, không agent nào sửa được chúng; muốn đổi phải chạy `agentflow tests amend <file> --reason "..."`.
 - Thêm tự động: một ô `C<n>` cho mỗi mục kế hoạch, kèm test, lệnh và kết quả agentflow tự chạy lại (`spec-items`).
+- Thêm tự động: một ô `L<n>` cho mỗi file sẽ bị khóa khi bạn duyệt: file test, file hạ tầng test, cấu hình test (`locked-files`).
 
 **Review — những gì bạn kiểm** (`review`)
 - [ ] Mục "must fix" đã xử lý hoặc có lý do rõ ràng.
@@ -239,6 +240,41 @@ Checklist duyệt `test-spec` có một ô cho mỗi mục, kèm lệnh và `exi
 - Giới hạn thời gian: 15 phút, đổi bằng `agentflow config set test_timeout_minutes <số phút>`.
 - Chưa có lệnh test: bước `test` bị chặn kèm hướng dẫn, trừ task mà mọi mục kế hoạch là `kind: other` (chỉ cảnh báo, ghi `skipped`).
 
+## Khóa test đã duyệt
+
+Khi bạn duyệt `test-spec`, agentflow **khóa** các file mà bài làm sau đó không được sửa, để agent không thể làm test xanh bằng cách đổi test. Nó ghi `.agentflow/tasks/<task>/locked-files.json` với sha256 của từng file; hash của chính file đó nằm trong `integrity.json` (`locked_files_sha256`), nên sửa tay hay xóa nó bị phát hiện (mã 37, như `state.json`).
+
+**Khóa những file nào** (checklist `test-spec` liệt kê chúng thành các dòng `L1`, `L2`...; bạn tick như các ô khác):
+- file test nêu trong các dòng `- tests:` của báo cáo (khóa nguyên file);
+- file hạ tầng test tester khai ở mục `## Hạ tầng test` cuối báo cáo (`- <đường dẫn>` mỗi dòng, hoặc `không có`): fixture, helper test import, `Makefile` hay script mà lệnh test đi qua...;
+- file cấu hình test có sẵn trong dự án theo tên: `conftest.py` ở mọi thư mục, `pytest.ini`, `tox.ini`, `jest.config.*`, `vitest.config.*`, `.mocharc.*`... (khóa nguyên file);
+- `pyproject.toml`, `setup.cfg`, `package.json` chỉ khóa **phần cấu hình test** của chúng: các bảng `[tool.pytest...]`, mục `[tool:pytest]`, khóa `jest`/`vitest`/`mocha` và `scripts.test` (hash theo phần, không theo chữ). Sửa phần khác (dependency, version, script build...) thì không cần amend.
+
+Tester được tạo hay sửa cấu hình test ở chính bước `test-spec`, trước khi khóa; xong bước thì không ai tạo mới (tạo thêm `conftest.py`, `pytest.ini`... để bỏ qua test) hay sửa chúng nữa. Khóa áp cho **mọi role** và cả hai CLI, từ lúc duyệt tới khi task xong hoặc bị hủy (`blocked` vẫn giữ).
+
+**Ba lớp.**
+1. Hook `pre-tool` từ chối tool file và lệnh shell ghi, xóa, đổi tên, copy đè file khóa (`Write`, `Edit`, `sed -i`, `>`, `tee`, `cp`, `mv`, `rm`, `Set-Content`...), `git rm`/`git mv`, `git checkout|restore` lấy file từ commit khác, và tạo mới file cấu hình test. Lý do từ chối nêu `agentflow tests amend`.
+2. `agentflow commit` từ chối commit đụng file khóa (sửa, xóa, đổi tên) hoặc thêm file cấu hình test mới; cả commit bị từ chối.
+3. Cổng `locked-files-intact` ở các bước `implement`, `test`, `security`, `review`, và cổng `tests-pass` **trước khi chạy bất cứ lệnh nào**, so hash ở cả cây làm việc lẫn HEAD: file bị đổi, mất, đổi tên, hay file cấu hình test mới xuất hiện (kể cả `pyproject.toml` hoặc `setup.cfg` mới có thêm cấu hình pytest) đều làm bước fail, nêu từng file. `agentflow tests check` (chỉ đọc) làm đúng việc đó theo yêu cầu; tester chạy nó trước khi chạy test. Lớp 3 bắt cả những gì hook không thấy.
+
+Ngoài ra `config.yaml` giữ lệnh test (`test_command`): sửa tay (không qua `agentflow config set`) bị báo mã 37, và agentflow bỏ `PYTEST_ADDOPTS`, `PYTEST_PLUGINS` khỏi môi trường khi tự chạy test. Duyệt `test-spec` cũng bị từ chối nếu một file đã đổi sau lúc agentflow chạy đỏ (`verify-red.json` giữ hash từng file).
+
+### Đổi một test đã duyệt
+
+Chỉ bạn làm được, và nó để lại dấu vết:
+1. `agentflow tests amend <file>... --reason "<vì sao>"` mở một **cửa sổ** cho đúng những file đó (ghi vào `locked-files.json` và `decisions/<thời điểm>-tests-amend.md` kèm hash cũ). File cấu hình test chưa tồn tại cũng mở được bằng lệnh này. Hook cho phép sửa các file ấy, chỉ chúng.
+2. Sửa file (bạn hoặc agent theo lời bạn), `git add`, rồi `agentflow commit "..."`. Commit file đó đóng cửa sổ: khóa nhận hash mới, `decisions/` ghi thêm hash mới và commit.
+3. Trước khi commit, agentflow chạy lại lệnh của các mục dùng file đó (file hạ tầng hoặc phần cấu hình thì mọi mục có lệnh) trong một checkout tạm của commit lúc chạy đỏ, tức **mã cũ**, rồi ghi kết quả vào `verify-red.json` (`reverified`). Test đã sửa mà **xanh trên mã cũ** thì không còn chứng minh được gì: commit bị **chặn** (không có gì được commit, cửa sổ vẫn mở). Nếu đó đúng là ý bạn (ví dụ tính năng đã có sẵn), mở cửa sổ bằng `agentflow tests amend <file> --accept-green --reason "<lý do>"`: commit đi qua, lý do và kết quả xanh được ghi vào `decisions/`, và lệnh vẫn in cảnh báo.
+Cửa sổ không bỏ qua việc hash khác: file sửa mà chưa commit thì `tests check` vẫn báo.
+
+### Giới hạn của khóa test
+
+Đây là lưới an toàn, **không phải sandbox**; nó không biến việc đổi test thành không thể.
+- Hook chỉ đọc một danh sách lệnh cố định. `python -c`, `node -e`, `perl -pi`, `patch`, `git apply`, script agent tự viết, hard link... ghi được file mà hook không thấy; chúng chỉ bị cổng hash phát hiện (ở bước kế tiếp, không phải lúc ghi). Trên Windows gốc không có sandbox của Claude Code, nên không có lớp chặn cứng nào ở mức hệ điều hành.
+- `Makefile`, `package.json` (ngoài phần test của nó), `tox.ini` mà lệnh test đi qua chỉ được khóa khi tester khai chúng ở `## Hạ tầng test`; file helper mà test import cũng vậy. Bạn đọc mục này ở checklist: máy không biết lệnh test đi qua file nào. Ngôn ngữ test agentflow không nhận ra (không phải py, js, ts...) cho cảnh báo nhắc tester khai đủ.
+- Agent chạy được mã tùy ý cùng quyền người dùng vẫn có thể tính lại hash và sửa `locked-files.json`; hash là tripwire, không phải ổ khóa. Chặn cứng cần sandbox hay quyền hệ điều hành. Đọc `decisions/` và `audit.jsonl` khi nghi ngờ.
+- `agentflow tests check` chạy được bất cứ lúc nào để thấy file nào đã lệch.
+
 ## Replan sau mỗi task
 
 Vòng làm việc: `setup` (một lần) → mission + roadmap → `task new --roadmap Rn` → confirm → plan → test-spec → implement → test → security → review → **replan** → task kế. Replan là bước giữa hai task: cập nhật hồ sơ dự án cho đúng với cái task thật sự đã làm. Nó **chỉ đề xuất**; bạn đọc rồi quyết.
@@ -267,6 +303,7 @@ Các lệnh dưới đây mang quyền quyết định của bạn. Hook của `
 | `agentflow task seal <id>` | Ghi `summary.md`, `spec-delta.md` và tag duyệt cho task đã xong mà chưa có |
 | `agentflow replan done` | Sau khi đọc `replan.md`: replan của task xong gần nhất (đang `proposed`) là xong; đánh dấu task, cập nhật `summary.md`, xóa dòng `removed:` |
 | `agentflow replan skip <task> --reason "..."` | Chủ động bỏ qua replan của task xong gần nhất (đang `pending` hoặc `proposed`) |
+| `agentflow tests amend <file>... --reason "..." [--accept-green]` | Mở cửa sổ để đổi một test đã duyệt (hoặc thêm file cấu hình test); sửa xong commit bằng `agentflow commit`. `--accept-green` chỉ khi test sửa xong xanh trên mã cũ mà bạn chấp nhận (cần lý do). Xem "Khóa test đã duyệt" |
 | `agentflow state accept --reason "..."` | Sau khi đọc một thay đổi `state.json` làm ngoài agentflow (hoặc các lệnh nhật ký `audit.jsonl` ghi lại): tin lại file, ghi `decisions/<thời điểm>-state-accept.md` kèm trạng thái đã chấp nhận |
 | `agentflow role grant\|revoke\|sync` | Cấp, thu hồi, sinh lại tool MCP theo dự án cho role |
 
@@ -307,6 +344,14 @@ Chi phí tăng theo kích thước ngữ cảnh: mỗi yêu cầu gửi lại c�
 **`test-spec` bị từ chối khi `task advance --result pass`.** Thông báo nêu mã mục (`C2 ...`): thiếu khối, khối thừa, thiếu trường (`command`, `red: fail`, `reason`, `output`), file test chưa commit hay không tồn tại, lệnh không nhắc tới file test của mục, hoặc agentflow đã chạy lại lệnh và nó **không đỏ** (mã 0), không tìm thấy lệnh, hay quá giờ. Sửa test hoặc báo cáo rồi chạy lại; bước `test-spec` có thể quay về `plan` bằng `--result fail` nếu kế hoạch không test được.
 
 **`tests-pass` chặn bước `test`.** Hoặc lệnh test của dự án thoát khác 0 (thông báo cho thấy đuôi output), hoặc lệnh của một mục vẫn đỏ sau khi code xong (`C3: its command still fails`), hoặc `verify-red.json` thiếu/khác báo cáo đã duyệt, hoặc chưa có lệnh test: chạy `agentflow config set test_command "<lệnh>"`, hoặc ghi `- test-command:` vào profile rồi `agentflow project confirm profile`.
+
+**Bước báo `locked-files-intact` fail, hoặc `agentflow tests check` báo file lệch.** Thông báo nêu từng file khóa bị đổi, mất, đổi tên, hoặc file cấu hình test mới xuất hiện. Nếu là agent làm sai: nhờ nó trả lại file như cũ (`git restore <file>` lấy lại bản đã commit) rồi chạy lại bước. Nếu test đúng là cần đổi: `agentflow tests amend <file> --reason "..."`, sửa, `agentflow commit`. Không cần amend để thêm dependency hay đổi phần khác của `pyproject.toml`, `setup.cfg`, `package.json`. Một file mà bạn thấy cần khóa nhưng không bị khóa thường là file tester quên khai ở `## Hạ tầng test`: nhờ tester bổ sung rồi cho bước làm lại.
+
+**Duyệt `test-spec` bị từ chối vì file đã đổi sau lúc chạy đỏ.** `verify-red.json` giữ hash lúc agentflow chạy đỏ; một file test hoặc hạ tầng khác hash đó thì không khóa được. Cho bước làm lại (`agentflow task advance --result fail`) để chạy đỏ lại trên bản hiện tại.
+
+**`agentflow commit` từ chối vì file khóa, hoặc vì test sửa xong xanh trên mã cũ.** Thông báo nêu file và mục (`C1`). Đổi test đã duyệt phải qua `agentflow tests amend` (xem trên); test xanh trên mã cũ chỉ qua khi bạn mở cửa sổ với `--accept-green --reason "..."`.
+
+**Báo `config.yaml` bị đổi ngoài agentflow (mã 37).** Lệnh test (`test_command`) hay `test_timeout_minutes` trong `.agentflow/config.yaml` khác với lần cuối agentflow ghi. Đặt bằng `agentflow config set test_command "<lệnh>"`; nếu bạn đã đọc thay đổi và chấp nhận, `agentflow state accept --reason "..."`.
 
 **Workflow gốc đổi.** Khi file `workflow.yaml` gốc của plugin đổi (sau khi cập nhật plugin), `agentflow status` cảnh báo. Khi không có task đang chạy, đồng bộ bằng `agentflow workflow sync`; có task đang chạy thì lệnh bị từ chối, trừ khi bạn thêm `--force`. Tương tự, `agentflow ext sync` cho extension và `agentflow role sync` cho agent cấp theo dự án.
 

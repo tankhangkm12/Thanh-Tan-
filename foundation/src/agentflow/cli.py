@@ -9,6 +9,7 @@ from dataclasses import dataclass, replace
 from importlib.metadata import version
 from pathlib import Path
 
+from agentflow import amend, lockfiles, lockflow
 from agentflow.assign import ProjectAgentNames, WorkflowAgentNames, assignment_lines
 from agentflow.convention_sources import load_effective_conventions
 from agentflow.services import WorkspaceServices
@@ -246,6 +247,11 @@ def build_parser() -> argparse.ArgumentParser:
     tests = commands.add_parser(Command.TESTS, help="the tests of the active task, run by agentflow itself")
     tests_commands = tests.add_subparsers(dest="tests_command", metavar="<tests command>", required=True)
     tests_commands.add_parser(TestsCommand.VERIFY_RED, help="at the test-spec step: run the commands of the report and check each one fails")
+    tests_commands.add_parser(TestsCommand.CHECK, help="are the locked test files as they were approved? (read-only)")
+    tests_amend = tests_commands.add_parser(TestsCommand.AMEND, help="for a person: open a window to change an approved test, and say why")
+    tests_amend.add_argument("files", nargs="+", help="the locked files to open (or a test configuration file to add)")
+    tests_amend.add_argument("--reason", default=None, help="why the test is changed (kept in decisions/)")
+    tests_amend.add_argument("--accept-green", action="store_true", help="accept that the changed test passes on the old code (needs --reason)")
 
     replan = commands.add_parser(Command.REPLAN, help="after a task: the replan of the project documents (proposed by the scout, closed by a person)")
     replan_commands = replan.add_subparsers(dest="replan_command", metavar="<replan command>", required=True)
@@ -399,6 +405,13 @@ def _store(opened: _Opened) -> JsonStateStore:
 
 def cmd_tests(args: argparse.Namespace) -> ExitCode:
     opened = _open_workspace()
+    match args.tests_command:
+        case TestsCommand.CHECK:
+            return _tests_check(opened)
+        case TestsCommand.AMEND:
+            for line in amend.open_windows(opened.paths.dir, require_active_task(opened.state).id, args.files, args.reason or "", args.accept_green, utc_now()):
+                print(line)
+            return ExitCode.OK
     task = require_active_task(opened.state)
     require_active_spec_step(opened.workflow, task)
     project = load_project_context(opened.paths.dir, opened.workflow, task)
@@ -416,9 +429,27 @@ def cmd_tests(args: argparse.Namespace) -> ExitCode:
     return ExitCode.OK
 
 
+def _tests_check(opened: _Opened) -> ExitCode:
+    task = require_active_task(opened.state)
+    problems = lockfiles.check(opened.paths.dir, opened.paths.root, task.id)
+    if problems is None:
+        print("no locked files: nothing is locked until a person approves the test-spec step")
+        return ExitCode.OK
+    for problem in problems:
+        print(f"- {problem}")
+    if problems:
+        return ExitCode.GATE_FAILED
+    record = lockfiles.load(opened.paths.dir, task.id) or {}
+    windows = len(record.get("windows", {}))
+    print(f"locked files intact ({len(record.get('files', {}))})" + (f"; {windows} window(s) open for a person's change" if windows else ""))
+    return ExitCode.OK
+
+
 def cmd_state(args: argparse.Namespace) -> ExitCode:
     paths = find_workspace(Path.cwd())
-    decision = Integrity(paths.dir).accept(args.reason, utc_now())
+    decision = Integrity(paths.dir).accept(
+        args.reason, utc_now(), lambda task_id: lockfiles.file_digest(paths.dir, task_id), lockflow.settings_digest(load_config(paths).settings)
+    )
     print(NOTHING_TO_ACCEPT if decision is None else f"state accepted; decision recorded: {decision}")
     return ExitCode.OK
 
@@ -430,6 +461,7 @@ def cmd_task(args: argparse.Namespace) -> ExitCode:
         warning = Integrity(opened.paths.dir).verify(bool(opened.state.tasks)).warning
         if warning:
             _err(f"{WARNING_PREFIX}{warning}")
+        lockflow.verify(opened.paths.dir, load_config(opened.paths).settings, opened.state.active_task())
     match args.task_command:
         case TaskCommand.NEW:
             if args.roadmap is not None:
@@ -458,7 +490,14 @@ def cmd_task(args: argparse.Namespace) -> ExitCode:
         case TaskCommand.APPROVE:
             active = opened.state.active_task()
             approval = check_approval(opened.paths.dir, opened.workflow, active) if active is not None else None
+            locked, lock_warnings = (
+                lockflow.lock_on_approval(opened.paths.dir, opened.paths.root, opened.workflow, active, utc_now()) if active is not None else ([], [])
+            )
             result = approve_task(store, opened.workflow, opened.paths.dir, utc_now, args.reason, _sealer(opened))
+            for line in locked:
+                print(line)
+            for warning_text in lock_warnings:
+                _err(f"{WARNING_PREFIX}{warning_text}")
             task = result.task
             if approval is not None:
                 kept = finish_approval(opened.paths.dir, approval, active, opened.workflow, utc_now())
@@ -621,7 +660,10 @@ def cmd_config(args: argparse.Namespace) -> ExitCode:
             print(value if isinstance(value, str) else json.dumps(value, ensure_ascii=False))
         case ConfigCommand.SET:
             value = coerce(extensions, args.key, args.value)
-            save_config(paths, replace(config, settings=set_value(config.settings, args.key, value)))
+            updated = set_value(config.settings, args.key, value)
+            save_config(paths, replace(config, settings=updated))
+            if args.key in lockflow.TEST_SETTING_KEYS:
+                Integrity(paths.dir).record_settings(lockflow.settings_digest(updated))
             print(f"{args.key} set")
         case ConfigCommand.CHECK:
             problems = settings_problems(extensions, config.settings)
@@ -802,10 +844,14 @@ def cmd_commit(args: argparse.Namespace) -> ExitCode:
     opened = _open_workspace()
     scanner = ContainerGitleaksScanner(SubprocessRunner())
     project = load_project_context(opened.paths.dir, opened.workflow)
+    lock = lockflow.lock_commit(opened.paths.dir, opened.paths.root, opened.state.active_task(), opened.workflow, project.lookup, utc_now())
     result = commit_staged(
-        _store(opened), SubprocessGit(opened.paths.root), scanner, args.message, args.item, _plan_items(opened), project.rules
+        _store(opened), SubprocessGit(opened.paths.root), scanner, args.message, args.item, _plan_items(opened), lockflow.commit_rules(project.rules, lock)
     )
     print(f"committed {result.sha[:SHORT_SHA_LENGTH]}: {result.message}")
+    if lock is not None and lock.active:
+        for warning_text in lock.closed(result.sha):
+            _err(f"{WARNING_PREFIX}{warning_text}")
     return ExitCode.OK
 
 

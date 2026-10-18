@@ -29,10 +29,11 @@ from agentflow.constants import (
     GuardKey,
     GuardRule,
 )
+from agentflow import gitpaths
 from agentflow.errors import AgentflowError
 from agentflow.interfaces import BranchLookup, WorkspaceLookup, WriteTargetPolicy
 from agentflow.models import GuardVerdict
-from agentflow.pathguard import WorkspaceWritePolicy
+from agentflow.lockguard import GuardedPaths
 from agentflow.scriptscan import mentioned_commands
 
 # ------------------------------------------------------------ tokenizing
@@ -79,7 +80,7 @@ _PERSON_ONLY = frozenset(
         ("decide",), ("ext", "add"), ("ext", "sync"), ("config", "set"), ("task", "seal"), ("project", "confirm"),
         ("knowledge", "init"), ("knowledge", "pull"), ("knowledge", "push"),
         ("role", "grant"), ("role", "revoke"), ("role", "sync"), ("roadmap", "set"),
-        ("replan", "done"), ("replan", "skip"), ("state", "accept"),
+        ("replan", "done"), ("replan", "skip"), ("state", "accept"), ("tests", "amend"),
     }  # fmt: skip
 )
 # Commands that need a person's yes at a prompt (the agent cannot give it); the person-only ones are denied instead.
@@ -123,6 +124,11 @@ REASONS[GuardRule.PERSON_CONFIRMS] = (
 REASONS[GuardRule.SCRIPT_UNREAD] = (
     "this command gives an interpreter text the guard cannot read ahead ({source}); it could run `agentflow task approve` "
     "or another command that is a person's, so a person must confirm it"
+)
+REASONS[GuardRule.LOCKED_FILE] = (
+    "this file belongs to the tests a person approved (the test files, the test infrastructure or the test configuration of the "
+    "project): no tool or command of an agent changes, deletes, renames or adds it. If a test looks wrong, stop and tell the person: "
+    'only a person changes it, with `agentflow tests amend <file> --reason "..."`'
 )
 REASONS[GuardRule.WORKSPACE_WRITE] = (
     "files under .agentflow/ (and the project-* agents in .claude/agents/ that `agentflow role` generates) are written by "
@@ -223,7 +229,7 @@ class _Context:
     workspaces: WorkspaceLookup | None = None
     # Branches the command line itself switched to, per repository directory (None = detached).
     switched: dict[Path, str | None] = field(default_factory=dict)
-    writes: WriteTargetPolicy = field(default_factory=WorkspaceWritePolicy)
+    writes: WriteTargetPolicy = field(default_factory=GuardedPaths)
 
     def in_workspace(self, directory: Path) -> bool:
         return self.workspaces is not None and self.workspaces.has_workspace(directory)
@@ -242,19 +248,29 @@ def evaluate(
     writes: WriteTargetPolicy | None = None,
 ) -> GuardVerdict:
     start = Path(os.path.normpath(cwd))
-    context = _Context(start, branches, workspaces, writes=writes or WorkspaceWritePolicy())
+    context = _Context(start, branches, workspaces, writes=writes or GuardedPaths())
     verdict = _evaluate_whole(command, context, depth=0)
     if verdict.denied:
         return verdict
     writes = _evaluate_writes(_without_heredoc_bodies(command), start, context.writes, depth=0)
+    if not writes.denied:
+        writes = _evaluate_git_text(command, start, context.writes)
     return writes if writes.denied else verdict
 
 
 def writes_into_workspace(target: Path | str, cwd: Path, writes: WriteTargetPolicy | None = None) -> GuardVerdict:
     """Verdict for a file-writing tool (not a shell command) that is about to change ``target``."""
-    if (writes or WorkspaceWritePolicy()).is_protected(target, cwd):
-        return _deny(GuardRule.WORKSPACE_WRITE)
-    return ALLOW
+    rule = _protection([os.fspath(target)], cwd, writes or GuardedPaths())
+    return ALLOW if rule is None else _deny(rule)
+
+
+def _protection(paths: list[str], cwd: Path, writes: WriteTargetPolicy) -> GuardRule | None:
+    """The rule that keeps an agent away from the first of ``paths`` that is protected: a lock or the workspace."""
+    for path in paths:
+        if writes.is_protected(path, cwd):
+            locked = getattr(writes, "locked", None)
+            return GuardRule.LOCKED_FILE if locked is not None and locked(path, cwd) else GuardRule.WORKSPACE_WRITE
+    return None
 
 
 def _merge(first: GuardVerdict, second: GuardVerdict) -> GuardVerdict:
@@ -666,9 +682,10 @@ def _evaluate_writes(command: str, cwd: Path, writes: WriteTargetPolicy, depth: 
             if target is not None:
                 cwd = _join(cwd, target)
             continue
-        paths = [*simple.redirects, *_changed_paths(simple.words)]
-        if any(writes.is_protected(_bare(path), cwd) for path in paths):
-            return _deny(GuardRule.WORKSPACE_WRITE)
+        paths = [_bare(path) for path in [*simple.redirects, *_changed_paths(simple.words)]]
+        rule = _protection(paths, cwd, writes)
+        if rule is not None:
+            return _deny(rule)
         for index, token in enumerate(simple.words):
             program = _program(token)
             if depth < _MAX_NESTING and _runs_nested_command(program, simple.words, index):
@@ -744,6 +761,9 @@ def _evaluate_git(args: list[str], context: _Context) -> GuardVerdict:
     subcommand, rest = args[position], args[position + 1 :]
     shorts = _short_flags(rest)
 
+    rule = _protection(gitpaths.touched_paths(subcommand, rest), directory, context.writes)
+    if rule is not None:
+        return _deny(rule)
     if subcommand == _PUSH:
         return _deny(GuardRule.PUSH)
     if subcommand == _RESET and _HARD in rest:
@@ -770,6 +790,11 @@ def _evaluate_git(args: list[str], context: _Context) -> GuardVerdict:
     elif subcommand == _CHECKOUT:
         _track_checkout(rest, directory, context)
     return ALLOW
+
+
+def _evaluate_git_text(command: str, cwd: Path, writes: WriteTargetPolicy) -> GuardVerdict:
+    rule = _protection([_bare(token) for token in gitpaths.checkout_paths_in_text(command)], cwd, writes)
+    return ALLOW if rule is None else _deny(rule)
 
 
 def _writes_approval_ref(subcommand: str, args: list[str]) -> bool:

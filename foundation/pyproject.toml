@@ -1,6 +1,6 @@
 [project]
 name = "agentflow"
-version = "0.5.0"
+version = "0.6.0"
 description = "Shared, domain-agnostic engine for the plugin families in this repo"
 authors = [
     { name = "tankhangkm12" }

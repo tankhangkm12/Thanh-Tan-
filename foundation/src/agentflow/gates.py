@@ -7,7 +7,7 @@ from pathlib import Path
 
 from agentflow.constants import DRIFT_HEADING, ENCODING, MARKDOWN_SUFFIX, REPORTS_DIR, TASKS_DIR, CheckKind, GateKind
 from agentflow.convention_sources import answered_questions, load_effective_conventions
-from agentflow import testspec
+from agentflow import lockfiles, testspec
 from agentflow.drift import drift_problems
 from agentflow.scan import scan_problems, tools_for_step
 from agentflow.scan_store import ScanStore
@@ -108,7 +108,13 @@ def _tests_pass(context: GateContext, task: Task, step: Step) -> list[str]:
     return problems
 
 
+def _locked_files_intact(context: GateContext, task: Task, step: Step) -> list[str]:
+    """Every file locked at the approval of the tests is as it was (working tree and HEAD), and no test configuration file was added."""
+    return lockfiles.check(context.workspace_dir, context.workspace_dir.parent, task.id) or []
+
+
 CHECKS: dict[GateKind, GateCheck] = {
+    GateKind.LOCKED_FILES_INTACT: _locked_files_intact,
     GateKind.TEST_SPEC_VALID: _test_spec_valid,
     GateKind.TESTS_PASS: _tests_pass,
     GateKind.PLAN_VALID: _plan_valid,

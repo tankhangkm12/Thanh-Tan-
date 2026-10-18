@@ -31,6 +31,7 @@ from agentflow import audit
 from agentflow.constants import (
     CHECKLIST_DRIFT_PREFIX,
     CHECKLIST_FIXED_PREFIX,
+    CHECKLIST_LOCK_PREFIX,
     CHECKLIST_HEADING,
     CHECKLIST_NOTES_HEADING,
     CHECKLIST_OPTIONAL_MARK,
@@ -55,7 +56,7 @@ from agentflow.fsutil import write_text_atomic
 from agentflow.gates import plan_report_path
 from agentflow.integrity import ACCEPT_HINT, Integrity, sha256_hex
 from agentflow.models import Step, Task, Workflow
-from agentflow import testspec
+from agentflow import lockfiles, testspec
 from agentflow.plan import parse_plan
 from agentflow.roadmap import set_status
 
@@ -204,6 +205,21 @@ def _spec_items(workspace_dir: Path, workflow: Workflow, task: Task, step: Step)
     return found
 
 
+def _locked_files(workspace_dir: Path, task: Task, step: Step) -> list[Item]:
+    """One line per file that will be locked when this step is approved (the same plan the approval will carry out)."""
+    path = testspec.report_path(workspace_dir, task.id, step.id)
+    if not path.is_file():
+        return []
+    text = path.read_text(encoding=ENCODING)
+    blocks = testspec.parse_report(text)
+    plan = lockfiles.build_plan(workspace_dir.parent, [file for block in blocks for file in block.files], lockfiles.declared_infra(text))
+    found = []
+    for number, (name, entry) in enumerate(plan.entries.items(), 1):
+        scope = f", only its test settings ({entry['part']})" if entry["scope"] == lockfiles.SCOPE_PART else ""
+        found.append(Item(f"{CHECKLIST_LOCK_PREFIX}{number}", f"{name} ({entry['kind']}{scope}) will be locked"))
+    return found
+
+
 def build_items(workspace_dir: Path, workflow: Workflow, task: Task, step: Step) -> list[Item]:
     items = _fixed(step)
     for source in step.approval_items:
@@ -216,6 +232,8 @@ def build_items(workspace_dir: Path, workflow: Workflow, task: Task, step: Step)
                 items += _drift_proposals(workspace_dir, task, step)
             case ApprovalItem.SPEC_ITEMS:
                 items += _spec_items(workspace_dir, workflow, task, step)
+            case ApprovalItem.LOCKED_FILES:
+                items += _locked_files(workspace_dir, task, step)
     if task.roadmap and workflow.steps[-1].id == step.id:
         items.append(Item(CHECKLIST_ROADMAP_CODE, f"Mục {task.roadmap} đã hoàn thành?", optional=True))
     return items

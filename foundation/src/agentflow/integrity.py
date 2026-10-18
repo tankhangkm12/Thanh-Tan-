@@ -8,18 +8,23 @@ both files, which is why the hook also keeps an audit log and why the limits are
 
 import hashlib
 import json
+from collections.abc import Callable
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
 from agentflow import audit
-from agentflow.constants import DECISIONS_DIR, ENCODING, INTEGRITY_FILE, MARKDOWN_SUFFIX, STATE_FILE, ExitCode
+from agentflow.constants import CONFIG_FILE, DECISIONS_DIR, ENCODING, INTEGRITY_FILE, MARKDOWN_SUFFIX, STATE_FILE, ExitCode
 from agentflow.errors import AgentflowError
 from agentflow.fsutil import write_text_atomic
 
 STATE_KEY = "state_sha256"
 CHECKLISTS_KEY = "checklists"
 ACCEPTED_KEY = "accepted_at"
+LOCK_KEY = "locked_files_sha256"
+LOCK_TASK_KEY = "locked_files_task"
+SETTINGS_KEY = "test_settings_sha256"
+LOCK_FILE_NAME = "locked-files.json"
 ACCEPT_HINT = 'a person who has looked at the change runs `agentflow state accept --reason "..."`'
 ACCEPT_SUFFIX = "-state-accept"
 NOTHING_TO_ACCEPT = "nothing to accept: state.json matches integrity.json and the audit log shows no write to it"
@@ -70,6 +75,42 @@ class Integrity:
         data.setdefault(CHECKLISTS_KEY, {})
         self._write(data)
 
+    def record_lock(self, task_id: str, digest: str) -> None:
+        """The hash of the lock file of the task that is going, so a hand edit or a deletion is noticed."""
+        data = self._current()
+        data.setdefault(STATE_KEY, self.current_digest() or "")
+        data[LOCK_KEY], data[LOCK_TASK_KEY] = digest, task_id
+        self._write(data)
+
+    def record_settings(self, digest: str) -> None:
+        """The hash of the settings that decide what the tests run (``test_command``, ``test_timeout_minutes``)."""
+        data = self._current()
+        data.setdefault(STATE_KEY, self.current_digest() or "")
+        data[SETTINGS_KEY] = digest
+        self._write(data)
+
+    def verify_lock(self, task_id: str | None, lock_digest: str | None) -> None:
+        data = self.load()
+        if data is None or task_id is None or data.get(LOCK_TASK_KEY) != task_id:
+            return
+        if lock_digest != data.get(LOCK_KEY):
+            what = "is missing" if lock_digest is None else "was changed outside agentflow (it does not match integrity.json)"
+            raise AgentflowError(f"{LOCK_FILE_NAME} of {task_id} {what}; {ACCEPT_HINT}", ExitCode.INTEGRITY_FAILED)
+
+    def verify_settings(self, digest: str) -> None:
+        data = self.load()
+        if data is None:
+            return
+        recorded = data.get(SETTINGS_KEY)
+        if recorded is None:
+            self.record_settings(digest)  # a workspace from before: nothing earlier can be checked
+        elif recorded != digest:
+            raise AgentflowError(
+                f"{CONFIG_FILE} was changed outside agentflow: the test_command or test_timeout_minutes setting differs from what "
+                f"`agentflow config set` last wrote; {ACCEPT_HINT}",
+                ExitCode.INTEGRITY_FAILED,
+            )
+
     def checklist(self, key: str) -> dict[str, str] | None:
         try:
             data = self.load()
@@ -116,7 +157,7 @@ class Integrity:
 
     # ------------------------------------------------------------ a person accepts
 
-    def accept(self, reason: str, at: str) -> Path | None:
+    def accept(self, reason: str, at: str, lock_digest: Callable[[str], str | None] | None = None, settings: str | None = None) -> Path | None:
         """For a person: take ``state.json`` as it is and record why. ``None`` when there was nothing to accept."""
         if not reason.strip():
             raise AgentflowError("give the reason you accept the change: --reason \"...\"", ExitCode.INVALID_INPUT)
@@ -128,7 +169,15 @@ class Integrity:
             pass
         previous = None if data is None else data[STATE_KEY]
         unacknowledged = audit.evidence(self.dir, None, None if data is None else data.get(ACCEPTED_KEY), None)
-        if data is not None and previous == digest and not unacknowledged:
+        extra: list[str] = []
+        lock_task = None if data is None else data.get(LOCK_TASK_KEY)
+        lock_now = lock_digest(lock_task) if lock_digest is not None and lock_task else None
+        if data is not None:
+            if lock_task and lock_digest is not None and data.get(LOCK_KEY) != lock_now:
+                extra.append(f"- {LOCK_FILE_NAME} of {lock_task} sha256 before: {data.get(LOCK_KEY)}; now: {lock_now or 'missing'}")
+            if settings is not None and data.get(SETTINGS_KEY) not in (None, settings):
+                extra.append(f"- {CONFIG_FILE} test settings (test_command, test_timeout_minutes) sha256 before: {data.get(SETTINGS_KEY)}; now: {settings}")
+        if data is not None and previous == digest and not unacknowledged and not extra:
             return None
         lines = [
             "# state accepted by a person",
@@ -137,6 +186,7 @@ class Integrity:
             f"- Reason: {reason.strip()}",
             f"- {STATE_FILE} sha256 before: {previous or 'unknown'}",
             f"- {STATE_FILE} sha256 now: {digest or 'missing'}",
+            *extra,
             "",
             "## Calls in the audit log that could have written the state or a checklist",
             *([f"- {e.at} {e.tool}: {e.target}" for e in unacknowledged] or ["- none"]),
@@ -153,6 +203,10 @@ class Integrity:
         write_text_atomic(path, "\n".join(lines) + "\n")
         fresh = data or {CHECKLISTS_KEY: {}}
         fresh[STATE_KEY] = digest or ""
+        if lock_now is not None:
+            fresh[LOCK_KEY] = lock_now
+        if settings is not None:
+            fresh[SETTINGS_KEY] = settings
         fresh[ACCEPTED_KEY] = at
         self._write(fresh)
         return path

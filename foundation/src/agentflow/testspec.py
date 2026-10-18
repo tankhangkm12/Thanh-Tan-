@@ -24,7 +24,7 @@ from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
-from agentflow import testrun
+from agentflow import lockfiles, testrun
 from agentflow.confirmations import Confirmations
 from agentflow.constants import (
     ENCODING,
@@ -261,8 +261,11 @@ def verify_red(workspace_dir: Path, workflow: Workflow, task: Task, root: Path, 
     path = report_path(workspace_dir, task.id, step.id)
     if not path.is_file():
         return [f"no report for step '{step.id}' yet (save it with `agentflow report --step {step.id}`)"], None
-    blocks = parse_report(path.read_text(encoding=ENCODING))
+    text = path.read_text(encoding=ENCODING)
+    blocks = parse_report(text)
     problems = report_problems(blocks, plan_items(workspace_dir, workflow, task), root)
+    to_lock = lockfiles.build_plan(root, [file for block in blocks for file in block.files], lockfiles.declared_infra(text))
+    problems += to_lock.problems
     try:
         timeout = timeout_of(lookup)
     except ValueError as exc:
@@ -278,7 +281,8 @@ def verify_red(workspace_dir: Path, workflow: Workflow, task: Task, root: Path, 
         entry = result_entry(block.command, runs[block.command], True)
         results[block.code] = entry
         problems += _red_problems(block.code, entry, timeout)
-    record = {"head": head, "at": now(), "results": results}
+    # `files`: what the red proof was made on. The approval locks these bytes, or refuses when they are not these any more.
+    record = {"head": head, "at": now(), "files": to_lock.digests(), "results": results}
     save_record(task_file(workspace_dir, task.id, VERIFY_RED_FILE), record)
     return problems, record
 
@@ -370,6 +374,10 @@ def tests_pass(workspace_dir: Path, workflow: Workflow, task: Task, root: Path, 
     """Run the project's test command and the commands of the test-spec; return the problems and, when only a warning is
     due, its text. The record is written either way."""
     problems: list[str] = []
+    changed = lockfiles.check(workspace_dir, root, task.id)
+    if changed:
+        save_record(task_file(workspace_dir, task.id, TESTS_PASS_FILE), {"head": head, "at": now(), "status": "fail", "locked_files": changed, "spec_results": {}})
+        return [f"the approved tests are not what they were, so nothing was run: {message}" for message in changed], None
     try:
         timeout = timeout_of(lookup)
     except ValueError as exc:
