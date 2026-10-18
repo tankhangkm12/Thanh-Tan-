@@ -49,6 +49,8 @@ agentflow --version
 agentflow doctor
 ```
 
+`agentflow doctor` còn so phiên bản `agentflow` trên PATH với phiên bản đang chạy: nếu lệch phiên bản (sau khi cập nhật plugin hoặc `git pull` mà chưa cài lại) nó cảnh báo và in lệnh `uv tool install --force --reinstall ./foundation` (chạy từ thư mục repo). Hook cũ không hiểu các câu trả lời mới như `ask`, nên đừng bỏ qua cảnh báo này.
+
 Không cần clone cũng được: `uv tool install --force "git+https://github.com/tankhangkm12/Thanh-Tan-#subdirectory=foundation"`.
 
 Nếu terminal không nhận `agentflow`: chạy `uv tool update-shell` rồi mở lại terminal. Sau mỗi lần `git pull` repo, chạy lại lệnh `uv tool install --force --reinstall ...` ở trên. Gỡ: `uv tool uninstall agentflow`.
@@ -72,6 +74,8 @@ claude plugin install dev-core@thanh-tan-plugins
 Kiểm tra: `claude plugin list` phải thấy `dev-core@thanh-tan-plugins` ở trạng thái enabled. Mở lại Claude Code, gõ `/dev-core:` sẽ thấy `setup`, `start`, `continue`, `status`, `approve`. 8 agent (7 role, riêng implementer có hai biến thể) hiện dưới tên `dev-core:orchestrator`, `dev-core:planner`, `dev-core:implementer-fast`, `dev-core:implementer-deep`, `dev-core:tester`, `dev-core:security`, `dev-core:reviewer`, `dev-core:scout`. (Lệnh `claude plugin details` hiện báo `Agents (0)` do cách đếm của nó; agent vẫn được nạp.) Cập nhật: `claude plugin update dev-core@thanh-tan-plugins`.
 
 ### Bước 2b: cài vào Antigravity CLI
+
+**KHÔNG dùng `agy --dangerously-skip-permissions` với plugin này.** Đã thử (agy 1.4.0, 18/10/2026): ở chế độ đó lệnh vẫn chạy và `force_ask` của hook không có tác dụng, nên mọi bước duyệt (`task approve`, `task cancel`) bị bỏ qua. Dùng chế độ mặc định `request-review`.
 
 ```
 agy plugin install "<repo>/families/software-dev/core"
@@ -204,7 +208,7 @@ Antigravity CLI không có quy tắc `ask` kiểu `permissions` của Claude Cod
 
 - Với `agentflow task approve` và `task cancel` (mọi dạng gọi như trên Claude Code), hook trả `force_ask`: theo tài liệu của Antigravity, nó bỏ qua bộ nhớ "Always Allow", nên bạn luôn thấy câu hỏi.
 - Hook từ chối ghi vào `.agentflow/` (tool file và lệnh shell) và các lệnh của người; `agentflow commit` từ chối commit khi quét ra secret hoặc khi sai nhánh.
-- Đã thử thật (agy 1.4.0, 18/10/2026, kết quả ở [docs/architecture.md](docs/architecture.md), mục "Thử thật hook ask"): chế độ mặc định `request-review` hỏi đúng; với `--dangerously-skip-permissions` (tự duyệt mọi lệnh) lệnh vẫn chạy, nên khi dùng chế độ tự duyệt thì `force_ask` không giúp được và chỉ còn các hook deny cùng `agentflow commit`. Đừng bật chế độ đó cho dự án dùng agentflow.
+- Đã thử thật (agy 1.4.0, 18/10/2026, kết quả ở [docs/architecture.md](docs/architecture.md), mục "Thử thật hook ask"): chế độ mặc định `request-review` hỏi đúng; với `--dangerously-skip-permissions` (tự duyệt mọi lệnh) lệnh vẫn chạy, nên khi dùng chế độ tự duyệt thì `force_ask` không giúp được và chỉ còn các hook deny cùng `agentflow commit`. **KHÔNG dùng `agy --dangerously-skip-permissions` với plugin này** (xem Bước 2b).
 
 ### Kiểm tra nhanh toàn bộ
 

@@ -13,6 +13,7 @@ from agentflow.constants import (
     INSTALL_URLS,
     SCHEMA_VERSION,
     ActionKind,
+    ApprovalItem,
     ConfigKey,
     GateKind,
     GuardDecision,
@@ -40,6 +41,13 @@ class Step:
     # An earlier step to go back to when this step fails.
     on_fail: str | None = None
     gates: tuple[GateKind, ...] = ()
+    # What a person ticks before approving this step: fixed questions, and where the dynamic lines come from.
+    approval_checklist: tuple[str, ...] = ()
+    approval_items: tuple[ApprovalItem, ...] = ()
+
+    @property
+    def has_checklist(self) -> bool:
+        return bool(self.approval_checklist or self.approval_items)
 
 
 @dataclass(frozen=True)
@@ -117,6 +125,8 @@ def _step_from_dict(data: Mapping[str, Any]) -> Step:
         requires_approval=data.get(WorkflowKey.REQUIRES_APPROVAL, False),
         on_fail=data.get(WorkflowKey.ON_FAIL),
         gates=tuple(GateKind(item) for item in data.get(WorkflowKey.GATES, ())),
+        approval_checklist=tuple(data.get(WorkflowKey.APPROVAL_CHECKLIST, ())),
+        approval_items=tuple(ApprovalItem(item) for item in data.get(WorkflowKey.APPROVAL_ITEMS, ())),
     )
 
 
@@ -332,7 +342,7 @@ class ProbeResult:
 
 @dataclass(frozen=True)
 class ToolCheck:
-    tool: Tool
+    tool: Tool | str
     status: ToolStatus
     required: bool
     version: str | None = None
@@ -390,6 +400,8 @@ class HookInput:
     command: str | None = None
     # The file a file-writing tool is about to change (as given, possibly relative).
     write_target: Path | None = None
+    # The CLI's name for the tool being called (Bash, Write, run_command...), when its payload gives one.
+    tool: str | None = None
     # Claude: this Stop hook already ran this turn. Antigravity: 0-based model invocation number.
     stop_hook_active: bool = False
     invocation_num: int | None = None

@@ -177,6 +177,24 @@ Mọi ghi vào `.agentflow/` chỉ đi qua lệnh `agentflow` (và tool MCP củ
 
 Hook không đọc được: biến (`& $exe task approve`, `agentflow $args`), alias, script có sẵn trong file, chương trình khác tự gọi `agentflow`, và mọi thứ chạy ngoài hook (một cửa sổ terminal khác). `python -c` hay script tự ghi file chỉ bị phát hiện qua việc `state.json` đổi. Sandbox của Claude Code chỉ có trên macOS, Linux và WSL2; trên Windows gốc không có sandbox, và sandbox cũng chỉ bao lệnh shell, không bao tool file, MCP hay hook. Chặn cứng chỉ có sandbox hoặc quyền hệ điều hành.
 
+### Mô hình bảo vệ duyệt
+
+Bước cần người duyệt có một checklist `.agentflow/tasks/<task>/approve-<bước>.md` (bước khai `approval_checklist` / `approval_items` trong `workflow.yaml`; agentflow ghi lúc bước chuyển sang `awaiting_approval`). `agentflow task approve` đọc nó: từ chối (mã 36) khi còn ô bắt buộc chưa tick hoặc khung (các dòng, đầu file) khác bản agentflow đã ghi; từ chối (mã 37) khi `state.json` khác hash đã lưu hoặc nhật ký hook có lệnh có khả năng ghi vào checklist. Ghi chú của người vào `decisions/<task>-<bước>-approval.md`. Không lớp nào dưới đây đứng một mình; mỗi lớp có giới hạn:
+
+| Lớp | Chặn gì | Giới hạn |
+|---|---|---|
+| Quy tắc `permissions` của README Bước 4 (`deny` ghi `state.json`, `ask` cho approve/cancel) | Tool file của Claude Code ghi `state.json`; hỏi trước approve/cancel | Quy tắc Bash không bóc `uv run`, đường dẫn đầy đủ, `sh -c`; Antigravity không có quy tắc `ask` |
+| Hook `pre-tool` `deny` | Tool file và lệnh shell ghi vào `.agentflow/` (kể cả `approve-*.md`, `audit.jsonl`); lệnh của người (`state accept`, `project confirm`...) | Mức cố gắng: `python -c`/`node -e`, script, alias, biến, chương trình khác tự ghi file không bị thấy |
+| Hook `ask` / `force_ask` | Luôn hỏi người trước `task approve`/`task cancel`, mọi dạng gọi hook đọc được | Không có tác dụng với `agy --dangerously-skip-permissions`; người dùng chế độ tự duyệt thì chỉ còn các lớp khác |
+| Checklist `approve-*.md` + khung | Approve khi còn ô chưa tick; thêm, xóa, sửa dòng; sửa đầu file | Chỉ ngăn nhầm lẫn và sửa vụng: ai chạy được mã cùng quyền người dùng vẫn tick hộ được |
+| Hash `state.json` trong `integrity.json` | Sửa tay `state.json` bị phát hiện trước `new`/`advance`/`approve`; hash khung của từng checklist | Agent viết mã Python có thể tính lại và ghi đè cả hai file: hash không chống được người cố ý |
+| Nhật ký `audit.jsonl` | Ghi mọi lệnh/tool chạm tên `state.json`, `STATE.md`, `integrity.json`, `approve-*.md`, `locked-files.json`, `confirmations.json`, kèm quyết định; approve từ chối khi có dòng được cho qua mà có khả năng ghi | Chỉ thấy cái đi qua hook (Bash, PowerShell, tool ghi file): lệnh `python -c` chạy bên ngoài hook, tool đọc Read/Glob/Grep không ghi nhật ký, và chương trình tự ghi file không để lại dòng nào |
+| `agentflow commit` | Từ chối commit khi sai nhánh, có secret, hoặc đụng file không được phép | Chỉ cho commit đi qua agentflow; `git commit` trực tiếp bị hook chặn nhưng không phải sandbox |
+| `agentflow state accept` | Người đọc thay đổi rồi mới tin lại file; ghi `decisions/` | Là lệnh của người: chỉ hiệu lực khi hook chặn agent tự chạy |
+| Sandbox của CLI | Chặn ghi file ở mức hệ điều hành | Sandbox của Claude Code chỉ có trên macOS, Linux, WSL2; trên Windows gốc không có sandbox, và nó chỉ bao lệnh shell, không bao tool file/MCP/hook |
+
+Nhìn chung: các lớp trên làm cho việc duyệt hộ khó xảy ra do sơ suất và để lại dấu vết, **không** biến nó thành không thể. Chặn cứng cần quyền hệ điều hành hoặc sandbox. Một agent chạy được mã tùy ý có thể tính lại mọi hash và xóa dấu vết mà hook không thấy; vì vậy bạn nên đọc `decisions/` và `audit.jsonl` khi nghi ngờ, và không bật chế độ bỏ qua quyền (`permissions.disableBypassPermissionsMode`).
+
 ### Giới hạn trên Antigravity
 
 Antigravity CLI không có quy tắc `ask` kiểu `permissions`; chỉ có chế độ phê duyệt lệnh của chính nó và hook. Hook `pre-tool` của dev-core trả `{"decision": "force_ask"}` cho `task approve`/`task cancel`: theo `hooks.md` của agy, `force_ask` bỏ qua bộ nhớ "Always Allow". Các lớp còn hiệu lực: hook `deny` (ghi vào `.agentflow/` bằng tool file hay lệnh shell, các lệnh của người), `agentflow commit` từ chối (sai nhánh, quét ra secret). Không hiệu lực khi người dùng chế độ tự duyệt mọi lệnh (`--dangerously-skip-permissions`): đã thử, lệnh vẫn chạy, nên chỉ còn các hook deny và `agentflow commit`. Đừng bật chế độ đó cho dự án dùng agentflow.

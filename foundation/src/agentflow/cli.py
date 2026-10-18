@@ -12,7 +12,10 @@ from pathlib import Path
 from agentflow.assign import ProjectAgentNames, WorkflowAgentNames, assignment_lines
 from agentflow.convention_sources import load_effective_conventions
 from agentflow.services import WorkspaceServices
-from agentflow.constants import ConfirmState, KnowledgeCommand, KnowledgePlace, McpCommand, ProjectCommand, ReplanCommand, ReplanState, RoadmapCommand, RoadmapStatus, RoleCommand
+from agentflow.checklist import ChecklistWriter, check_approval, finish_approval
+from agentflow.integrity import NOTHING_TO_ACCEPT, Integrity
+from agentflow.checklist import checklist_path
+from agentflow.constants import ConfirmState, StateCommand, KnowledgeCommand, KnowledgePlace, McpCommand, ProjectCommand, ReplanCommand, ReplanState, RoadmapCommand, RoadmapStatus, RoleCommand
 from agentflow.interfaces import AgentNames
 from agentflow.roles import RoleGrants
 from agentflow.constants import ANSWER_OPTION, DECISION_SCOPE_PROJECT, CheckKind
@@ -47,13 +50,14 @@ from agentflow.constants import (
     SyncOutcome,
     TaskCommand,
     TaskEvent,
+    StepStatus,
     TaskStatus,
     TaskType,
     ToolStatus,
     WorkflowCommand,
 )
 from agentflow.commit import commit_staged
-from agentflow.doctor import SystemToolProbe, run_doctor
+from agentflow.doctor import SystemToolProbe, run_doctor, running_version
 from agentflow.engine import next_action
 from agentflow.errors import AgentflowError
 from agentflow.gates import GateContext, WorkspaceGates, plan_problems, plan_report_path
@@ -233,6 +237,11 @@ def build_parser() -> argparse.ArgumentParser:
     roadmap_set.add_argument("code", help="roadmap item, e.g. R3")
     roadmap_set.add_argument("status", choices=[str(status) for status in RoadmapStatus])
 
+    state = commands.add_parser(Command.STATE, help="for a person: take state.json as it is after reading a change made outside agentflow")
+    state_commands = state.add_subparsers(dest="state_command", metavar="<state command>", required=True)
+    accept = state_commands.add_parser(StateCommand.ACCEPT, help="record why and trust state.json again (and clear what the audit log shows)")
+    accept.add_argument("--reason", required=True, help="why you accept it")
+
     replan = commands.add_parser(Command.REPLAN, help="after a task: the replan of the project documents (proposed by the scout, closed by a person)")
     replan_commands = replan.add_subparsers(dest="replan_command", metavar="<replan command>", required=True)
     replan_commands.add_parser(ReplanCommand.STATUS, help="where the replan of the latest finished task stands (read-only)")
@@ -281,7 +290,7 @@ def main(argv: list[str] | None = None) -> int:
 
 
 def cmd_doctor(args: argparse.Namespace) -> ExitCode:
-    report = run_doctor(SystemToolProbe())
+    report = run_doctor(SystemToolProbe(), running_version=running_version())
     width = max(len(check.tool) for check in report.checks)
     for check in report.checks:
         print(_doctor_line(check, width))
@@ -383,9 +392,20 @@ def _store(opened: _Opened) -> JsonStateStore:
     return JsonStateStore(opened.paths.dir, opened.workflow)
 
 
+def cmd_state(args: argparse.Namespace) -> ExitCode:
+    paths = find_workspace(Path.cwd())
+    decision = Integrity(paths.dir).accept(args.reason, utc_now())
+    print(NOTHING_TO_ACCEPT if decision is None else f"state accepted; decision recorded: {decision}")
+    return ExitCode.OK
+
+
 def cmd_task(args: argparse.Namespace) -> ExitCode:
     opened = _open_workspace()
     store = _store(opened)
+    if args.task_command in {TaskCommand.NEW, TaskCommand.ADVANCE, TaskCommand.APPROVE}:
+        warning = Integrity(opened.paths.dir).verify(bool(opened.state.tasks)).warning
+        if warning:
+            _err(f"{WARNING_PREFIX}{warning}")
     match args.task_command:
         case TaskCommand.NEW:
             if args.roadmap is not None:
@@ -406,11 +426,19 @@ def cmd_task(args: argparse.Namespace) -> ExitCode:
             _warn_project_documents(opened.paths.dir, task)
             _warn_replan(before)
         case TaskCommand.ADVANCE:
-            task = advance_task(store, opened.workflow, args.result, utc_now, _gates(opened), _sealer(opened))
+            task = advance_task(store, opened.workflow, args.result, utc_now, _gates(opened), _sealer(opened), ChecklistWriter(opened.paths.dir))
             print(f"{task.id}: step '{task.current_step}' is now {task.step_status} (task {task.status})")
+            if task.step_status is StepStatus.AWAITING_APPROVAL and task.status is TaskStatus.OPEN and (step := opened.workflow.get_step(task.current_step)) and step.has_checklist:
+                print(f"checklist to tick before approving: {checklist_path(opened.paths.dir, task.id, step.id)}")
         case TaskCommand.APPROVE:
+            active = opened.state.active_task()
+            approval = check_approval(opened.paths.dir, opened.workflow, active) if active is not None else None
             result = approve_task(store, opened.workflow, opened.paths.dir, utc_now, args.reason, _sealer(opened))
             task = result.task
+            if approval is not None:
+                kept = finish_approval(opened.paths.dir, approval, active, opened.workflow, utc_now())
+                if kept is not None:
+                    print(f"note recorded: {kept}")
             print(f"{task.id}: step '{task.current_step}' is now {task.step_status} (task {task.status})")
             if result.decision_file is not None:
                 print(f"decision recorded: {result.decision_file}")
@@ -884,6 +912,7 @@ HANDLERS: dict[str, Handler] = {
     Command.MCP: cmd_mcp,
     Command.PROJECT: cmd_project,
     Command.ROADMAP: cmd_roadmap,
+    Command.STATE: cmd_state,
     Command.REPLAN: cmd_replan,
     Command.CONVENTIONS: cmd_conventions,
     Command.KNOWLEDGE: cmd_knowledge,

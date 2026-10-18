@@ -72,16 +72,20 @@ def main() -> int:
         s.af("report", "--step", "confirm", stdin="# Confirmed\n")
         s.af("task", "advance", "--result", "pass")
         s.af("task", "advance", "--result", "pass", ok=False)  # confirm now waits for approval
+        checklist = repo / ".agentflow" / "tasks" / TASK_ID / "approve-confirm.md"
+        expect(checklist.is_file(), "the confirm checklist is written when the step waits for approval", str(checklist))
+        refused = s.af("task", "approve", ok=False)  # nothing is ticked yet
+        expect("K1" in refused.stderr, "approve names the boxes still open", refused.stderr)
         s.af("report", "--step", "confirm", stdin="# Changed my mind\n", ok=False)  # the approved report is final
         s.af("report", "--step", "plan", stdin="# Too early\n", ok=False)  # only the current step can be reported
-        s.af("task", "approve")  # confirm -> plan
+        s.approve()  # confirm -> plan
         bad = s.af("plan", "check", "--file", str(repo / "README.md"), ok=False)
         expect("no checklist items" in bad.stdout, "plan check rejects a README as a plan", bad.stdout)
         s.af("task", "advance", "--result", "pass", ok=False)  # no plan report yet: the plan-valid gate refuses
         s.af("report", "--step", "plan", stdin=PLAN)
         s.af("plan", "check")
         s.af("task", "advance", "--result", "pass")
-        s.af("task", "approve")  # plan -> implement
+        s.approve()  # plan -> implement
 
         (repo / "greeting.txt").write_text("hello\n", encoding=ENCODING)
         s.git("add", "greeting.txt")
@@ -103,7 +107,7 @@ def main() -> int:
         s.af("task", "advance", "--result", "pass")  # security
         s.af("report", "--step", "review", stdin="# Review\nNo findings.\n\n## Đề xuất cập nhật hồ sơ\nkhông có\n")
         s.af("task", "advance", "--result", "pass")  # review passes -> awaiting approval
-        s.af("task", "approve")
+        s.approve()
         state = json.loads((repo / ".agentflow" / "state.json").read_text(encoding=ENCODING))
         expect(state["tasks"][0]["status"] == "done" and state["active_task_id"] is None, "task is done after review approval")
         tag = f"agentflow/{TASK_ID}/approved"
@@ -126,10 +130,10 @@ def main() -> int:
         # A finding that blocks: Semgrep ERROR in a changed file stops the security step.
         s.af("task", "new", "Risky code")
         s.af("task", "advance", "--result", "pass")
-        s.af("task", "approve")
+        s.approve()
         s.af("report", "--step", "plan", stdin=PLAN.replace("greeting.txt", "risky.py"))
         s.af("task", "advance", "--result", "pass")
-        s.af("task", "approve")
+        s.approve()
         (repo / "risky.py").write_text("import subprocess\n\n\ndef run(cmd):\n    subprocess.call(cmd, shell=True)\n", encoding=ENCODING)
         s.git("add", "risky.py")
         s.af("commit", "add risky code", "--item", "C1")

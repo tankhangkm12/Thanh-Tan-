@@ -168,7 +168,7 @@ def conventions_flow(s: Session, base: Path, repo: Path) -> None:
     failed, answer = mcp_call(repo, "report_write", {"step": "confirm", "content": "# Confirmed\nStatuses become constants."})
     expect(not failed, "report_write saves the confirm report", answer)
     s.af("task", "advance", "--result", "pass")
-    s.af("task", "approve")
+    s.approve()
 
     wrong = plan([("C1", "implement", "service.py, statuses.py", "Use the statuses"), ("C2", "interface", "statuses.py", "Declare the statuses")], question=True)
     failed, answer = mcp_call(repo, "report_write", {"step": "plan", "content": wrong})
@@ -184,7 +184,7 @@ def conventions_flow(s: Session, base: Path, repo: Path) -> None:
     s.af("report", "--step", "plan", stdin=right)
     s.af("plan", "check")
     s.af("task", "advance", "--result", "pass")
-    s.af("task", "approve")
+    s.approve()
 
     (repo / "statuses.py").write_text('"""Statuses."""\n\nSTATUS_OPEN = "open"\n', encoding=ENCODING)
     s.git("add", "statuses.py")
@@ -209,7 +209,7 @@ def conventions_flow(s: Session, base: Path, repo: Path) -> None:
     failed, answer = mcp_call(repo, "report_write", {"step": "review", "content": REVIEW_REPORT})
     expect(not failed, "the review report answers each convention", answer)
     s.af("task", "advance", "--result", "pass")
-    s.af("task", "approve")
+    s.approve()
 
     tag = f"agentflow/{task}/approved"
     expect(s.git("tag", "-l", tag) == tag and s.git("cat-file", "-t", tag) == "tag", "the approval tag is annotated")

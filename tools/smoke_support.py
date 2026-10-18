@@ -3,7 +3,9 @@
 Kept apart from smoke.py so that a script run as ``__main__`` and the helpers it imports use one ``Failure`` class.
 """
 
+import json
 import os
+import re
 import secrets
 import stat
 import string
@@ -65,6 +67,18 @@ class Session:
         if done.returncode != 0:
             raise Failure(f"git {' '.join(args)} failed: {done.stderr}")
         return done.stdout.strip()
+
+    def approve(self, *extra: str, ok: bool = True) -> subprocess.CompletedProcess[str]:
+        """What a person does: tick the checklist of the step that waits (when agentflow wrote one), then approve."""
+        state = json.loads((self.repo / ".agentflow" / "state.json").read_text(encoding="utf-8"))
+        task = next((t for t in state["tasks"] if t["id"] == state["active_task_id"]), None)
+        if task is not None and task["step_status"] == "awaiting_approval":
+            path = self.repo / ".agentflow" / "tasks" / task["id"] / f"approve-{task['current_step']}.md"
+            if path.is_file():
+                lines = path.read_text(encoding="utf-8").splitlines(keepends=True)
+                ticked = [line.replace("- [ ]", "- [x]", 1) if re.match(r"- \[ \] (?!\(tùy chọn\))", line) else line for line in lines]
+                path.write_text("".join(ticked), encoding="utf-8", newline="")
+        return self.af("task", "approve", *extra, ok=ok)
 
     def af(self, *args: str, stdin: str | None = None, ok: bool = True) -> subprocess.CompletedProcess[str]:
         done = run([AGENTFLOW, *args], self.repo, stdin)

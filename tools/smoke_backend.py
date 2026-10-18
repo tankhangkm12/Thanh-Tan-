@@ -173,7 +173,7 @@ def task_flow(s: Session, project: str, port: int, until: str) -> None:
     task_id = active_task(repo)  # the probe task of the setup used T-001
     s.af("report", "--step", "confirm", stdin="# Confirmed\nAdd GET /items backed by an items table.\n")
     s.af("task", "advance", "--result", "pass")
-    s.af("task", "approve")
+    s.approve()
 
     # --- the plan: wrong role and missing down command are refused, a good plan passes
     wrong_role = plan_text("implementer", up, f"`{down}`")
@@ -197,7 +197,7 @@ def task_flow(s: Session, project: str, port: int, until: str) -> None:
     s.af("decide", "--answer", "Q1", "--text", "Routes use plural nouns.", "--check", "review")
     s.af("plan", "check")
     s.af("task", "advance", "--result", "pass")
-    s.af("task", "approve")
+    s.approve()
     if until == Stage.PLAN:
         return
 
@@ -249,7 +249,7 @@ def task_flow(s: Session, project: str, port: int, until: str) -> None:
     af_code(s, 25, "task", "advance", "--result", "pass")  # the conventions are not answered
     s.af("report", "--step", "review", stdin=REVIEW_REPORT.replace("DC-02: đạt\n", "DC-02: đạt\nDC-03: đạt\n").replace("DC-03: đạt\n", ""))
     s.af("task", "advance", "--result", "pass")
-    s.af("task", "approve")
+    s.approve()
     expect((repo / ".agentflow" / "tasks" / task_id / "lessons" / "L1.md").is_file(), "the proposed lesson is a file a person can push")
     s.af("knowledge", "push", str(repo / ".agentflow" / "tasks" / task_id / "lessons" / "L1.md"))
     expect((store / "lessons" / "L1.md").is_file(), "a person pushed the lesson into their own store")

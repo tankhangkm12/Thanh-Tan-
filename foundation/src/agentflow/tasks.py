@@ -6,6 +6,7 @@ from collections.abc import Callable
 from dataclasses import dataclass, replace
 from pathlib import Path
 
+from agentflow.checklist import ChecklistWriter
 from agentflow.constants import (
     BRANCH_SEPARATOR,
     DECISIONS_DIR,
@@ -144,12 +145,15 @@ def advance_task(
     clock: Clock,
     gates: GateRunner | None = None,
     sealer: TaskSealer | None = None,
+    checklists: ChecklistWriter | None = None,
 ) -> Task:
     """Record that the active task's current step passed or failed; a pass must clear the step's gates.
 
+    A pass into ``awaiting_approval`` writes the step's approval checklist first; if that fails the state is not changed.
+
     A pass of a last step that needs no approval finishes the task, so it seals it like an approval would.
     """
-    return _apply(store, workflow, result, clock, gates, _sealing(sealer))[1]
+    return _apply(store, workflow, result, clock, gates, _sealing(sealer), _checklist_writing(workflow, checklists))[1]
 
 
 def cancel_task(store: StateStore, workflow: Workflow, clock: Clock) -> Task:
@@ -262,6 +266,17 @@ def _sealing(sealer: TaskSealer | None) -> Callable[[Task, Task], None] | None:
     return seal
 
 
+def _checklist_writing(workflow: Workflow, writer: ChecklistWriter | None) -> Callable[[Task, Task], None] | None:
+    if writer is None:
+        return None
+
+    def write(before: Task, after: Task) -> None:
+        if after.status is TaskStatus.OPEN and after.step_status is StepStatus.AWAITING_APPROVAL:
+            writer.write(workflow, after)
+
+    return write
+
+
 def _apply(
     store: StateStore,
     workflow: Workflow,
@@ -269,12 +284,15 @@ def _apply(
     clock: Clock,
     gates: GateRunner | None = None,
     before_save: Callable[[Task, Task], None] | None = None,
+    after_transition: Callable[[Task, Task], None] | None = None,
 ) -> tuple[Task, Task]:
     state = store.load()
     before = require_active_task(state)
     if event is TaskEvent.PASS and gates is not None:
         _require_gates(workflow, before, gates)
     after = transition(workflow, before, event, clock())
+    if after_transition is not None:
+        after_transition(before, after)
     if before_save is not None and after.status is TaskStatus.DONE:
         before_save(before, after)
     tasks = tuple(after if task.id == before.id else task for task in state.tasks)

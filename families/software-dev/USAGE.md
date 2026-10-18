@@ -166,27 +166,43 @@ Hai CLI cùng chạy một quy trình; hook, skill và agent của `dev-core` c�
 
 Ba chỗ cần bạn duyệt: `confirm`, `plan`, `review`. Duyệt bằng `/dev-core:approve` hoặc `agentflow task approve`. Đọc báo cáo của bước ở `.agentflow/tasks/<task>/reports/<bước>.md` trước khi duyệt.
 
-**Confirm — đúng ý, đúng phạm vi**
+<!-- BEGIN:checklists -->
+
+**Confirm — Xác nhận task** (`confirm`)
 - [ ] Phần "Mục tiêu" được nhắc lại đúng ý bạn.
 - [ ] Phạm vi và ngoài phạm vi khớp những gì bạn viết, không thêm, không bớt.
 - [ ] Tiêu chí "Xong khi" kiểm được bằng lệnh hoặc quan sát cụ thể.
 - [ ] Mọi câu hỏi mở đã được bạn trả lời, không để agent đoán.
 
-**Plan — done-when đủ chặt, tier hợp lý, docs có link**
+**Plan — Vào workspace và lập kế hoạch** (`plan`)
 - [ ] Mỗi mục có `done-when` là lệnh hoặc sự kiện kiểm được, không phải lời mô tả mơ hồ.
 - [ ] Các mục đủ nhỏ để kiểm từng mục; không mục nào "làm hết".
 - [ ] `tier` hợp lý: phần khó và nhạy cảm là `deep`, phần quen thuộc là `fast`.
 - [ ] Mục `docs` có link tài liệu chính thức, hoặc `không có — <lý do>` mà bạn chấp nhận.
 - [ ] Mục `files` không vượt phạm vi đã duyệt ở `confirm`.
 - [ ] Mục `## Chưa có quy ước` (nếu có) đã được bạn trả lời bằng `agentflow decide --answer Q1 ...`.
+- Thêm tự động: một ô `C<n>` cho mỗi mục của kế hoạch (`plan-items`).
 
-**Review — mỗi quy ước có dòng đánh giá**
-- [ ] Mỗi quy ước `check: review` có đúng một dòng `PC-01: đạt` hoặc `vi phạm PC-01 ở file:dòng`.
+**Review — những gì bạn kiểm** (`review`)
 - [ ] Mục "must fix" đã xử lý hoặc có lý do rõ ràng.
-- [ ] Mục `## Đề xuất cập nhật hồ sơ` của báo cáo review: mỗi đề xuất (`profile`, `mission`, `architecture`, `conventions`, `roadmap`) là đúng và đủ, hoặc `không có` là đúng. Gate `drift-reviewed` chỉ kiểm hình thức (có mục, đúng khuôn), không kiểm đề xuất có đúng không: phần đó do bạn kiểm ở đây. Reviewer chỉ đề xuất, không sửa hồ sơ; đề xuất nào bạn đồng ý thì tự cập nhật hồ sơ (hoặc nhờ scout ghi lại rồi xác nhận).
+- [ ] Mục `## Đề xuất cập nhật hồ sơ` đúng và đủ, hoặc `không có` là đúng. Gate `drift-reviewed` chỉ kiểm hình thức, phần đúng sai do bạn kiểm; reviewer chỉ đề xuất, đề xuất nào bạn đồng ý thì bạn tự cập nhật hồ sơ (hoặc nhờ scout ghi lại rồi xác nhận).
 - [ ] Thay đổi đúng kế hoạch đã duyệt, không có việc ngoài phạm vi.
 - [ ] `summary.md` và kết quả scan (`.agentflow/tasks/<task>/scans/`) không còn phát hiện chặn nào chưa giải thích.
 - [ ] "Bài học đề xuất" đáng giữ thì đưa về kho: `agentflow knowledge push .agentflow/tasks/<task>/lessons/L1.md`.
+- Thêm tự động: một ô `PC-xx` cho mỗi quy ước `check: review` đang hiệu lực (`review-conventions`).
+- Thêm tự động: một ô `D<n>` cho mỗi đề xuất ở mục `## Đề xuất cập nhật hồ sơ` (`drift-proposals`).
+
+<!-- END:checklists -->
+
+### Cách tick
+
+Khi một bước chuyển sang `awaiting_approval`, agentflow ghi file `.agentflow/tasks/<task>/approve-<bước>.md` và in đường dẫn của nó. Mở file, đọc báo cáo của bước, rồi ghi `x` vào từng ô bắt buộc (`- [x]`). Danh sách trên đây là các câu cố định (một nguồn duy nhất: `core/workflow.yaml`); agentflow thêm ô cho mục kế hoạch, quy ước và đề xuất cập nhật hồ sơ từ báo cáo.
+
+- Đừng thêm, xóa hay sửa chữ của một dòng: `agentflow task approve` từ chối khi khung của file khác với bản agentflow đã ghi. Đầu file cũng không được sửa.
+- Mục `## Ghi chú của bạn` (cuối file) để bạn viết điều cần nhớ; nếu có chữ, agentflow lưu nó cùng bản sao checklist vào `.agentflow/decisions/<task>-<bước>-approval.md` khi duyệt.
+- Bước cuối của task có `--roadmap Rn` có thêm một ô tùy chọn ghi `(tùy chọn) roadmap: Mục Rn đã hoàn thành?`. Tick thì lúc duyệt mục chuyển sang `done`; để trống thì duyệt vẫn được và mục giữ `doing`.
+- Bước bị đưa về làm lại rồi tới lượt duyệt lần nữa thì file cũ được giữ thành `approve-<bước>.<n>.md` và một file mới (mọi ô để trống) được ghi.
+- Chỉ bạn tick. Agent không tick, không sửa file; hook chặn ghi vào `.agentflow/` và ghi nhật ký `audit.jsonl` các lệnh chạm tới file này (xem "Mô hình bảo vệ duyệt" ở `docs/architecture.md`).
 
 ## Replan sau mỗi task
 
@@ -216,6 +232,7 @@ Các lệnh dưới đây mang quyền quyết định của bạn. Hook của `
 | `agentflow task seal <id>` | Ghi `summary.md`, `spec-delta.md` và tag duyệt cho task đã xong mà chưa có |
 | `agentflow replan done` | Sau khi đọc `replan.md`: replan của task xong gần nhất (đang `proposed`) là xong; đánh dấu task, cập nhật `summary.md`, xóa dòng `removed:` |
 | `agentflow replan skip <task> --reason "..."` | Chủ động bỏ qua replan của task xong gần nhất (đang `pending` hoặc `proposed`) |
+| `agentflow state accept --reason "..."` | Sau khi đọc một thay đổi `state.json` làm ngoài agentflow (hoặc các lệnh nhật ký `audit.jsonl` ghi lại): tin lại file, ghi `decisions/<thời điểm>-state-accept.md` kèm trạng thái đã chấp nhận |
 | `agentflow role grant\|revoke\|sync` | Cấp, thu hồi, sinh lại tool MCP theo dự án cho role |
 
 Hai lệnh sau không bị hook từ chối nhưng phải luôn hỏi bạn: hook `pre-tool` trả `ask` (Claude Code) hoặc `force_ask` (Antigravity) cho `agentflow task approve` (hoặc `/dev-core:approve`) và `agentflow task cancel`, kể cả khi agent gọi qua `uv run`, `python -m agentflow`, đường dẫn đầy đủ, `timeout`, tiền tố biến môi trường hay nội dung bash/python đọc từ heredoc. Quy tắc `ask` trong khối permissions của README (Bước 4) là lớp phụ.
@@ -228,7 +245,7 @@ Merge và push là việc của bạn, không phải của agent: agent không b
 
 ### Giới hạn trên Antigravity CLI
 
-Antigravity không có quy tắc `ask` kiểu `permissions`, nên câu hỏi duyệt đến từ hook: `force_ask` cho `task approve`/`task cancel`, bỏ qua "Always Allow". Chế độ mặc định (`request-review`) hỏi đúng; nếu bạn chạy chế độ tự duyệt mọi lệnh (`--dangerously-skip-permissions`) thì lệnh vẫn chạy mà không hỏi (đã thử với agy 1.4.0), và chỉ còn các lớp không phụ thuộc câu hỏi: hook từ chối ghi vào `.agentflow/` và lệnh của người, `agentflow commit` từ chối khi sai nhánh hoặc có secret. Đừng dùng chế độ tự duyệt cho dự án dùng agentflow. Chi tiết và bảng thử thật: [docs/architecture.md](../../docs/architecture.md).
+Antigravity không có quy tắc `ask` kiểu `permissions`, nên câu hỏi duyệt đến từ hook: `force_ask` cho `task approve`/`task cancel`, bỏ qua "Always Allow". Chế độ mặc định (`request-review`) hỏi đúng; nếu bạn chạy chế độ tự duyệt mọi lệnh (`--dangerously-skip-permissions`) thì lệnh vẫn chạy mà không hỏi (đã thử với agy 1.4.0), và chỉ còn các lớp không phụ thuộc câu hỏi: hook từ chối ghi vào `.agentflow/` và lệnh của người, `agentflow commit` từ chối khi sai nhánh hoặc có secret. **KHÔNG dùng `agy --dangerously-skip-permissions` với plugin này**: mọi câu hỏi duyệt của plugin bị bỏ qua. Chi tiết và bảng thử thật: [docs/architecture.md](../../docs/architecture.md).
 
 ## Tiết kiệm token
 
@@ -247,6 +264,10 @@ Chi phí tăng theo kích thước ngữ cảnh: mỗi yêu cầu gửi lại c�
 **Scan báo nhầm.** Chạy `agentflow scan` và đọc id của phát hiện. Chỉ khi bạn chắc là báo nhầm: `agentflow decide --suppress <id> --reason "<vì sao chấp nhận được>"`. Agent không có đường nào tự hạ mức.
 
 **Câu hỏi "Chưa có quy ước".** Plan có mục `## Chưa có quy ước` bị chặn tới khi bạn trả lời từng câu: `agentflow decide --answer Q1 --text "<quy ước, một dòng>" --check plan|semgrep|review` (thêm `--global` để ghi cả vào kho cá nhân). Sau đó để agent chạy tiếp bằng `/dev-core:continue`.
+
+**`task approve` bị từ chối (mã 36).** Còn ô chưa tick (thông báo nêu mã, ví dụ `K2 C3`): mở `.agentflow/tasks/<task>/approve-<bước>.md` và ghi `x`. Hoặc khung bị đổi (thêm, xóa, sửa chữ một dòng, hoặc sửa đầu file): đừng sửa tay, cho bước làm lại (`agentflow task advance --result fail`) để có file mới. File bị mất cũng bị từ chối.
+
+**`task advance` hoặc `task approve` báo `state.json` bị đổi (mã 37).** `state.json` khác với hash agentflow giữ trong `.agentflow/integrity.json`, hoặc `audit.jsonl` ghi một lệnh được cho qua có thể đã ghi vào checklist hay `state.json` (thông báo trích dòng nhật ký). Đọc thay đổi (`git diff` không thấy vì `.agentflow/` nằm ngoài git; so với `STATE.md` và `decisions/`), nếu chấp nhận thì `agentflow state accept --reason "..."`. Lệnh chỉ đọc như `cat state.json` không bị tính, nhưng lệnh ghi (chuyển hướng `>`, `tee`, `sed -i`, `cp`, `Set-Content`, hoặc `python -c`/`node`/`bash -c` nhắc tới file) thì có. Thiếu `integrity.json` ở workspace cũ: agentflow tạo lại và cảnh báo một lần.
 
 **Workflow gốc đổi.** Khi file `workflow.yaml` gốc của plugin đổi (sau khi cập nhật plugin), `agentflow status` cảnh báo. Khi không có task đang chạy, đồng bộ bằng `agentflow workflow sync`; có task đang chạy thì lệnh bị từ chối, trừ khi bạn thêm `--force`. Tương tự, `agentflow ext sync` cho extension và `agentflow role sync` cho agent cấp theo dự án.
 

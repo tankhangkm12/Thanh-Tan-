@@ -38,6 +38,10 @@ def _path(value: Any) -> Path | None:
     return Path(value) if isinstance(value, str) and value else None
 
 
+def _name(value: Any) -> str | None:
+    return value if isinstance(value, str) and value else None
+
+
 class ClaudeAdapter:
     def read(self, event: HookEvent, payload: Mapping[str, Any]) -> HookInput:
         tool_input = _mapping(payload.get(ClaudeHookKey.TOOL_INPUT))
@@ -48,6 +52,7 @@ class ClaudeAdapter:
             cwd=_path(payload.get(ClaudeHookKey.CWD)),
             command=command if isinstance(command, str) else None,
             write_target=_path(target) if writes else None,
+            tool=_name(payload.get(ClaudeHookKey.TOOL_NAME)),
             stop_hook_active=payload.get(ClaudeHookKey.STOP_HOOK_ACTIVE) is True,
         )
 
@@ -103,6 +108,7 @@ class AntigravityAdapter:
             cwd=_path(args.get(AntigravityHookKey.CWD)) or first_workspace,
             command=command if isinstance(command, str) else None,
             write_target=_path(args.get(AntigravityHookKey.TARGET_FILE)) if writes else None,
+            tool=_name(call.get(AntigravityHookKey.NAME)),
             invocation_num=number if isinstance(number, int) and not isinstance(number, bool) else None,
         )
 

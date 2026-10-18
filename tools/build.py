@@ -318,6 +318,49 @@ def manifest_text(plugin: Path, roles: list[Role]) -> str:
     return json.dumps(manifest, indent=JSON_INDENT, ensure_ascii=False) + "\n"
 
 
+CHECKLISTS_BEGIN = "<!-- BEGIN:checklists -->"
+CHECKLISTS_END = "<!-- END:checklists -->"
+USAGE_FILE = "USAGE.md"
+WORKFLOW_FILE = "workflow.yaml"
+# What each source of dynamic lines adds to a checklist (agentflow writes them from the step's report).
+ITEM_SOURCES = {
+    "plan-items": "một ô `C<n>` cho mỗi mục của kế hoạch (`plan-items`)",
+    "review-conventions": "một ô `PC-xx` cho mỗi quy ước `check: review` đang hiệu lực (`review-conventions`)",
+    "drift-proposals": "một ô `D<n>` cho mỗi đề xuất ở mục `## Đề xuất cập nhật hồ sơ` (`drift-proposals`)",
+}
+
+
+def checklists_block(plugin: Path) -> str:
+    """The text between the markers of USAGE.md: the fixed questions of every approval, from the plugin's workflow."""
+    data = yaml.safe_load((plugin / WORKFLOW_FILE).read_text(encoding="utf-8"))
+    parts = []
+    for step in data["steps"]:
+        questions, sources = step.get("approval_checklist", []), step.get("approval_items", [])
+        if not (questions or sources):
+            continue
+        label = step["id"].capitalize()
+        # `Review — Review` would say it twice; the older documents wrote `Review — mỗi quy ước có dòng đánh giá`.
+        title = "những gì bạn kiểm" if step["name"].lower() == step["id"] else step["name"]
+        lines = [f"**{label} — {title}** (`{step['id']}`)"]
+        lines += [f"- [ ] {question}" for question in questions]
+        lines += [f"- Thêm tự động: {ITEM_SOURCES[source]}." for source in sources]
+        parts.append("\n".join(lines))
+    return "\n\n" + "\n\n".join(parts) + "\n\n"
+
+
+def usage_text(plugin: Path) -> tuple[Path, str] | None:
+    """USAGE.md next to the plugin with its generated block brought up to date; ``None`` when there is nothing to generate."""
+    usage = plugin.parent / USAGE_FILE
+    if not (plugin / WORKFLOW_FILE).is_file() or not usage.is_file():
+        return None
+    text = usage.read_text(encoding="utf-8")
+    if text.count(CHECKLISTS_BEGIN) != 1 or text.count(CHECKLISTS_END) != 1 or text.index(CHECKLISTS_BEGIN) > text.index(CHECKLISTS_END):
+        raise BuildError(f"{usage}: needs exactly one {CHECKLISTS_BEGIN} ... {CHECKLISTS_END} block (the checklists are generated there)")
+    head, rest = text.split(CHECKLISTS_BEGIN, 1)
+    tail = rest.split(CHECKLISTS_END, 1)[1]
+    return usage, f"{head}{CHECKLISTS_BEGIN}{checklists_block(plugin)}{CHECKLISTS_END}{tail}"
+
+
 def expected_files(plugin: Path) -> dict[Path, str]:
     """Every generated file (path -> content), validating the sources on the way."""
     roles = load_roles(plugin)
@@ -327,6 +370,9 @@ def expected_files(plugin: Path) -> dict[Path, str]:
             files[plugin / CLAUDE_AGENTS_DIR / f"{agent}{MARKDOWN_SUFFIX}"] = claude_agent(role, agent)
             files[plugin / ANTIGRAVITY_AGENTS_DIR / f"{agent}{MARKDOWN_SUFFIX}"] = antigravity_agent(role, agent)
     files[plugin / CLAUDE_MANIFEST] = manifest_text(plugin, roles)
+    generated_usage = usage_text(plugin)
+    if generated_usage is not None:
+        files[generated_usage[0]] = generated_usage[1]
     return files
 
 
@@ -367,7 +413,12 @@ def build(plugin: Path) -> list[Path]:
 
 def check(plugin: Path) -> list[str]:
     """Problems found; empty when everything generated is up to date."""
-    expected = expected_files(plugin)
+    try:
+        expected = expected_files(plugin)
+    except BuildError as exc:
+        if USAGE_FILE in str(exc):
+            return [f"out of date: {exc}"]
+        raise
     problems = [f"out of date: {path}" for path, text in expected.items() if read_text(path) != text]
     problems += [f"stale: {path}" for path in stale_files(plugin, expected)]
     return problems

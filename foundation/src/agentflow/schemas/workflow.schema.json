@@ -89,6 +89,15 @@
         "role": { "$ref": "#/$defs/identifier" },
         "requires_approval": { "type": "boolean", "default": false },
         "on_fail": { "$ref": "#/$defs/identifier" },
+        "approval_checklist": {
+          "type": "array",
+          "items": { "type": "string", "pattern": "\\S" }
+        },
+        "approval_items": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": { "enum": ["plan-items", "review-conventions", "drift-proposals"] }
+        },
         "gates": {
           "type": "array",
           "uniqueItems": true,

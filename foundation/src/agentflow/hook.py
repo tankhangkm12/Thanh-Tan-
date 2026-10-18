@@ -19,6 +19,7 @@ from agentflow.constants import (
     StepStatus,
     TaskStatus,
 )
+from agentflow import audit
 from agentflow.engine import next_action
 from agentflow.gates import plan_report_path
 from agentflow.errors import AgentflowError
@@ -90,7 +91,7 @@ def _reply(
 ) -> HookReply:
     match event:
         case HookEvent.PRE_TOOL:
-            return _guard_reply(hook_input, branches, workspaces)
+            return _audited(paths, cli, hook_input, _guard_reply(hook_input, branches, workspaces))
         case HookEvent.SESSION_START:
             if cli is CliKind.ANTIGRAVITY and hook_input.invocation_num != ANTIGRAVITY_FIRST_INVOCATION:
                 return HookReply()
@@ -100,6 +101,19 @@ def _reply(
                 return HookReply()
             return _loaded(paths, lambda workflow, state: _reminder(paths, state), kind=ReplyKind.REMINDER)
     return HookReply()
+
+
+def _audited(paths: WorkspacePaths, cli: CliKind, hook_input: HookInput, reply: HookReply) -> HookReply:
+    """Log the call when it names a protected file; the reply is returned as it was."""
+    if hook_input.write_target is not None:
+        kind, target = audit.WRITE_KIND, str(hook_input.write_target)
+    elif hook_input.command:
+        kind, target = audit.SHELL_KIND, hook_input.command
+    else:
+        return reply
+    decision = {ReplyKind.DENY: "deny", ReplyKind.ASK: "ask"}.get(reply.kind, audit.ALLOW)
+    audit.record(paths.dir, str(cli), hook_input.tool, kind, target, decision)
+    return reply
 
 
 def _guard_reply(hook_input: HookInput, branches: BranchLookup, workspaces: WorkspaceLookup) -> HookReply:

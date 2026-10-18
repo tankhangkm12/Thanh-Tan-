@@ -13,6 +13,8 @@ ENCODING = "utf-8"
 WORKSPACE_DIR = ".agentflow"
 STATE_FILE = "state.json"
 STATE_MD_FILE = "STATE.md"
+INTEGRITY_FILE = "integrity.json"
+AUDIT_FILE = "audit.jsonl"
 CONFIG_FILE = "config.yaml"
 WORKFLOW_COPY_FILE = "workflow.yaml"
 DECISIONS_DIR = "decisions"
@@ -90,6 +92,13 @@ LESSONS_DIR = "lessons"
 LESSONS_HEADING = "Bài học đề xuất"
 # The review report section where the reviewer says whether the project documents must change.
 DRIFT_HEADING = "Đề xuất cập nhật hồ sơ"
+CHECKLIST_HEADING = "Checklist"
+CHECKLIST_NOTES_HEADING = "Ghi chú của bạn"
+CHECKLIST_OPTIONAL_MARK = "(tùy chọn)"
+CHECKLIST_ROADMAP_CODE = "roadmap"
+CHECKLIST_FIXED_PREFIX = "K"
+CHECKLIST_PLAN_PREFIX = "C"
+CHECKLIST_DRIFT_PREFIX = "D"
 DRIFT_NONE_TEXT = "không có"
 
 # Secret scanning with Gitleaks in a container. The image is pinned on purpose.
@@ -137,6 +146,8 @@ class ExitCode(IntEnum):
     CONVENTIONS_INVALID = 33
     ROLE_GRANT_REFUSED = 34
     ROADMAP_INVALID = 35
+    CHECKLIST_REFUSED = 36
+    INTEGRITY_FAILED = 37
 
 
 class ToolName(StrEnum):
@@ -377,6 +388,11 @@ class Command(StrEnum):
     EXT = "ext"
     CONFIG = "config"
     ROLE = "role"
+    STATE = "state"
+
+
+class StateCommand(StrEnum):
+    ACCEPT = "accept"
 
 
 class ProjectCommand(StrEnum):
@@ -622,6 +638,8 @@ class WorkflowKey(StrEnum):
     REQUIRES_APPROVAL = "requires_approval"
     ON_FAIL = "on_fail"
     GATES = "gates"
+    APPROVAL_CHECKLIST = "approval_checklist"
+    APPROVAL_ITEMS = "approval_items"
     TIERED_ROLES = "tiered_roles"
     SIZES = "sizes"
     READ_ONLY_ROLES = "read_only_roles"
@@ -636,6 +654,14 @@ class SizeKey(StrEnum):
     SKIP_APPROVAL = "skip_approval"
     MAX_PLAN_ITEMS = "max_plan_items"
     SCANS = "scans"
+
+
+class ApprovalItem(StrEnum):
+    """Where the dynamic lines of an approval checklist come from (the report of the step being approved)."""
+
+    PLAN_ITEMS = "plan-items"
+    REVIEW_CONVENTIONS = "review-conventions"
+    DRIFT_PROPOSALS = "drift-proposals"
 
 
 class GateKind(StrEnum):

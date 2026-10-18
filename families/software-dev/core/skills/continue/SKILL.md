@@ -16,7 +16,7 @@ Repeat these until one of the stop conditions below:
 
 1. Run `agentflow next`. Its first word tells you what to do:
    - `start_task`: there is no active task; use the start skill.
-   - `await_approval`: a person has to approve the step. Tell them which step and where its report is, then stop. The approve skill handles it. Never approve a step yourself.
+   - `await_approval`: a person has to approve the step. Tell them which step, where its report is and where its checklist is (`.agentflow/tasks/<task>/approve-<step>.md`, written when the step passed; they tick it before approving), then stop. The approve skill handles it. Never approve a step yourself.
    - `blocked`: the task failed too many times. Show the person the latest reports in `.agentflow/tasks/<task>/reports/`, say the options (approve to resume, or cancel) and stop.
    - `continue`: work on the named step, as below, then go back to 1.
 2. Make sure you are on the task's branch (shown by `agentflow status`). If not, switch with `git switch <branch>`.

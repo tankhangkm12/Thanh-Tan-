@@ -74,7 +74,7 @@ def to_plan_step(s: Session, title: str, size: str | None = None) -> None:
     s.af(*args)
     s.af("report", "--step", "confirm", stdin="# Confirmed\n")
     s.af("task", "advance", "--result", "pass")
-    s.af("task", "approve")
+    s.approve()
 
 
 def tiers_and_layers(s: Session) -> None:
@@ -166,7 +166,7 @@ def small_task(s: Session, repo: Path) -> None:
     s.af("report", "--step", "review", stdin="# Review\nNo findings.\n\n## Đề xuất cập nhật hồ sơ\nkhông có\n")
     waiting = s.af("task", "advance", "--result", "pass")  # review
     expect("awaiting_approval" in waiting.stdout, "review of a small task still waits for a person", waiting.stdout)
-    s.af("task", "approve")
+    s.approve()
     latest = sorted((repo / ".agentflow" / "tasks").glob("T-*/summary.md"))[-1].read_text(encoding=ENCODING)
     expect("- Size: small" in latest, "summary.md records the size", latest[:200])
     state = json.loads((repo / ".agentflow" / "state.json").read_text(encoding=ENCODING))

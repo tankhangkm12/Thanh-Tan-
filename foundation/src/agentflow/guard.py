@@ -79,7 +79,7 @@ _PERSON_ONLY = frozenset(
         ("decide",), ("ext", "add"), ("ext", "sync"), ("config", "set"), ("task", "seal"), ("project", "confirm"),
         ("knowledge", "init"), ("knowledge", "pull"), ("knowledge", "push"),
         ("role", "grant"), ("role", "revoke"), ("role", "sync"), ("roadmap", "set"),
-        ("replan", "done"), ("replan", "skip"),
+        ("replan", "done"), ("replan", "skip"), ("state", "accept"),
     }  # fmt: skip
 )
 # Commands that need a person's yes at a prompt (the agent cannot give it); the person-only ones are denied instead.
