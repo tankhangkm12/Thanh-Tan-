@@ -80,6 +80,42 @@ class Session:
                 path.write_text("".join(ticked), encoding="utf-8", newline="")
         return self.af("task", "approve", *extra, ok=ok)
 
+    def test_first(self) -> None:
+        """What the tester does at the test-spec step: a check that fails until a planned file exists, committed, reported,
+        run again by agentflow (it must fail), then approved by a person. Sets the project's test command on the way."""
+        state = json.loads((self.repo / ".agentflow" / "state.json").read_text(encoding="utf-8"))
+        task = next(t for t in state["tasks"] if t["id"] == state["active_task_id"])
+        plan = (self.repo / ".agentflow" / "tasks" / task["id"] / "reports" / "plan.md").read_text(encoding="utf-8")
+        codes = re.findall(r"^### (C\d+)\b", plan, flags=re.M)
+        files = re.findall(r"^- files:\s*(.+)$", plan, flags=re.M)
+        planned = [name.strip() for line in files for name in line.split(",") if name.strip()]
+        planned = [name for name in planned if not (self.repo / name).exists()] or planned  # red needs a file that is not there yet
+        script = self.repo / "tests" / "check_planned.py"
+        script.parent.mkdir(exist_ok=True)
+        script.write_text(
+            "import pathlib, sys\n"
+            f"planned = {planned!r}\n"
+            "if any(pathlib.Path(name).exists() for name in planned):\n"
+            "    print('planned files exist')\n"
+            "    sys.exit(0)\n"
+            "print('FAILED check_planned: none of the planned files exists yet')\n"
+            "sys.exit(1)\n",
+            encoding="utf-8",
+        )
+        self.git("add", "tests/check_planned.py")
+        self.git("commit", "-q", "-m", f"{task['id']}: tests first")
+        command = f'"{sys.executable}" tests/check_planned.py'
+        blocks = "".join(
+            f"### {code} - tests for {code}\n- tests: tests/check_planned.py::check\n- command: `{command}`\n- red: fail\n"
+            "- reason: the planned files do not exist yet\n- output: |\n    FAILED check_planned: none of the planned files exists yet\n\n"
+            for code in codes
+        )
+        self.af("report", "--step", "test-spec", stdin="# Test-spec\n\n" + blocks)
+        self.af("tests", "verify-red")
+        self.af("task", "advance", "--result", "pass")
+        self.approve()
+        self.af("config", "set", "test_command", command)
+
     def af(self, *args: str, stdin: str | None = None, ok: bool = True) -> subprocess.CompletedProcess[str]:
         done = run([AGENTFLOW, *args], self.repo, stdin)
         expect((done.returncode == 0) is ok, f"agentflow {' '.join(args)} -> exit {done.returncode}", done.stdout + done.stderr)

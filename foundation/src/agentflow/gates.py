@@ -7,6 +7,7 @@ from pathlib import Path
 
 from agentflow.constants import DRIFT_HEADING, ENCODING, MARKDOWN_SUFFIX, REPORTS_DIR, TASKS_DIR, CheckKind, GateKind
 from agentflow.convention_sources import answered_questions, load_effective_conventions
+from agentflow import testspec
 from agentflow.drift import drift_problems
 from agentflow.scan import scan_problems, tools_for_step
 from agentflow.scan_store import ScanStore
@@ -91,7 +92,25 @@ def _drift_reviewed(context: GateContext, task: Task, step: Step) -> list[str]:
     return drift_problems(path.read_text(encoding=ENCODING))
 
 
+def _test_spec_valid(context: GateContext, task: Task, step: Step) -> list[str]:
+    """The test-spec report is in order and every command, run by agentflow itself, fails (tests come before the code)."""
+    problems, _record = testspec.verify_red(
+        context.workspace_dir, context.workflow, task, context.workspace_dir.parent, context.head(), context.project.lookup
+    )
+    return problems
+
+
+def _tests_pass(context: GateContext, task: Task, step: Step) -> list[str]:
+    """agentflow runs the project's test command and the commands of the test-spec again; all must pass."""
+    problems, _warning = testspec.tests_pass(
+        context.workspace_dir, context.workflow, task, context.workspace_dir.parent, context.head(), context.project.lookup
+    )
+    return problems
+
+
 CHECKS: dict[GateKind, GateCheck] = {
+    GateKind.TEST_SPEC_VALID: _test_spec_valid,
+    GateKind.TESTS_PASS: _tests_pass,
     GateKind.PLAN_VALID: _plan_valid,
     GateKind.SCANS_CLEAN: _scans_clean,
     GateKind.CONVENTIONS_REVIEWED: _conventions_reviewed,

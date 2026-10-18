@@ -44,6 +44,8 @@ Plugin phát triển phía server của nhóm **software-dev** (phiên bản 0.2
 
 Khuôn yêu cầu task chỉ có một, ở [USAGE.md](../USAGE.md#khuôn-yêu-cầu-task) của nhóm; dev-backend không thay khuôn đó, chỉ thêm dữ liệu và ví dụ done-when cho gate của nó.
 
+**Bước `test-spec` và migration.** `db-engineer` không có bước `test-spec` riêng: tester viết khối `test-spec` cho mọi mục kế hoạch, kể cả mục migration. Mục migration không có test đơn vị thì khai `- tests: không có — chạy lên/xuống/lên` (đúng lệnh lên và xuống trong `done-when`); `db-engineer` vẫn chứng minh bằng cách chạy chúng ở bước `implement`. Gate Squawk và Schemathesis ở bước `test` không đổi; gate `tests-pass` chạy thêm lệnh test của dự án.
+
 **Dữ liệu cần thêm khi tạo task backend**
 - **Contract API:** điền link tới contract OpenAPI vào dòng `Tài liệu` của khuôn. Có contract thì Schemathesis kiểm được dịch vụ có đúng contract không.
 - **Migration:** nói rõ task có đụng migration hay không (ở `Trong phạm vi`). Có thì mục migration thuộc role `db-engineer` và `done-when` của nó phải chứa nguyên văn lệnh migration lên và xuống của dự án.

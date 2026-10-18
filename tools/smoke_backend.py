@@ -198,6 +198,7 @@ def task_flow(s: Session, project: str, port: int, until: str) -> None:
     s.af("plan", "check")
     s.af("task", "advance", "--result", "pass")
     s.approve()
+    s.test_first()
     if until == Stage.PLAN:
         return
 

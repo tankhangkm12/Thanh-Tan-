@@ -85,7 +85,8 @@ def main() -> int:
         s.af("report", "--step", "plan", stdin=PLAN)
         s.af("plan", "check")
         s.af("task", "advance", "--result", "pass")
-        s.approve()  # plan -> implement
+        s.approve()  # plan -> test-spec
+        s.test_first()
 
         (repo / "greeting.txt").write_text("hello\n", encoding=ENCODING)
         s.git("add", "greeting.txt")
@@ -101,6 +102,8 @@ def main() -> int:
         expect("step 'implement'" in status and "rework rounds: 1/3" in status, "fail goes back to implement", status)
         for _ in range(2):  # implement, test
             s.af("task", "advance", "--result", "pass")
+        record = json.loads((repo / ".agentflow" / "tasks" / TASK_ID / "tests-pass.json").read_text(encoding=ENCODING))
+        expect(record["status"] == "pass" and record["spec_results"]["C1"]["status"] == "green", "agentflow ran the project tests and the test-spec command again", str(record))
         s.af("task", "advance", "--result", "pass", ok=False)  # security: no scan results yet, the scans-clean gate refuses
         scan = s.af("scan")  # Semgrep, Trivy, Gitleaks in containers
         expect("semgrep: " in scan.stdout and "trivy: " in scan.stdout and "gitleaks: " in scan.stdout, "scan runs three tools", scan.stdout)
@@ -134,6 +137,7 @@ def main() -> int:
         s.af("report", "--step", "plan", stdin=PLAN.replace("greeting.txt", "risky.py"))
         s.af("task", "advance", "--result", "pass")
         s.approve()
+        s.test_first()
         (repo / "risky.py").write_text("import subprocess\n\n\ndef run(cmd):\n    subprocess.call(cmd, shell=True)\n", encoding=ENCODING)
         s.git("add", "risky.py")
         s.af("commit", "add risky code", "--item", "C1")

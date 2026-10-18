@@ -96,12 +96,12 @@
         "approval_items": {
           "type": "array",
           "uniqueItems": true,
-          "items": { "enum": ["plan-items", "review-conventions", "drift-proposals"] }
+          "items": { "enum": ["plan-items", "review-conventions", "drift-proposals", "spec-items"] }
         },
         "gates": {
           "type": "array",
           "uniqueItems": true,
-          "items": { "enum": ["plan-valid", "scans-clean", "conventions-reviewed", "drift-reviewed"] }
+          "items": { "enum": ["plan-valid", "scans-clean", "conventions-reviewed", "drift-reviewed", "test-spec-valid", "tests-pass"] }
         }
       }
     }

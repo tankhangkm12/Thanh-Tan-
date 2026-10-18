@@ -389,6 +389,13 @@ class Command(StrEnum):
     CONFIG = "config"
     ROLE = "role"
     STATE = "state"
+    TESTS = "tests"
+
+
+class TestsCommand(StrEnum):
+    __test__ = False  # not a pytest class
+
+    VERIFY_RED = "verify-red"
 
 
 class StateCommand(StrEnum):
@@ -662,6 +669,7 @@ class ApprovalItem(StrEnum):
     PLAN_ITEMS = "plan-items"
     REVIEW_CONVENTIONS = "review-conventions"
     DRIFT_PROPOSALS = "drift-proposals"
+    SPEC_ITEMS = "spec-items"
 
 
 class GateKind(StrEnum):
@@ -671,6 +679,8 @@ class GateKind(StrEnum):
     SCANS_CLEAN = "scans-clean"
     CONVENTIONS_REVIEWED = "conventions-reviewed"
     DRIFT_REVIEWED = "drift-reviewed"
+    TEST_SPEC_VALID = "test-spec-valid"
+    TESTS_PASS = "tests-pass"
 
 
 class PlanCommand(StrEnum):

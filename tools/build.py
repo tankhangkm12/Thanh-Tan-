@@ -326,6 +326,7 @@ WORKFLOW_FILE = "workflow.yaml"
 ITEM_SOURCES = {
     "plan-items": "một ô `C<n>` cho mỗi mục của kế hoạch (`plan-items`)",
     "review-conventions": "một ô `PC-xx` cho mỗi quy ước `check: review` đang hiệu lực (`review-conventions`)",
+    "spec-items": "một ô `C<n>` cho mỗi mục kế hoạch, kèm test, lệnh và kết quả agentflow tự chạy lại (`spec-items`)",
     "drift-proposals": "một ô `D<n>` cho mỗi đề xuất ở mục `## Đề xuất cập nhật hồ sơ` (`drift-proposals`)",
 }
 

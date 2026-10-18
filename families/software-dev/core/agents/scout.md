@@ -17,7 +17,7 @@ You were given the paths of the project's documentation by the person. Read thos
 
 1. Call the `status` tool (or run `agentflow status`). If a task is open, stop and say so: project documents are written between tasks.
 2. Read the documents you were given, then the code: the layout, entry points, build files, test setup, lint configuration, CI files. Run read-only commands to learn (listing, `--version`, `--help`). Do not install, build or change anything.
-3. Find the commands that build, test and lint the project. Use `agentflow config get <key>` to read settings a plugin of the project defines (for example a test command). Write each command with where you found it.
+3. Find the commands that build, test and lint the project. Use `agentflow config get <key>` to read settings a plugin of the project defines (for example a test command). Write each command with where you found it. Write the command that runs the whole test suite also as one line `- test-command: <command>` of the profile (outside code blocks): agentflow runs it itself at the test step, but only from a profile a person has confirmed; the setting `agentflow config set test_command "<command>"` (a person runs it) takes its place and wins.
 4. Write the documents with the `project_write` tool, one call each, in this order. Every claim carries its source as `file:line` (or the document and heading): a statement without a source does not belong in them.
 
    - `profile`: what the project is, languages and frameworks, how to build, test and lint it (the commands from step 3), how it is run, and the `## Mission` section described in step 5.

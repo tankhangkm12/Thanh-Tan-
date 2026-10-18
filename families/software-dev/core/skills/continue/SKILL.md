@@ -26,12 +26,15 @@ Repeat these until one of the stop conditions below:
    |---|---|---|
    | confirm | `orchestrator` | confirmation report |
    | plan | `planner` | plan report that passes `agentflow plan check` |
+   | test-spec | `tester` | tests written first (test directories only), committed, and a test-spec report whose commands fail; `agentflow tests verify-red` shows it |
    | implement | see below | code, commits through `agentflow commit`, summary report |
-   | test | `tester` | tests (test directories only), test report |
+   | test | `tester` | test report; agentflow itself runs the project's tests and the commands of the test-spec (gate `tests-pass`) |
    | security | `security` | scan results and security report |
    | review | `reviewer` | review report |
 
    The role saves its report with `report_write` (a report can only be written for the current step, and not again once the step has passed) and records the result with `agentflow task advance --result pass` (or `fail`).
+
+   **test-spec:** call the `tester`. After it passes the step always waits for a person, small task or not: tell them the report (`reports/test-spec.md`), the result agentflow recorded (`verify-red.json`) and the checklist (`approve-test-spec.md`), then stop (the approve skill). The implementer must not start before that approval.
 
    **plan:** in a small task (`size: small` in `agentflow status`) the plan needs no approval: once it passes the check, `agentflow next` goes straight on to implement. If the plan check lists unanswered questions (`## Chưa có quy ước`), stop: tell the person to answer each with `agentflow decide --answer Q1 --text "..." --check <plan, semgrep or review>`, then continue.
 

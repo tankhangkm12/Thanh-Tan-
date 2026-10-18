@@ -153,7 +153,8 @@ def small_task(s: Session, repo: Path) -> None:
     expect(refused.returncode == EXIT_GATE_FAILED and "at most 3" in refused.stdout + refused.stderr, "a small plan over 3 items is refused", refused.stdout + refused.stderr)
     s.af("report", "--step", "plan", stdin=item("C1", "Only item", "api", "tiny.txt"))
     passed = s.af("task", "advance", "--result", "pass")
-    expect("step 'implement'" in passed.stdout and "wait for a person" not in passed.stdout, "the plan needs no approval in a small task", passed.stdout)
+    expect("step 'test-spec'" in passed.stdout and "wait for a person" not in passed.stdout, "the plan needs no approval in a small task", passed.stdout)
+    s.test_first()  # the test-spec step still waits for a person in a small task
     (repo / "tiny.txt").write_text("tiny\n", encoding=ENCODING)
     s.git("add", "tiny.txt")
     s.af("commit", "add tiny file", "--item", "C1")

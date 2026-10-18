@@ -21,6 +21,7 @@ required box is open, when the skeleton or the header is not what agentflow wrot
 ``integrity.json``), or when the audit log shows a call that could have written the file.
 """
 
+import json
 import os
 import re
 from dataclasses import dataclass
@@ -54,6 +55,7 @@ from agentflow.fsutil import write_text_atomic
 from agentflow.gates import plan_report_path
 from agentflow.integrity import ACCEPT_HINT, Integrity, sha256_hex
 from agentflow.models import Step, Task, Workflow
+from agentflow import testspec
 from agentflow.plan import parse_plan
 from agentflow.roadmap import set_status
 
@@ -182,6 +184,26 @@ def _drift_proposals(workspace_dir: Path, task: Task, step: Step) -> list[Item]:
     return [Item(f"{CHECKLIST_DRIFT_PREFIX}{n}", f"Đề xuất: {text}") for n, text in enumerate(bullets, 1)]
 
 
+def _spec_items(workspace_dir: Path, workflow: Workflow, task: Task, step: Step) -> list[Item]:
+    """One line per plan item: the tests, the command and what agentflow saw when it ran it (``verify-red.json``)."""
+    path = testspec.report_path(workspace_dir, task.id, step.id)
+    if not path.is_file():
+        return []
+    try:
+        results = json.loads(testspec.task_file(workspace_dir, task.id, testspec.VERIFY_RED_FILE).read_text(encoding=ENCODING))["results"]
+    except (OSError, ValueError, KeyError, TypeError):
+        results = {}
+    found = []
+    for block in testspec.parse_report(path.read_text(encoding=ENCODING)):
+        if block.is_none:
+            found.append(Item(block.code, f"{testspec.NONE_WORD} — {block.how}"))
+            continue
+        seen = results.get(block.code, {})
+        outcome = f"agentflow ran it: exit {seen.get('exit_code', '?')} ({seen.get('status', 'not run')})"
+        found.append(Item(block.code, f"tests {', '.join(block.tests)}; command `{block.command}`; {outcome}"))
+    return found
+
+
 def build_items(workspace_dir: Path, workflow: Workflow, task: Task, step: Step) -> list[Item]:
     items = _fixed(step)
     for source in step.approval_items:
@@ -192,6 +214,8 @@ def build_items(workspace_dir: Path, workflow: Workflow, task: Task, step: Step)
                 items += _review_conventions(workspace_dir)
             case ApprovalItem.DRIFT_PROPOSALS:
                 items += _drift_proposals(workspace_dir, task, step)
+            case ApprovalItem.SPEC_ITEMS:
+                items += _spec_items(workspace_dir, workflow, task, step)
     if task.roadmap and workflow.steps[-1].id == step.id:
         items.append(Item(CHECKLIST_ROADMAP_CODE, f"Mục {task.roadmap} đã hoàn thành?", optional=True))
     return items

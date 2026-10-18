@@ -14,7 +14,7 @@ Nhóm plugin phục vụ phát triển phần mềm. `dev-core` giữ chuẩn ch
 | `dev-frontend` | Giao diện, state phía client |
 | `dev-infra` | CI/CD, container, triển khai |
 
-## Quy trình 6 bước
+## Quy trình 7 bước
 
 Định nghĩa trong [`core/workflow.yaml`](core/workflow.yaml), do `agentflow` thực thi.
 
@@ -22,10 +22,11 @@ Nhóm plugin phục vụ phát triển phần mềm. `dev-core` giữ chuẩn ch
 |---|---|---|---|---|
 | 1 | `confirm`: xác nhận task | orchestrator | có | blocked |
 | 2 | `plan`: vào workspace, lập kế hoạch | planner | có | blocked |
-| 3 | `implement`: triển khai | implementer | không | blocked |
-| 4 | `test`: kiểm thử | tester | không | quay về `implement` |
-| 5 | `security`: kiểm tra bảo mật | security | không | quay về `implement` |
-| 6 | `review`: review | reviewer | có | quay về `implement` |
+| 3 | `test-spec`: viết test trước (gate `test-spec-valid`: agentflow tự chạy lại, phải đỏ) | tester | có, kể cả task small | quay về `plan` |
+| 4 | `implement`: triển khai | implementer | không | blocked |
+| 5 | `test`: kiểm thử (gate `tests-pass`: agentflow tự chạy, phải xanh) | tester | không | quay về `implement` |
+| 6 | `security`: kiểm tra bảo mật | security | không | quay về `implement` |
+| 7 | `review`: review | reviewer | có | quay về `implement` |
 
 Không có bước "loop" riêng: fail ở `test`/`security`/`review` quay thẳng về `implement` và đếm vòng. Hết 3 vòng (`max_rounds`) task chuyển `blocked`, chỉ người mới cho làm tiếp (`agentflow task approve`, được ghi lại trong `.agentflow/decisions/`) hoặc hủy (`agentflow task cancel`).
 

@@ -22,7 +22,7 @@ ALLOW = "allow"
 TIMESTAMP_FORMAT = "%Y-%m-%dT%H:%M:%SZ"
 
 PROTECTED = re.compile(
-    r"state\.json|STATE\.md|integrity\.json|approve-[\w.\-]*\.md|locked-files\.json|confirmations\.json", re.IGNORECASE
+    r"state\.json|STATE\.md|integrity\.json|approve-[\w.\-]*\.md|locked-files\.json|confirmations\.json|verify-red\.json|tests-pass\.json", re.IGNORECASE
 )
 _STATE_FILES = re.compile(r"state\.json|integrity\.json", re.IGNORECASE)
 

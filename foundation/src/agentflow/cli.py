@@ -12,10 +12,11 @@ from pathlib import Path
 from agentflow.assign import ProjectAgentNames, WorkflowAgentNames, assignment_lines
 from agentflow.convention_sources import load_effective_conventions
 from agentflow.services import WorkspaceServices
+from agentflow.testspec import TESTS_PASS_FILE, require_active_spec_step, task_file, verify_red
 from agentflow.checklist import ChecklistWriter, check_approval, finish_approval
 from agentflow.integrity import NOTHING_TO_ACCEPT, Integrity
 from agentflow.checklist import checklist_path
-from agentflow.constants import ConfirmState, StateCommand, KnowledgeCommand, KnowledgePlace, McpCommand, ProjectCommand, ReplanCommand, ReplanState, RoadmapCommand, RoadmapStatus, RoleCommand
+from agentflow.constants import ConfirmState, StateCommand, TestsCommand, KnowledgeCommand, KnowledgePlace, McpCommand, ProjectCommand, ReplanCommand, ReplanState, RoadmapCommand, RoadmapStatus, RoleCommand
 from agentflow.interfaces import AgentNames
 from agentflow.roles import RoleGrants
 from agentflow.constants import ANSWER_OPTION, DECISION_SCOPE_PROJECT, CheckKind
@@ -242,6 +243,10 @@ def build_parser() -> argparse.ArgumentParser:
     accept = state_commands.add_parser(StateCommand.ACCEPT, help="record why and trust state.json again (and clear what the audit log shows)")
     accept.add_argument("--reason", required=True, help="why you accept it")
 
+    tests = commands.add_parser(Command.TESTS, help="the tests of the active task, run by agentflow itself")
+    tests_commands = tests.add_subparsers(dest="tests_command", metavar="<tests command>", required=True)
+    tests_commands.add_parser(TestsCommand.VERIFY_RED, help="at the test-spec step: run the commands of the report and check each one fails")
+
     replan = commands.add_parser(Command.REPLAN, help="after a task: the replan of the project documents (proposed by the scout, closed by a person)")
     replan_commands = replan.add_subparsers(dest="replan_command", metavar="<replan command>", required=True)
     replan_commands.add_parser(ReplanCommand.STATUS, help="where the replan of the latest finished task stands (read-only)")
@@ -392,6 +397,25 @@ def _store(opened: _Opened) -> JsonStateStore:
     return JsonStateStore(opened.paths.dir, opened.workflow)
 
 
+def cmd_tests(args: argparse.Namespace) -> ExitCode:
+    opened = _open_workspace()
+    task = require_active_task(opened.state)
+    require_active_spec_step(opened.workflow, task)
+    project = load_project_context(opened.paths.dir, opened.workflow, task)
+    git = SubprocessGit(opened.paths.root)
+    problems, record = verify_red(opened.paths.dir, opened.workflow, task, opened.paths.root, git.head_or_empty(), project.lookup)
+    if record is not None:
+        for code, entry in record["results"].items():
+            detail = f" (exit {entry['exit_code']})" if "exit_code" in entry else ""
+            print(f"{code} {entry['status']}{detail}")
+    for problem in problems:
+        print(f"- {problem}")
+    if problems:
+        return ExitCode.GATE_FAILED
+    print("every command fails, as tests written first should")
+    return ExitCode.OK
+
+
 def cmd_state(args: argparse.Namespace) -> ExitCode:
     paths = find_workspace(Path.cwd())
     decision = Integrity(paths.dir).accept(args.reason, utc_now())
@@ -428,6 +452,7 @@ def cmd_task(args: argparse.Namespace) -> ExitCode:
         case TaskCommand.ADVANCE:
             task = advance_task(store, opened.workflow, args.result, utc_now, _gates(opened), _sealer(opened), ChecklistWriter(opened.paths.dir))
             print(f"{task.id}: step '{task.current_step}' is now {task.step_status} (task {task.status})")
+            _warn_skipped_tests(opened, args.result)
             if task.step_status is StepStatus.AWAITING_APPROVAL and task.status is TaskStatus.OPEN and (step := opened.workflow.get_step(task.current_step)) and step.has_checklist:
                 print(f"checklist to tick before approving: {checklist_path(opened.paths.dir, task.id, step.id)}")
         case TaskCommand.APPROVE:
@@ -452,6 +477,20 @@ def cmd_task(args: argparse.Namespace) -> ExitCode:
     state = store.load()
     print(f"next: {describe_action(next_action(opened.workflow, state.active_task()))}")
     return ExitCode.OK
+
+
+def _warn_skipped_tests(opened: _Opened, result: TaskEvent) -> None:
+    """A pass of the step with the gate `tests-pass` that ran no project tests because the plan has only `kind: other` items."""
+    task = opened.state.active_task()
+    step = opened.workflow.get_step(task.current_step) if task is not None else None
+    if result is not TaskEvent.PASS or step is None or GateKind.TESTS_PASS not in step.gates:
+        return
+    try:
+        record = json.loads(task_file(opened.paths.dir, task.id, TESTS_PASS_FILE).read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        return
+    if record.get("status") == "skipped":
+        _err(f"{WARNING_PREFIX}no test command is set, so no project tests ran; the plan has only 'kind: other' items. Set one with `agentflow config set test_command \"<command>\"` to run tests anyway")
 
 
 def _warn_project_documents(workspace_dir: Path, task: Task) -> None:
@@ -913,6 +952,7 @@ HANDLERS: dict[str, Handler] = {
     Command.PROJECT: cmd_project,
     Command.ROADMAP: cmd_roadmap,
     Command.STATE: cmd_state,
+    Command.TESTS: cmd_tests,
     Command.REPLAN: cmd_replan,
     Command.CONVENTIONS: cmd_conventions,
     Command.KNOWLEDGE: cmd_knowledge,

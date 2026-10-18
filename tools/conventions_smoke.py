@@ -185,6 +185,7 @@ def conventions_flow(s: Session, base: Path, repo: Path) -> None:
     s.af("plan", "check")
     s.af("task", "advance", "--result", "pass")
     s.approve()
+    s.test_first()
 
     (repo / "statuses.py").write_text('"""Statuses."""\n\nSTATUS_OPEN = "open"\n', encoding=ENCODING)
     s.git("add", "statuses.py")

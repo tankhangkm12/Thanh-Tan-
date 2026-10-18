@@ -183,6 +183,14 @@ Ba chỗ cần bạn duyệt: `confirm`, `plan`, `review`. Duyệt bằng `/dev-
 - [ ] Mục `## Chưa có quy ước` (nếu có) đã được bạn trả lời bằng `agentflow decide --answer Q1 ...`.
 - Thêm tự động: một ô `C<n>` cho mỗi mục của kế hoạch (`plan-items`).
 
+**Test-spec — Viết test trước** (`test-spec`)
+- [ ] Mỗi mục kế hoạch có test, hoặc `không có — <cách kiểm>` mà bạn chấp nhận (không ép viết test cho việc không test tự động được).
+- [ ] Các test đo đúng `done-when` của mục, không phải thứ dễ qua hơn.
+- [ ] Mỗi test đỏ vì đúng lý do: tính năng chưa có, không phải lỗi cú pháp, thiếu import hay môi trường (đọc `reason` và `output` trong báo cáo).
+- [ ] Lệnh của mỗi mục chạy đúng các test đã khai, không phải lệnh chạy cho có (như `false`); agentflow đã tự chạy lại và ghi `exit` ở dòng dưới.
+- [ ] Danh sách file test đã khai là đủ: sau khi bạn duyệt, đây là các file implementer không được sửa.
+- Thêm tự động: một ô `C<n>` cho mỗi mục kế hoạch, kèm test, lệnh và kết quả agentflow tự chạy lại (`spec-items`).
+
 **Review — những gì bạn kiểm** (`review`)
 - [ ] Mục "must fix" đã xử lý hoặc có lý do rõ ràng.
 - [ ] Mục `## Đề xuất cập nhật hồ sơ` đúng và đủ, hoặc `không có` là đúng. Gate `drift-reviewed` chỉ kiểm hình thức, phần đúng sai do bạn kiểm; reviewer chỉ đề xuất, đề xuất nào bạn đồng ý thì bạn tự cập nhật hồ sơ (hoặc nhờ scout ghi lại rồi xác nhận).
@@ -204,9 +212,36 @@ Khi một bước chuyển sang `awaiting_approval`, agentflow ghi file `.agentf
 - Bước bị đưa về làm lại rồi tới lượt duyệt lần nữa thì file cũ được giữ thành `approve-<bước>.<n>.md` và một file mới (mọi ô để trống) được ghi.
 - Chỉ bạn tick. Agent không tick, không sửa file; hook chặn ghi vào `.agentflow/` và ghi nhật ký `audit.jsonl` các lệnh chạm tới file này (xem "Mô hình bảo vệ duyệt" ở `docs/architecture.md`).
 
+## Test trước (test-spec)
+
+Sau khi duyệt plan, bước `test-spec` do `tester` làm: viết test cho `done-when` của từng mục **trước khi có code**, commit chúng, và chứng minh chúng đỏ. Bước này luôn cần bạn duyệt, kể cả task `small`. Quy trình: `confirm → plan → test-spec → implement → test → security → review`.
+
+Báo cáo `test-spec` có một khối cho mỗi mục kế hoạch:
+
+```
+### C1 - Tiêu đề mục
+- tests: tests/test_greeting.py::test_says_hello, tests/test_greeting.py::test_says_name
+- command: `uv run pytest tests/test_greeting.py`
+- red: fail
+- reason: greeting() chưa có nên mọi test đỏ vì thiếu hàm
+- output: |
+    FAILED tests/test_greeting.py::test_says_hello - ImportError: cannot import name 'greeting'
+```
+
+Việc không test tự động được (tài liệu, nối dây, kiểm tay) thì ghi `- tests: không có — <cách kiểm>`; lý do là bắt buộc, không ép viết test. Planner đặt `kind: other` và viết cách kiểm vào `done-when` cho mục kiểu đó.
+
+**agentflow không tin báo cáo.** Lúc `task advance --result pass`, agentflow tự chạy lại lệnh của từng mục và chỉ cho qua khi nó đỏ (mã thoát khác 0; lệnh không tìm thấy hoặc quá giờ không tính là đỏ). `output` trong báo cáo chỉ để bạn đọc. Lệnh phải nhắc tới ít nhất một file test đã khai của chính mục đó (lệnh `false` hay `exit 1` bị từ chối); cổng chỉ biết được tới đó, nên bạn đọc lệnh ở checklist để chắc nó chạy đúng các test. File test phải có thật, nằm trong dự án và đã commit. Kết quả agentflow ghi ở `.agentflow/tasks/<task>/verify-red.json`; `agentflow tests verify-red` làm đúng việc đó theo yêu cầu (không đổi bước).
+
+Checklist duyệt `test-spec` có một ô cho mỗi mục, kèm lệnh và `exit` agentflow đã thấy (khối checklist ở trên). Đọc lý do đỏ: máy chỉ biết lệnh đỏ, chỉ bạn biết nó đỏ vì đúng lý do.
+
+**Cổng `tests-pass` ở bước `test`.** Khi `test` chuyển `pass`, agentflow tự chạy lệnh test của dự án **và** chạy lại đúng các lệnh của `verify-red.json` (đỏ trước, xanh sau); tất cả phải thoát 0, bất kể agent báo gì. Kết quả ghi ở `.agentflow/tasks/<task>/tests-pass.json` (lệnh dự án và `spec_results` cho từng mục).
+- Lệnh test của dự án: setting `agentflow config set test_command "<lệnh>"` (người chạy, ưu tiên), hoặc dòng `- test-command: <lệnh>` trong `profile.md` **đã xác nhận** (`agentflow project confirm profile`; sửa profile sau đó thì phải xác nhận lại).
+- Giới hạn thời gian: 15 phút, đổi bằng `agentflow config set test_timeout_minutes <số phút>`.
+- Chưa có lệnh test: bước `test` bị chặn kèm hướng dẫn, trừ task mà mọi mục kế hoạch là `kind: other` (chỉ cảnh báo, ghi `skipped`).
+
 ## Replan sau mỗi task
 
-Vòng làm việc: `setup` (một lần) → mission + roadmap → `task new --roadmap Rn` → confirm → plan → implement → test → security → review → **replan** → task kế. Replan là bước giữa hai task: cập nhật hồ sơ dự án cho đúng với cái task thật sự đã làm. Nó **chỉ đề xuất**; bạn đọc rồi quyết.
+Vòng làm việc: `setup` (một lần) → mission + roadmap → `task new --roadmap Rn` → confirm → plan → test-spec → implement → test → security → review → **replan** → task kế. Replan là bước giữa hai task: cập nhật hồ sơ dự án cho đúng với cái task thật sự đã làm. Nó **chỉ đề xuất**; bạn đọc rồi quyết.
 
 1. Khi task xong, agentflow ghi cạnh `summary.md` một file `spec-delta.md`: đề xuất của reviewer (mục `## Đề xuất cập nhật hồ sơ`), thay đổi thật của task (mục kế hoạch, commit, file đổi do git báo, gom theo thư mục) và liên kết (mục roadmap, mission/profile/architecture đã xác nhận hay chưa). File do agentflow sinh lúc seal nên agent làm việc không sửa được.
 2. Gõ `/dev-core:replan` (Antigravity: nhờ agent dùng skill `replan`; cùng thư mục skill). Skill kiểm `agentflow replan status` rồi giao cho scout: scout đọc `summary.md` và `spec-delta.md`, ghi lại các tài liệu không còn đúng bằng `project_write` (chúng thành `unconfirmed`), rồi lưu `replan.md` bằng tool `replan_write` với hai mục `## Mục roadmap đã hoàn thành` (đề xuất `- Rn: <bằng chứng>` hoặc `không có`) và `## Đề xuất cải tiến quy trình` (hoặc `không có`). Lúc này trạng thái là `proposed`; ghi lại thì bản cũ vào `.agentflow/project/history/replan-<task>-<thời điểm>.md`.
@@ -268,6 +303,10 @@ Chi phí tăng theo kích thước ngữ cảnh: mỗi yêu cầu gửi lại c�
 **`task approve` bị từ chối (mã 36).** Còn ô chưa tick (thông báo nêu mã, ví dụ `K2 C3`): mở `.agentflow/tasks/<task>/approve-<bước>.md` và ghi `x`. Hoặc khung bị đổi (thêm, xóa, sửa chữ một dòng, hoặc sửa đầu file): đừng sửa tay, cho bước làm lại (`agentflow task advance --result fail`) để có file mới. File bị mất cũng bị từ chối.
 
 **`task advance` hoặc `task approve` báo `state.json` bị đổi (mã 37).** `state.json` khác với hash agentflow giữ trong `.agentflow/integrity.json`, hoặc `audit.jsonl` ghi một lệnh được cho qua có thể đã ghi vào checklist hay `state.json` (thông báo trích dòng nhật ký). Đọc thay đổi (`git diff` không thấy vì `.agentflow/` nằm ngoài git; so với `STATE.md` và `decisions/`), nếu chấp nhận thì `agentflow state accept --reason "..."`. Lệnh chỉ đọc như `cat state.json` không bị tính, nhưng lệnh ghi (chuyển hướng `>`, `tee`, `sed -i`, `cp`, `Set-Content`, hoặc `python -c`/`node`/`bash -c` nhắc tới file) thì có. Thiếu `integrity.json` ở workspace cũ: agentflow tạo lại và cảnh báo một lần.
+
+**`test-spec` bị từ chối khi `task advance --result pass`.** Thông báo nêu mã mục (`C2 ...`): thiếu khối, khối thừa, thiếu trường (`command`, `red: fail`, `reason`, `output`), file test chưa commit hay không tồn tại, lệnh không nhắc tới file test của mục, hoặc agentflow đã chạy lại lệnh và nó **không đỏ** (mã 0), không tìm thấy lệnh, hay quá giờ. Sửa test hoặc báo cáo rồi chạy lại; bước `test-spec` có thể quay về `plan` bằng `--result fail` nếu kế hoạch không test được.
+
+**`tests-pass` chặn bước `test`.** Hoặc lệnh test của dự án thoát khác 0 (thông báo cho thấy đuôi output), hoặc lệnh của một mục vẫn đỏ sau khi code xong (`C3: its command still fails`), hoặc `verify-red.json` thiếu/khác báo cáo đã duyệt, hoặc chưa có lệnh test: chạy `agentflow config set test_command "<lệnh>"`, hoặc ghi `- test-command:` vào profile rồi `agentflow project confirm profile`.
 
 **Workflow gốc đổi.** Khi file `workflow.yaml` gốc của plugin đổi (sau khi cập nhật plugin), `agentflow status` cảnh báo. Khi không có task đang chạy, đồng bộ bằng `agentflow workflow sync`; có task đang chạy thì lệnh bị từ chối, trừ khi bạn thêm `--force`. Tương tự, `agentflow ext sync` cho extension và `agentflow role sync` cho agent cấp theo dự án.
 
