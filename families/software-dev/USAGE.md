@@ -218,13 +218,17 @@ Các lệnh dưới đây mang quyền quyết định của bạn. Hook của `
 | `agentflow replan skip <task> --reason "..."` | Chủ động bỏ qua replan của task xong gần nhất (đang `pending` hoặc `proposed`) |
 | `agentflow role grant\|revoke\|sync` | Cấp, thu hồi, sinh lại tool MCP theo dự án cho role |
 
-Hai lệnh sau không bị hook từ chối nhưng phải luôn hỏi bạn nhờ quy tắc `ask` trong khối permissions: `agentflow task approve` (hoặc `/dev-core:approve`) và `agentflow task cancel`.
+Hai lệnh sau không bị hook từ chối nhưng phải luôn hỏi bạn: hook `pre-tool` trả `ask` (Claude Code) hoặc `force_ask` (Antigravity) cho `agentflow task approve` (hoặc `/dev-core:approve`) và `agentflow task cancel`, kể cả khi agent gọi qua `uv run`, `python -m agentflow`, đường dẫn đầy đủ, `timeout`, tiền tố biến môi trường hay nội dung bash/python đọc từ heredoc. Quy tắc `ask` trong khối permissions của README (Bước 4) là lớp phụ.
 
 **Cách chạy.**
 - Claude Code: gõ với tiền tố `!` ở đầu dòng, ví dụ `! agentflow project confirm --all`. Lệnh chạy ngay trong phiên và kết quả đi vào cuộc trò chuyện.
 - Antigravity CLI: tài liệu của nó không có tiền tố tương đương; mở một terminal riêng, vào thư mục dự án và chạy lệnh ở đó.
 
 Merge và push là việc của bạn, không phải của agent: agent không bao giờ push, merge hay tạo PR.
+
+### Giới hạn trên Antigravity CLI
+
+Antigravity không có quy tắc `ask` kiểu `permissions`, nên câu hỏi duyệt đến từ hook: `force_ask` cho `task approve`/`task cancel`, bỏ qua "Always Allow". Chế độ mặc định (`request-review`) hỏi đúng; nếu bạn chạy chế độ tự duyệt mọi lệnh (`--dangerously-skip-permissions`) thì lệnh vẫn chạy mà không hỏi (đã thử với agy 1.4.0), và chỉ còn các lớp không phụ thuộc câu hỏi: hook từ chối ghi vào `.agentflow/` và lệnh của người, `agentflow commit` từ chối khi sai nhánh hoặc có secret. Đừng dùng chế độ tự duyệt cho dự án dùng agentflow. Chi tiết và bảng thử thật: [docs/architecture.md](../../docs/architecture.md).
 
 ## Tiết kiệm token
 

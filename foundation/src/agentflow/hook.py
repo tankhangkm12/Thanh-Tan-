@@ -111,7 +111,11 @@ def _guard_reply(hook_input: HookInput, branches: BranchLookup, workspaces: Work
         verdict = evaluate(hook_input.command, hook_input.cwd, branches, workspaces)
     else:
         return HookReply()
-    return HookReply(ReplyKind.DENY, verdict.reason or "") if verdict.denied else HookReply()
+    if verdict.denied:
+        return HookReply(ReplyKind.DENY, verdict.reason or "")
+    if verdict.asks:
+        return HookReply(ReplyKind.ASK, verdict.reason or "")
+    return HookReply()
 
 
 def _loaded(paths: WorkspacePaths, build, kind: ReplyKind = ReplyKind.CONTEXT) -> HookReply:

@@ -224,7 +224,7 @@ README = REPO / "README.md"
 RULE = __import__("re").compile(r"^(Bash|PowerShell)\(agentflow( [a-z-]+)+ \*\)$")
 MCP_PREFIX = "mcp__plugin_dev-core_agentflow__"
 WORKSPACE_TOOL_NAMES = build.WORKSPACE_TOOL_NAMES
-MANDATORY_ASK = {"task approve", "task cancel", "decide"}
+MANDATORY_ASK = {"task approve", "task cancel"}
 
 
 def readme_permissions() -> dict:
@@ -251,7 +251,7 @@ def test_readme_asks_for_the_commands_that_carry_a_persons_authority():
         for command in MANDATORY_ASK:
             assert f"{tool}(agentflow {command} *)" in permissions["ask"]
     allowed = " ".join(permissions["allow"])
-    assert not any(f"agentflow {command}" in allowed for command in MANDATORY_ASK)
+    assert not any(f"agentflow {command}" in allowed for command in MANDATORY_ASK | {"decide"})
 
 
 # ------------------------------------------------------------- agentflow MCP tools

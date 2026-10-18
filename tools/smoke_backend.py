@@ -51,7 +51,7 @@ CORE_NAME, BACKEND_NAME = "dev-core", "dev-backend"
 CORE_VERSION, BACKEND_VERSION = "0.4.0", "0.2.0"
 TASK_ID = "T-001"
 USAGE_ERROR_CODES = {"plan_invalid": 24, "gate_failed": 25, "scan_blocked": 27}
-MANDATORY_ASK = ("task approve", "task cancel", "decide")
+MANDATORY_ASK = ("task approve", "task cancel")
 READY_TIMEOUT_SECONDS = 90
 IN_USE_MESSAGE = "being used by another process"
 AGY_PLUGINS = Path.home() / ".gemini" / "config" / "plugins"
@@ -107,7 +107,7 @@ def readme_permissions() -> dict:
 
 
 def missing_ask_rules(settings_path: Path) -> list[str]:
-    """The mandatory `ask` rules (task approve, task cancel, decide) that a project's Claude Code settings lack."""
+    """The mandatory `ask` rules (task approve, task cancel) that a project's Claude Code settings lack."""
     try:
         data = json.loads(settings_path.read_text(encoding=ENCODING))
         asked = " ".join(data.get("permissions", {}).get("ask", []))

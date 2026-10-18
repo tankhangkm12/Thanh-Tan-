@@ -505,3 +505,7 @@ class GuardVerdict:
     @property
     def denied(self) -> bool:
         return self.decision is GuardDecision.DENY
+
+    @property
+    def asks(self) -> bool:
+        return self.decision is GuardDecision.ASK

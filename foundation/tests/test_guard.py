@@ -237,7 +237,7 @@ def test_person_only_commands_are_denied_in_a_workspace(command):
 
 
 def test_other_agentflow_commands_are_allowed():
-    for command in ("agentflow status", "agentflow task approve", "agentflow config get a.b", "agentflow ext list", "agentflow project", "agentflow commit decide"):
+    for command in ("agentflow status", "agentflow task advance", "agentflow config get a.b", "agentflow ext list", "agentflow project", "agentflow commit decide"):
         assert in_project(command).decision is GuardDecision.ALLOW, command
 
 

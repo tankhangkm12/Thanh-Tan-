@@ -508,6 +508,7 @@ class ReplyKind(StrEnum):
 
     NONE = "none"
     DENY = "deny"
+    ASK = "ask"
     CONTEXT = "context"
     REMINDER = "reminder"
 
@@ -532,6 +533,7 @@ class ClaudeHookValue(StrEnum):
     PRE_TOOL_USE = "PreToolUse"
     SESSION_START = "SessionStart"
     DENY = "deny"
+    ASK = "ask"
 
 
 class AntigravityHookKey(StrEnum):
@@ -551,6 +553,8 @@ class AntigravityHookKey(StrEnum):
 
 class AntigravityDecision(StrEnum):
     DENY = "deny"
+    # Asks the person even when the command was approved with "Always Allow".
+    FORCE_ASK = "force_ask"
     # Any value but "continue" lets the agent stop.
     ALLOW_STOP = "allow"
 
@@ -570,6 +574,7 @@ EMPTY_JSON_OBJECT = "{}"
 class GuardDecision(StrEnum):
     ALLOW = "allow"
     DENY = "deny"
+    ASK = "ask"
 
 
 class GuardRule(StrEnum):
@@ -584,6 +589,8 @@ class GuardRule(StrEnum):
     DIRECT_COMMIT = "direct-commit"
     APPROVAL_TAG = "approval-tag"
     PERSON_ONLY = "person-only"
+    PERSON_CONFIRMS = "person-confirms"
+    SCRIPT_UNREAD = "script-unread"
     WORKSPACE_WRITE = "workspace-write"
 
 

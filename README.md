@@ -130,9 +130,9 @@ Hook chỉ hoạt động trong dự án đã có `.agentflow/`; ở dự án kh
 
 ### Bước 4 (BẮT BUỘC): quy tắc permissions của Claude Code
 
-Agent chạy hàng loạt lệnh `agentflow`. Để không bị hỏi từng lệnh, thêm quy tắc **allow** cho các lệnh thường ngày. Đồng thời **bắt buộc** thêm quy tắc **ask** cho ba lệnh mang quyền của người: `agentflow task approve`, `agentflow task cancel`, `agentflow decide`. Quy tắc `ask` thắng `allow` (thứ tự đánh giá là deny, rồi ask, rồi allow), nên chúng luôn hỏi bạn dù allow có khớp. Nếu bỏ `ask`, agent có thể tự duyệt bước của chính nó, và workflow mất ý nghĩa.
+Agent chạy hàng loạt lệnh `agentflow`. Để không bị hỏi từng lệnh, thêm quy tắc **allow** cho các lệnh thường ngày. Đồng thời **bắt buộc** thêm quy tắc **ask** cho hai lệnh mang quyền duyệt của người: `agentflow task approve` và `agentflow task cancel`. Thứ tự đánh giá là deny, rồi ask, rồi allow, nên `ask` luôn hỏi bạn dù allow có khớp. Nếu bỏ `ask`, agent có thể tự duyệt bước của chính nó, và workflow mất ý nghĩa.
 
-Dán vào `.claude/settings.json` của dự án (hoặc `~/.claude/settings.json` cho mọi dự án). Cú pháp theo [tài liệu permissions](https://code.claude.com/docs/en/permissions): `Bash(lệnh *)` khớp lệnh có hoặc không có đối số; `Bash(lệnh:*)` là cách viết tương đương.
+Dán vào `.claude/settings.json` của dự án (hoặc `~/.claude/settings.json` cho mọi dự án). Cú pháp theo [tài liệu permissions](https://code.claude.com/docs/en/permissions): `Bash(lệnh *)` khớp lệnh có hoặc không có đối số; `Bash(lệnh:*)` là cách viết tương đương; `Edit(<mẫu>)` áp cho mọi tool sửa file của Claude Code (`Write`, `Edit`, `NotebookEdit`).
 
 ```json
 {
@@ -173,22 +173,38 @@ Dán vào `.claude/settings.json` của dự án (hoặc `~/.claude/settings.jso
     "ask": [
       "Bash(agentflow task approve *)",
       "Bash(agentflow task cancel *)",
-      "Bash(agentflow decide *)",
       "PowerShell(agentflow task approve *)",
-      "PowerShell(agentflow task cancel *)",
-      "PowerShell(agentflow decide *)"
-    ]
+      "PowerShell(agentflow task cancel *)"
+    ],
+    "deny": [
+      "Edit(./.claude/settings.json)",
+      "Edit(./.claude/settings.local.json)",
+      "Edit(./.agentflow/state.json)",
+      "Edit(./.agentflow/**/state.json)"
+    ],
+    "disableBypassPermissionsMode": "disable"
   }
 }
 ```
 
 Ghi chú:
 
+- **Quy tắc `deny` có hiệu lực ở mọi chế độ quyền**, kể cả `bypassPermissions`; quy tắc `ask` cũng vẫn hỏi ở mọi chế độ. Quy tắc **allow** không có tác dụng trong chế độ `bypassPermissions` (mọi thứ đã được duyệt sẵn). Vì vậy khối trên đặt `permissions.disableBypassPermissionsMode: "disable"`: Claude Code từ chối chế độ bỏ qua quyền ở dự án này. Nó chặn cả chính bạn: muốn chạy `bypassPermissions` ở dự án đó thì phải tự gỡ dòng này. Chỗ chắc nhất cho thiết lập này là managed settings của máy.
+- **Quy tắc `Bash` không phải ranh giới bảo mật.** Quy tắc khớp theo văn bản lệnh sau khi bỏ một số wrapper cố định (`timeout`, `time`, `nice`, `nohup`, `stdbuf`, `command`, `builtin`, `xargs`...); nó không khớp `uv run agentflow task approve`, `python -m agentflow task approve`, lệnh gọi bằng đường dẫn đầy đủ, hay `sh -c "..."`. Lớp chính là **hook `pre-tool`** của dev-core: nó đọc `agentflow` ở mọi dạng gọi đó (và `uvx`, `Start-Process`, tiền tố biến môi trường, `bash -lc`, `python -c`, cả nội dung heredoc, pipe hay here-string đưa vào bash/python/node), trả `ask` cho `task approve`/`task cancel` và từ chối các lệnh của người. Quy tắc `ask` ở trên là lớp phụ cho các dạng gọi đơn giản.
+- **Allow hẹp.** Tuyệt đối không thêm `Bash(python *)`, `Bash(uv run *)`, `Bash(*)` hoặc `Bash` trần (hay `PowerShell` trần) vào `allow`: chúng cho agent chạy mã tùy ý, nên mọi lớp bảo vệ còn lại chỉ là lưới mỏng. Đã từng thử `Bash(python *)` để heredoc chạy được; đó là rủi ro, không phải khuyến nghị.
+- **Sandbox của Claude Code chỉ có trên macOS, Linux và WSL2; Windows gốc không có sandbox.** Cũng không sandbox nào bao các tool file, MCP hay hook. Chặn cứng agent chạy mã tùy ý cùng quyền với bạn thì chỉ có sandbox hoặc quyền hệ điều hành; các lớp ở đây là lưới an toàn (xem [docs/architecture.md](docs/architecture.md), mục "Bảo vệ workspace").
 - Claude Code tách lệnh ghép (`&&`, `;`, `|`, xuống dòng) và đòi mỗi lệnh con khớp một quy tắc; vì vậy prompt của dev-core bắt mọi lệnh `agentflow` chạy riêng.
-- Báo cáo được ghi bằng tool MCP `report_write` (tên đầy đủ có tiền tố `mcp__plugin_dev-core_agentflow__`), nên không cần heredoc. Lệnh `agentflow report` (nhận nội dung qua heredoc `<<'EOF'`) chỉ còn là dự phòng khi không có tool MCP. Đã thử thật bằng `claude -p`: quy tắc `Bash(python *)` cho phép lệnh `python - <<'EOF' ... EOF`, còn không có quy tắc thì lệnh bị từ chối; heredoc không làm quy tắc mất tác dụng.
+- Báo cáo được ghi bằng tool MCP `report_write` (tên đầy đủ có tiền tố `mcp__plugin_dev-core_agentflow__`), nên không cần heredoc. Lệnh `agentflow report` (nhận nội dung qua heredoc `<<'EOF'`) chỉ còn là dự phòng khi không có tool MCP.
 - Tám tool MCP trong `allow` chỉ đọc workspace hoặc ghi báo cáo/hồ sơ dự án theo luật của `agentflow` (báo cáo chỉ cho bước hiện tại và không ghi đè bước đã qua; hồ sơ dự án chỉ ghi khi không có task đang mở). Không có tool MCP cho việc của người (duyệt, hủy, seal, `decide`, extension, `config set`).
-- Các lệnh `agentflow decide`, `ext add`, `ext sync`, `config set`, `task seal` là việc của **người**: hook từ chối khi agent tự chạy. Bạn chạy trực tiếp: trong Claude Code gõ `! agentflow decide ...`, hoặc dùng terminal riêng (Antigravity).
-- Cách viết cho Antigravity: dùng chế độ phê duyệt lệnh của chính CLI đó; tài liệu của nó không có cú pháp quy tắc tương đương.
+- Các lệnh `agentflow decide`, `ext add`, `ext sync`, `config set`, `task seal`, `project confirm`, `roadmap set`, `replan done|skip` là việc của **người**: hook **từ chối** khi agent tự chạy (không phải `ask`, nên không có trong khối trên). Bạn chạy trực tiếp: trong Claude Code gõ `! agentflow decide ...`, hoặc dùng terminal riêng (Antigravity).
+
+### Giới hạn của Antigravity (không có quy tắc ask)
+
+Antigravity CLI không có quy tắc `ask` kiểu `permissions` của Claude Code; chế độ phê duyệt lệnh của chính CLI đó là lớp duy nhất ở phía nó. Phần còn lại do hook `pre-tool` của dev-core đảm nhiệm:
+
+- Với `agentflow task approve` và `task cancel` (mọi dạng gọi như trên Claude Code), hook trả `force_ask`: theo tài liệu của Antigravity, nó bỏ qua bộ nhớ "Always Allow", nên bạn luôn thấy câu hỏi.
+- Hook từ chối ghi vào `.agentflow/` (tool file và lệnh shell) và các lệnh của người; `agentflow commit` từ chối commit khi quét ra secret hoặc khi sai nhánh.
+- Đã thử thật (agy 1.4.0, 18/10/2026, kết quả ở [docs/architecture.md](docs/architecture.md), mục "Thử thật hook ask"): chế độ mặc định `request-review` hỏi đúng; với `--dangerously-skip-permissions` (tự duyệt mọi lệnh) lệnh vẫn chạy, nên khi dùng chế độ tự duyệt thì `force_ask` không giúp được và chỉ còn các hook deny cùng `agentflow commit`. Đừng bật chế độ đó cho dự án dùng agentflow.
 
 ### Kiểm tra nhanh toàn bộ
 

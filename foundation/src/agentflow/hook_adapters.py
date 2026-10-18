@@ -63,6 +63,17 @@ class ClaudeAdapter:
                         }
                     }
                 )
+            case HookEvent.PRE_TOOL, ReplyKind.ASK:
+                # The person sees a prompt with this reason; the agent cannot answer it.
+                return _dump(
+                    {
+                        ClaudeHookKey.HOOK_SPECIFIC_OUTPUT: {
+                            ClaudeHookKey.HOOK_EVENT_NAME: ClaudeHookValue.PRE_TOOL_USE,
+                            ClaudeHookKey.PERMISSION_DECISION: ClaudeHookValue.ASK,
+                            ClaudeHookKey.PERMISSION_DECISION_REASON: reply.text,
+                        }
+                    }
+                )
             case HookEvent.SESSION_START, ReplyKind.CONTEXT:
                 return _dump(
                     {
@@ -101,6 +112,13 @@ class AntigravityAdapter:
                 return _dump(
                     {
                         AntigravityHookKey.DECISION: AntigravityDecision.DENY,
+                        AntigravityHookKey.REASON: reply.text,
+                    }
+                )
+            case HookEvent.PRE_TOOL, ReplyKind.ASK:
+                return _dump(
+                    {
+                        AntigravityHookKey.DECISION: AntigravityDecision.FORCE_ASK,
                         AntigravityHookKey.REASON: reply.text,
                     }
                 )
