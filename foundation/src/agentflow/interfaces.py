@@ -15,6 +15,7 @@ from agentflow.models import (
     CommandResult,
     CommitInfo,
     ConventionInfo,
+    FileChange,
     HookInput,
     HookReply,
     KnowledgeFile,
@@ -128,6 +129,15 @@ class GitClient(Protocol):
 
     def identity(self) -> str:
         """The configured committer as ``Name <email>``."""
+        ...
+
+
+@runtime_checkable
+class SealingGit(GitClient, Protocol):
+    """What sealing a task asks of git beyond the everyday operations: which files the task changed."""
+
+    def changed_entries(self, base: str, head: str) -> Sequence[FileChange]:
+        """Files changed on ``head`` since it left ``base``, with what happened to each (added, modified, deleted, renamed)."""
         ...
 
 
@@ -255,6 +265,8 @@ class WorkspaceService(Protocol):
     def knowledge_search(self, query: str, limit: int) -> Sequence[KnowledgeHit]: ...
 
     def knowledge_read(self, file: str) -> KnowledgeFile: ...
+
+    def write_replan(self, content: str) -> ReportInfo: ...
 
 
 @runtime_checkable

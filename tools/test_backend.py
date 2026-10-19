@@ -48,7 +48,7 @@ def test_generated_agents_are_up_to_date_and_declared_in_the_manifest():
     assert build.check(BACKEND) == []
     manifest = json.loads((BACKEND / build.CLAUDE_MANIFEST).read_text(encoding="utf-8"))
     assert manifest["agents"] == ["./claude/agents/db-engineer.md"]
-    assert manifest["dependencies"] == ["dev-core"] and manifest["version"] == "0.2.0"
+    assert manifest["dependencies"] == ["dev-core"] and manifest["version"] == "0.3.0"
     antigravity = json.loads((BACKEND / "plugin.json").read_text(encoding="utf-8"))
     assert set(antigravity) == {"$schema", "name", "description"}
 

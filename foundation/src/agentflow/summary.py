@@ -8,6 +8,7 @@ from agentflow.models import CommitInfo, Task
 from agentflow.plan import PlanItem
 
 SHORT_SHA = 9
+REPLAN_SUMMARY_LABEL = "Replan"
 NO_ITEM_GROUP = "other commits"
 NONE_LINE = "- none"
 
@@ -20,12 +21,18 @@ def build_summary(
     approver: str,
     approved_at: str,
     lessons: Sequence[Lesson] = (),
+    roadmap: str | None = None,
+    spec_delta: str | None = None,
+    replan: str | None = None,
 ) -> str:
     lines = [
         f"# {task.id}: {task.title}",
         "",
         f"- Branch: {task.branch}",
         *([f"- Size: {task.size}"] if task.size else []),
+        *([f"- Roadmap: {roadmap}"] if roadmap else []),
+        *([f"- Spec delta: {spec_delta}"] if spec_delta else []),
+        *([f"- {REPLAN_SUMMARY_LABEL}: {replan}"] if replan else []),
         f"- Approved by: {approver}",
         f"- Approved at: {approved_at}",
         "",

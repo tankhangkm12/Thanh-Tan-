@@ -13,6 +13,7 @@ from agentflow.constants import (
     INSTALL_URLS,
     SCHEMA_VERSION,
     ActionKind,
+    ApprovalItem,
     ConfigKey,
     GateKind,
     GuardDecision,
@@ -40,6 +41,15 @@ class Step:
     # An earlier step to go back to when this step fails.
     on_fail: str | None = None
     gates: tuple[GateKind, ...] = ()
+    # What a person ticks before approving this step: fixed questions, and where the dynamic lines come from.
+    approval_checklist: tuple[str, ...] = ()
+    approval_items: tuple[ApprovalItem, ...] = ()
+    # When a person approves this step, the files named by its report are locked (see lockfiles.py).
+    lock_on_approval: bool = False
+
+    @property
+    def has_checklist(self) -> bool:
+        return bool(self.approval_checklist or self.approval_items)
 
 
 @dataclass(frozen=True)
@@ -117,6 +127,9 @@ def _step_from_dict(data: Mapping[str, Any]) -> Step:
         requires_approval=data.get(WorkflowKey.REQUIRES_APPROVAL, False),
         on_fail=data.get(WorkflowKey.ON_FAIL),
         gates=tuple(GateKind(item) for item in data.get(WorkflowKey.GATES, ())),
+        approval_checklist=tuple(data.get(WorkflowKey.APPROVAL_CHECKLIST, ())),
+        approval_items=tuple(ApprovalItem(item) for item in data.get(WorkflowKey.APPROVAL_ITEMS, ())),
+        lock_on_approval=bool(data.get(WorkflowKey.LOCK_ON_APPROVAL, False)),
     )
 
 
@@ -142,6 +155,19 @@ class Task:
     history: tuple[HistoryEntry, ...] = ()
     # The workflow size the task was started with; ``None`` when the workflow has no sizes.
     size: str | None = None
+    # The roadmap item (R3) the task serves; ``None`` when it is not tied to one.
+    roadmap: str | None = None
+    # When a person confirmed the replan of this finished task (``agentflow replan done``); ``None`` until then.
+    replanned_at: str | None = None
+
+
+@dataclass(frozen=True)
+class FileChange:
+    """One file a task changed, as git reports it: ``status`` is A (added), M (modified), D (deleted) or R (renamed)."""
+
+    status: str
+    path: str
+    old_path: str | None = None
 
 
 @dataclass(frozen=True)
@@ -179,6 +205,8 @@ def _task_from_dict(data: Mapping[str, Any]) -> Task:
         loop_round=data[StateKey.LOOP_ROUND],
         branch=data[StateKey.BRANCH],
         size=data.get(StateKey.SIZE),
+        roadmap=data.get(StateKey.ROADMAP),
+        replanned_at=data.get(StateKey.REPLANNED_AT),
         history=tuple(
             HistoryEntry(
                 at=entry[StateKey.AT],
@@ -215,6 +243,10 @@ def _task_to_dict(task: Task) -> dict[str, Any]:
     }
     if task.size is not None:
         data[StateKey.SIZE] = task.size
+    if task.roadmap is not None:
+        data[StateKey.ROADMAP] = task.roadmap
+    if task.replanned_at is not None:
+        data[StateKey.REPLANNED_AT] = task.replanned_at
     return data
 
 
@@ -313,7 +345,7 @@ class ProbeResult:
 
 @dataclass(frozen=True)
 class ToolCheck:
-    tool: Tool
+    tool: Tool | str
     status: ToolStatus
     required: bool
     version: str | None = None
@@ -371,6 +403,8 @@ class HookInput:
     command: str | None = None
     # The file a file-writing tool is about to change (as given, possibly relative).
     write_target: Path | None = None
+    # The CLI's name for the tool being called (Bash, Write, run_command...), when its payload gives one.
+    tool: str | None = None
     # Claude: this Stop hook already ran this turn. Antigravity: 0-based model invocation number.
     stop_hook_active: bool = False
     invocation_num: int | None = None
@@ -387,6 +421,7 @@ class TaskInfo:
     loop_round: int
     max_rounds: int
     size: str | None = None
+    roadmap: str | None = None
 
 
 @dataclass(frozen=True)
@@ -395,6 +430,8 @@ class StatusInfo:
     workflow: str
     active_task: TaskInfo | None
     next: str
+    # The roadmap item to take up next, as ``R2 - Title`` plus ``(unconfirmed)`` when nobody confirmed it.
+    next_roadmap: str | None = None
 
 
 @dataclass(frozen=True)
@@ -423,6 +460,8 @@ class ProjectWriteInfo:
     open_questions: int = 0
     # Conventions that were confirmed (or written as confirmed) and are now unconfirmed, because an agent cannot confirm.
     demoted: tuple[str, ...] = ()
+    # Things the writer should know: a mission that is incomplete, a status that was kept, a confirmed item that is gone.
+    warnings: tuple[str, ...] = ()
 
 
 @dataclass(frozen=True)
@@ -481,3 +520,7 @@ class GuardVerdict:
     @property
     def denied(self) -> bool:
         return self.decision is GuardDecision.DENY
+
+    @property
+    def asks(self) -> bool:
+        return self.decision is GuardDecision.ASK

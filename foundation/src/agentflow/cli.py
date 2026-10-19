@@ -9,10 +9,15 @@ from dataclasses import dataclass, replace
 from importlib.metadata import version
 from pathlib import Path
 
+from agentflow import amend, lockfiles, lockflow
 from agentflow.assign import ProjectAgentNames, WorkflowAgentNames, assignment_lines
 from agentflow.convention_sources import load_effective_conventions
 from agentflow.services import WorkspaceServices
-from agentflow.constants import KnowledgeCommand, KnowledgePlace, McpCommand, ProjectCommand, RoleCommand
+from agentflow.testspec import TESTS_PASS_FILE, require_active_spec_step, task_file, verify_red
+from agentflow.checklist import ChecklistWriter, check_approval, finish_approval
+from agentflow.integrity import NOTHING_TO_ACCEPT, Integrity
+from agentflow.checklist import checklist_path
+from agentflow.constants import ConfirmState, StateCommand, TestsCommand, KnowledgeCommand, KnowledgePlace, McpCommand, ProjectCommand, ReplanCommand, ReplanState, RoadmapCommand, RoadmapStatus, RoleCommand
 from agentflow.interfaces import AgentNames
 from agentflow.roles import RoleGrants
 from agentflow.constants import ANSWER_OPTION, DECISION_SCOPE_PROJECT, CheckKind
@@ -20,7 +25,10 @@ from agentflow.convention_sources import next_code, write_answer
 from agentflow.knowledge import add_personal_convention, init_store, pull_files, push_file
 from agentflow.project import load_conventions
 from agentflow.userconfig import knowledge_dir, save_knowledge_dir
-from agentflow.project import confirm_conventions, unconfirmed_conventions
+from agentflow.confirmations import Confirmations
+from agentflow.project import confirm_project, mission_state, roadmap_state, status_lines, unconfirmed_conventions
+from agentflow.replan import ReplanStatus, confirm_replan, replan_status, skip_replan
+from agentflow.roadmap import find_item, is_code, items_of, read_roadmap, require_linkable, set_status
 from agentflow.constants import (
     CONTAINER_TOOLS,
     ENCODING,
@@ -44,12 +52,14 @@ from agentflow.constants import (
     SyncOutcome,
     TaskCommand,
     TaskEvent,
+    StepStatus,
+    TaskStatus,
     TaskType,
     ToolStatus,
     WorkflowCommand,
 )
 from agentflow.commit import commit_staged
-from agentflow.doctor import SystemToolProbe, run_doctor
+from agentflow.doctor import SystemToolProbe, run_doctor, running_version
 from agentflow.engine import next_action
 from agentflow.errors import AgentflowError
 from agentflow.gates import GateContext, WorkspaceGates, plan_problems, plan_report_path
@@ -96,6 +106,7 @@ from agentflow.workspace import (
 CLI_OPTION = "--cli"
 TYPE_OPTION = "--type"
 SIZE_OPTION = "--size"
+ROADMAP_OPTION = "--roadmap"
 RESULT_OPTION = "--result"
 REASON_OPTION = "--reason"
 STEP_OPTION = "--step"
@@ -139,6 +150,7 @@ def build_parser() -> argparse.ArgumentParser:
     new.add_argument("title", help="what the task is about")
     new.add_argument(TYPE_OPTION, type=TaskType, choices=list(TaskType), default=TaskType.FEATURE)
     new.add_argument(SIZE_OPTION, help="task size, one of the sizes the workflow defines (default: the workflow's default size)")
+    new.add_argument(ROADMAP_OPTION, help="the roadmap item (R1, R2 ...) the task serves; moves it to doing")
     advance = task_commands.add_parser(TaskCommand.ADVANCE, help="record that the current step passed or failed")
     advance.add_argument(RESULT_OPTION, required=True, type=TaskEvent, choices=list(STEP_RESULTS))
     approve = task_commands.add_parser(TaskCommand.APPROVE, help="approve the step, or resume a blocked task")
@@ -213,9 +225,42 @@ def build_parser() -> argparse.ArgumentParser:
 
     project = commands.add_parser(Command.PROJECT, help="the project documents a scout wrote (.agentflow/project/)")
     project_commands = project.add_subparsers(dest="project_command", metavar="<project command>", required=True)
-    confirm = project_commands.add_parser(ProjectCommand.CONFIRM, help="for a person: confirm conventions (PC-01 ... or --all)")
+    confirm = project_commands.add_parser(
+        ProjectCommand.CONFIRM, help="for a person: confirm conventions (PC-01 ...), the mission, profile, architecture or roadmap items (R1 ...)"
+    )
     confirm.add_argument("codes", nargs="*", metavar="CODE")
-    confirm.add_argument("--all", action="store_true", dest="everything", help="confirm every convention")
+    confirm.add_argument("--all", action="store_true", dest="everything", help="confirm every convention (not the mission, profile, architecture or roadmap)")
+    project_commands.add_parser(ProjectCommand.STATUS, help="which project documents exist and which a person has confirmed")
+
+    roadmap = commands.add_parser(Command.ROADMAP, help="the project's roadmap (.agentflow/project/roadmap.md)")
+    roadmap_commands = roadmap.add_subparsers(dest="roadmap_command", metavar="<roadmap command>", required=True)
+    roadmap_commands.add_parser(RoadmapCommand.LIST, help="the items with their status")
+    roadmap_set = roadmap_commands.add_parser(RoadmapCommand.SET, help="for a person: move an item to todo, doing, done or dropped")
+    roadmap_set.add_argument("code", help="roadmap item, e.g. R3")
+    roadmap_set.add_argument("status", choices=[str(status) for status in RoadmapStatus])
+
+    state = commands.add_parser(Command.STATE, help="for a person: take state.json as it is after reading a change made outside agentflow")
+    state_commands = state.add_subparsers(dest="state_command", metavar="<state command>", required=True)
+    accept = state_commands.add_parser(StateCommand.ACCEPT, help="record why and trust state.json again (and clear what the audit log shows)")
+    accept.add_argument("--reason", required=True, help="why you accept it")
+
+    tests = commands.add_parser(Command.TESTS, help="the tests of the active task, run by agentflow itself")
+    tests_commands = tests.add_subparsers(dest="tests_command", metavar="<tests command>", required=True)
+    tests_commands.add_parser(TestsCommand.VERIFY_RED, help="at the test-spec step: run the commands of the report and check each one fails")
+    tests_commands.add_parser(TestsCommand.CHECK, help="are the locked test files as they were approved? (read-only)")
+    tests_amend = tests_commands.add_parser(TestsCommand.AMEND, help="for a person: open a window to change an approved test, and say why")
+    tests_amend.add_argument("files", nargs="+", help="the locked files to open (or a test configuration file to add)")
+    tests_amend.add_argument("--reason", default=None, help="why the test is changed (kept in decisions/)")
+    tests_amend.add_argument("--accept-green", action="store_true", help="accept that the changed test passes on the old code (needs --reason)")
+
+    replan = commands.add_parser(Command.REPLAN, help="after a task: the replan of the project documents (proposed by the scout, closed by a person)")
+    replan_commands = replan.add_subparsers(dest="replan_command", metavar="<replan command>", required=True)
+    replan_commands.add_parser(ReplanCommand.STATUS, help="where the replan of the latest finished task stands (read-only)")
+    replan_commands.add_parser(ReplanCommand.WRITE, help="store the replan (read from stdin) as a proposal for the latest finished task")
+    replan_commands.add_parser(ReplanCommand.DONE, help="for a person: the proposed replan is done (after reading replan.md)")
+    replan_skip = replan_commands.add_parser(ReplanCommand.SKIP, help="for a person: decide not to replan a finished task, and say why")
+    replan_skip.add_argument("task_id", help="the latest finished task, e.g. T-001")
+    replan_skip.add_argument("--reason", required=True, help="why the replan is not needed")
 
     knowledge = commands.add_parser(Command.KNOWLEDGE, help="your personal knowledge store (outside every repository)")
     knowledge_commands = knowledge.add_subparsers(dest="knowledge_command", metavar="<knowledge command>", required=True)
@@ -256,7 +301,7 @@ def main(argv: list[str] | None = None) -> int:
 
 
 def cmd_doctor(args: argparse.Namespace) -> ExitCode:
-    report = run_doctor(SystemToolProbe())
+    report = run_doctor(SystemToolProbe(), running_version=running_version())
     width = max(len(check.tool) for check in report.checks)
     for check in report.checks:
         print(_doctor_line(check, width))
@@ -322,9 +367,15 @@ def cmd_status(args: argparse.Namespace) -> ExitCode:
         print(f"task status: {task.status}; rework rounds: {rounds}; branch: {task.branch or NONE_TEXT}")
         if task.size:
             print(f"size: {task.size}")
+        if task.roadmap:
+            item = find_item(items_of(opened.paths.dir), task.roadmap)
+            print(f"roadmap: {item.label if item else task.roadmap}")
     others = [t for t in state.tasks if t.status in IN_FLIGHT_TASK_STATUSES and t is not task]
     if others:
         print("other open tasks: " + ", ".join(f"{t.id} ({t.current_step}, {t.status})" for t in others))
+    suggestion = WorkspaceServices(opened.paths).next_roadmap(state)
+    if suggestion is not None:
+        print(f"next roadmap: {suggestion}")
     print(f"next: {describe_action(next_action(workflow, task))}")
     return ExitCode.OK
 
@@ -352,31 +403,112 @@ def _store(opened: _Opened) -> JsonStateStore:
     return JsonStateStore(opened.paths.dir, opened.workflow)
 
 
+def cmd_tests(args: argparse.Namespace) -> ExitCode:
+    opened = _open_workspace()
+    match args.tests_command:
+        case TestsCommand.CHECK:
+            return _tests_check(opened)
+        case TestsCommand.AMEND:
+            for line in amend.open_windows(opened.paths.dir, require_active_task(opened.state).id, args.files, args.reason or "", args.accept_green, utc_now()):
+                print(line)
+            return ExitCode.OK
+    task = require_active_task(opened.state)
+    require_active_spec_step(opened.workflow, task)
+    project = load_project_context(opened.paths.dir, opened.workflow, task)
+    git = SubprocessGit(opened.paths.root)
+    problems, record = verify_red(opened.paths.dir, opened.workflow, task, opened.paths.root, git.head_or_empty(), project.lookup)
+    if record is not None:
+        for code, entry in record["results"].items():
+            detail = f" (exit {entry['exit_code']})" if "exit_code" in entry else ""
+            print(f"{code} {entry['status']}{detail}")
+    for problem in problems:
+        print(f"- {problem}")
+    if problems:
+        return ExitCode.GATE_FAILED
+    print("every command fails, as tests written first should")
+    return ExitCode.OK
+
+
+def _tests_check(opened: _Opened) -> ExitCode:
+    task = require_active_task(opened.state)
+    problems = lockfiles.check(opened.paths.dir, opened.paths.root, task.id)
+    if problems is None:
+        print("no locked files: nothing is locked until a person approves the test-spec step")
+        return ExitCode.OK
+    for problem in problems:
+        print(f"- {problem}")
+    if problems:
+        return ExitCode.GATE_FAILED
+    record = lockfiles.load(opened.paths.dir, task.id) or {}
+    windows = len(record.get("windows", {}))
+    print(f"locked files intact ({len(record.get('files', {}))})" + (f"; {windows} window(s) open for a person's change" if windows else ""))
+    return ExitCode.OK
+
+
+def cmd_state(args: argparse.Namespace) -> ExitCode:
+    paths = find_workspace(Path.cwd())
+    decision = Integrity(paths.dir).accept(
+        args.reason, utc_now(), lambda task_id: lockfiles.file_digest(paths.dir, task_id), lockflow.settings_digest(load_config(paths).settings)
+    )
+    print(NOTHING_TO_ACCEPT if decision is None else f"state accepted; decision recorded: {decision}")
+    return ExitCode.OK
+
+
 def cmd_task(args: argparse.Namespace) -> ExitCode:
     opened = _open_workspace()
     store = _store(opened)
+    if args.task_command in {TaskCommand.NEW, TaskCommand.ADVANCE, TaskCommand.APPROVE}:
+        warning = Integrity(opened.paths.dir).verify(bool(opened.state.tasks)).warning
+        if warning:
+            _err(f"{WARNING_PREFIX}{warning}")
+        lockflow.verify(opened.paths.dir, load_config(opened.paths).settings, opened.state.active_task())
     match args.task_command:
         case TaskCommand.NEW:
-            task = new_task(store, opened.workflow, SubprocessGit(opened.paths.root), args.title, args.type, utc_now, args.size)
+            if args.roadmap is not None:
+                require_linkable(opened.paths.dir, args.roadmap)
+            before = replan_status(opened.paths.dir, opened.state, SubprocessGit(opened.paths.root))
+            task = new_task(store, opened.workflow, SubprocessGit(opened.paths.root), args.title, args.type, utc_now, args.size, args.roadmap)
+            if task.roadmap:
+                set_status(opened.paths.dir, task.roadmap, RoadmapStatus.DOING)
             size_note = f" (size {task.size})" if task.size else ""
-            print(f"{task.id} created on branch {task.branch}{size_note}")
+            roadmap_note = f" (roadmap {task.roadmap})" if task.roadmap else ""
+            print(f"{task.id} created on branch {task.branch}{size_note}{roadmap_note}")
             unconfirmed = unconfirmed_conventions(opened.paths.dir)
             if unconfirmed:
                 _err(
                     f"{WARNING_PREFIX}{len(unconfirmed)} convention(s) are still unconfirmed ({', '.join(unconfirmed)}): "
                     "a person confirms them with `agentflow project confirm`"
                 )
+            _warn_project_documents(opened.paths.dir, task)
+            _warn_replan(before)
         case TaskCommand.ADVANCE:
-            task = advance_task(store, opened.workflow, args.result, utc_now, _gates(opened), _sealer(opened))
+            task = advance_task(store, opened.workflow, args.result, utc_now, _gates(opened), _sealer(opened), ChecklistWriter(opened.paths.dir))
             print(f"{task.id}: step '{task.current_step}' is now {task.step_status} (task {task.status})")
+            _warn_skipped_tests(opened, args.result)
+            if task.step_status is StepStatus.AWAITING_APPROVAL and task.status is TaskStatus.OPEN and (step := opened.workflow.get_step(task.current_step)) and step.has_checklist:
+                print(f"checklist to tick before approving: {checklist_path(opened.paths.dir, task.id, step.id)}")
         case TaskCommand.APPROVE:
+            active = opened.state.active_task()
+            approval = check_approval(opened.paths.dir, opened.workflow, active) if active is not None else None
+            locked, lock_warnings = (
+                lockflow.lock_on_approval(opened.paths.dir, opened.paths.root, opened.workflow, active, utc_now()) if active is not None else ([], [])
+            )
             result = approve_task(store, opened.workflow, opened.paths.dir, utc_now, args.reason, _sealer(opened))
+            for line in locked:
+                print(line)
+            for warning_text in lock_warnings:
+                _err(f"{WARNING_PREFIX}{warning_text}")
             task = result.task
+            if approval is not None:
+                kept = finish_approval(opened.paths.dir, approval, active, opened.workflow, utc_now())
+                if kept is not None:
+                    print(f"note recorded: {kept}")
             print(f"{task.id}: step '{task.current_step}' is now {task.step_status} (task {task.status})")
             if result.decision_file is not None:
                 print(f"decision recorded: {result.decision_file}")
         case TaskCommand.CANCEL:
             task = cancel_task(store, opened.workflow, utc_now)
+            _release_roadmap_item(opened.paths.dir, store.load(), task)
             print(f"{task.id} cancelled")
         case TaskCommand.SEAL:
             path = seal_finished_task(store, _sealer(opened), args.task_id, args.commit)
@@ -384,6 +516,66 @@ def cmd_task(args: argparse.Namespace) -> ExitCode:
     state = store.load()
     print(f"next: {describe_action(next_action(opened.workflow, state.active_task()))}")
     return ExitCode.OK
+
+
+def _warn_skipped_tests(opened: _Opened, result: TaskEvent) -> None:
+    """A pass of the step with the gate `tests-pass` that ran no project tests because the plan has only `kind: other` items."""
+    task = opened.state.active_task()
+    step = opened.workflow.get_step(task.current_step) if task is not None else None
+    if result is not TaskEvent.PASS or step is None or GateKind.TESTS_PASS not in step.gates:
+        return
+    try:
+        record = json.loads(task_file(opened.paths.dir, task.id, TESTS_PASS_FILE).read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        return
+    if record.get("status") == "skipped":
+        _err(f"{WARNING_PREFIX}no test command is set, so no project tests ran; the plan has only 'kind: other' items. Set one with `agentflow config set test_command \"<command>\"` to run tests anyway")
+
+
+def _warn_project_documents(workspace_dir: Path, task: Task) -> None:
+    """Warnings (never errors) about the mission and roadmap a new task rests on."""
+    confirmations = Confirmations.load(workspace_dir)
+    mission = mission_state(workspace_dir, confirmations)
+    if mission is ConfirmState.MISSING:
+        _err(f"{WARNING_PREFIX}the project has no mission yet: the scout writes it from your documents (setup skill), then a person confirms it with `agentflow project confirm mission`")
+    elif mission is ConfirmState.UNCONFIRMED:
+        _err(f"{WARNING_PREFIX}the mission is unconfirmed: a person confirms it with `agentflow project confirm mission`")
+    state, unconfirmed = roadmap_state(workspace_dir, confirmations)
+    if state is ConfirmState.MISSING:
+        _err(f"{WARNING_PREFIX}the project has no roadmap (roadmap missing): the scout proposes one (setup skill), then a person confirms its items")
+    elif unconfirmed:
+        _err(f"{WARNING_PREFIX}the roadmap has unconfirmed items: {', '.join(unconfirmed)} (a person confirms them with `agentflow project confirm {unconfirmed[0]} ...`)")
+    if task.roadmap is None:
+        _err(f"{WARNING_PREFIX}this task is not tied to a roadmap item: start it with `{ROADMAP_OPTION} Rn` (see `agentflow roadmap list`)")
+    elif task.roadmap in unconfirmed:
+        _err(f"{WARNING_PREFIX}the roadmap item {task.roadmap} you linked is unconfirmed: a person confirms it with `agentflow project confirm {task.roadmap}`")
+
+
+def _warn_replan(before: ReplanStatus) -> None:
+    """The task finished before this one was neither replanned nor skipped (a warning; nothing stops the new task)."""
+    task = before.task_id
+    if before.state is ReplanState.PENDING:
+        _err(
+            f"{WARNING_PREFIX}task {task} was approved but never replanned: have the scout replan it (replan skill), "
+            f'or a person skips it with `agentflow replan skip {task} --reason "..."`'
+        )
+    elif before.state is ReplanState.PROPOSED:
+        _err(
+            f"{WARNING_PREFIX}the replan of task {task} is only proposed: a person reads .agentflow/tasks/{task}/replan.md "
+            f'and runs `agentflow replan done` (or `agentflow replan skip {task} --reason "..."`)'
+        )
+
+
+def _release_roadmap_item(workspace_dir: Path, state: State, cancelled: Task) -> None:
+    """A cancelled task that was the only work on a roadmap item puts the item back to todo."""
+    if not cancelled.roadmap:
+        return
+    item = find_item(items_of(workspace_dir), cancelled.roadmap)
+    if item is None or item.status is not RoadmapStatus.DOING:
+        return
+    others = [t for t in state.tasks if t.id != cancelled.id and t.roadmap == cancelled.roadmap and t.status is not TaskStatus.CANCELLED]
+    if not others:
+        set_status(workspace_dir, cancelled.roadmap, RoadmapStatus.TODO)
 
 
 def _sealer(opened: _Opened) -> TaskSealer:
@@ -468,7 +660,10 @@ def cmd_config(args: argparse.Namespace) -> ExitCode:
             print(value if isinstance(value, str) else json.dumps(value, ensure_ascii=False))
         case ConfigCommand.SET:
             value = coerce(extensions, args.key, args.value)
-            save_config(paths, replace(config, settings=set_value(config.settings, args.key, value)))
+            updated = set_value(config.settings, args.key, value)
+            save_config(paths, replace(config, settings=updated))
+            if args.key in lockflow.TEST_SETTING_KEYS:
+                Integrity(paths.dir).record_settings(lockflow.settings_digest(updated))
             print(f"{args.key} set")
         case ConfigCommand.CHECK:
             problems = settings_problems(extensions, config.settings)
@@ -649,10 +844,14 @@ def cmd_commit(args: argparse.Namespace) -> ExitCode:
     opened = _open_workspace()
     scanner = ContainerGitleaksScanner(SubprocessRunner())
     project = load_project_context(opened.paths.dir, opened.workflow)
+    lock = lockflow.lock_commit(opened.paths.dir, opened.paths.root, opened.state.active_task(), opened.workflow, project.lookup, utc_now())
     result = commit_staged(
-        _store(opened), SubprocessGit(opened.paths.root), scanner, args.message, args.item, _plan_items(opened), project.rules
+        _store(opened), SubprocessGit(opened.paths.root), scanner, args.message, args.item, _plan_items(opened), lockflow.commit_rules(project.rules, lock)
     )
     print(f"committed {result.sha[:SHORT_SHA_LENGTH]}: {result.message}")
+    if lock is not None and lock.active:
+        for warning_text in lock.closed(result.sha):
+            _err(f"{WARNING_PREFIX}{warning_text}")
     return ExitCode.OK
 
 
@@ -697,17 +896,62 @@ def cmd_conventions(args: argparse.Namespace) -> ExitCode:
 
 
 def cmd_project(args: argparse.Namespace) -> ExitCode:
-    # argparse requires a project subcommand, and confirm is the only one so far.
     paths = find_workspace(Path.cwd())
-    result = confirm_conventions(paths.dir, args.codes, args.everything)
+    if args.project_command == ProjectCommand.STATUS:
+        for line in status_lines(paths.dir):
+            print(line)
+        return ExitCode.OK
+    result = confirm_project(paths.dir, args.codes, args.everything)
     if result.confirmed:
         print(f"confirmed: {', '.join(result.confirmed)}")
     if result.already:
         print(f"already confirmed: {', '.join(result.already)}")
-    if result.unconfirmed:
-        print(f"still unconfirmed: {', '.join(result.unconfirmed)}")
-    if result.open_questions:
-        print(f"open questions: {', '.join(result.open_questions)} (see .agentflow/project/conventions.md)")
+    conventions = result.conventions
+    if conventions is not None and conventions.unconfirmed:
+        print(f"still unconfirmed: {', '.join(conventions.unconfirmed)}")
+    if conventions is not None and conventions.open_questions:
+        print(f"open questions: {', '.join(conventions.open_questions)} (see .agentflow/project/conventions.md)")
+    return ExitCode.OK
+
+
+def cmd_roadmap(args: argparse.Namespace) -> ExitCode:
+    paths = find_workspace(Path.cwd())
+    if args.roadmap_command == RoadmapCommand.LIST:
+        found = read_roadmap(paths.dir)
+        if found is None:
+            print("no roadmap yet (the setup skill has the scout propose one)")
+            return ExitCode.OK
+        confirmations = Confirmations.load(paths.dir)
+        for item in found[1]:
+            note = "" if confirmations.is_confirmed(item.code, item.content) else " (unconfirmed)"
+            print(f"{item.code} [{item.status}] {item.title}{note}")
+        return ExitCode.OK
+    if not is_code(args.code):
+        raise AgentflowError(f"'{args.code}' is not a roadmap item code (R and digits, for example R3)", ExitCode.INVALID_INPUT)
+    before = set_status(paths.dir, args.code, RoadmapStatus(args.status))
+    print(f"{args.code}: {before} -> {args.status}")
+    return ExitCode.OK
+
+
+def cmd_replan(args: argparse.Namespace) -> ExitCode:
+    opened = _open_workspace()
+    git = SubprocessGit(opened.paths.root)
+    match args.replan_command:
+        case ReplanCommand.STATUS:
+            status = replan_status(opened.paths.dir, opened.state, git)
+            print(f"replan: {status.state}")
+            if status.task_id:
+                print(f"task: {status.task_id}")
+        case ReplanCommand.WRITE:
+            info = WorkspaceServices(opened.paths).write_replan(sys.stdin.read())
+            print(f"replan saved: {info.path}")
+            print("proposed only: a person reads it, then runs `agentflow replan done` (or `agentflow replan skip`)")
+        case ReplanCommand.DONE:
+            task = confirm_replan(_store(opened), opened.paths.dir, git, utc_now())
+            print(f"{task.id}: replan done")
+        case ReplanCommand.SKIP:
+            path = skip_replan(_store(opened), opened.paths.dir, git, args.task_id, args.reason, utc_now())
+            print(f"{args.task_id}: replan skipped; decision: {path}")
     return ExitCode.OK
 
 
@@ -752,6 +996,10 @@ HANDLERS: dict[str, Handler] = {
     Command.GUARD: cmd_guard,
     Command.MCP: cmd_mcp,
     Command.PROJECT: cmd_project,
+    Command.ROADMAP: cmd_roadmap,
+    Command.STATE: cmd_state,
+    Command.TESTS: cmd_tests,
+    Command.REPLAN: cmd_replan,
     Command.CONVENTIONS: cmd_conventions,
     Command.KNOWLEDGE: cmd_knowledge,
 }

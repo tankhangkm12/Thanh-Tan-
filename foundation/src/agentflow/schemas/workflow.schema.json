@@ -88,11 +88,21 @@
         "name": { "type": "string", "minLength": 1 },
         "role": { "$ref": "#/$defs/identifier" },
         "requires_approval": { "type": "boolean", "default": false },
+        "lock_on_approval": { "type": "boolean", "default": false, "description": "When a person approves this step, lock the files of its report (see lockfiles.py)." },
         "on_fail": { "$ref": "#/$defs/identifier" },
+        "approval_checklist": {
+          "type": "array",
+          "items": { "type": "string", "pattern": "\\S" }
+        },
+        "approval_items": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": { "enum": ["plan-items", "review-conventions", "drift-proposals", "spec-items", "locked-files"] }
+        },
         "gates": {
           "type": "array",
           "uniqueItems": true,
-          "items": { "enum": ["plan-valid", "scans-clean", "conventions-reviewed"] }
+          "items": { "enum": ["plan-valid", "scans-clean", "conventions-reviewed", "drift-reviewed", "test-spec-valid", "tests-pass", "locked-files-intact"] }
         }
       }
     }

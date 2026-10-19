@@ -63,7 +63,7 @@ Mỗi nhóm khai báo quy trình của mình trong một file `workflow.yaml` đ
 | `agent_dirs` | CLI → thư mục (tính từ file workflow) chứa file agent đã sinh, để `role grant` chép sang dự án. Tùy chọn |
 | `max_rounds` | Số lần một task được quay lại làm lại (cả workflow) |
 | `steps[].on_fail` | Bước đứng trước mà task quay về khi bước này fail |
-| `steps[].gates` | Gate bước phải qua trước khi `task advance --result pass` được nhận: `plan-valid` (kế hoạch qua `plan check`, kể cả quy ước `item-order` và mọi câu hỏi "Chưa có quy ước" đã được trả lời), `scans-clean` (kết quả scan không còn mục chặn), `conventions-reviewed` (báo cáo review có một dòng cho từng quy ước `check: review`) |
+| `steps[].gates` | Gate bước phải qua trước khi `task advance --result pass` được nhận: `plan-valid` (kế hoạch qua `plan check`, kể cả quy ước `item-order` và mọi câu hỏi "Chưa có quy ước" đã được trả lời), `scans-clean` (kết quả scan không còn mục chặn), `conventions-reviewed` (báo cáo review có một dòng cho từng quy ước `check: review`), `drift-reviewed` (báo cáo review có mục `## Đề xuất cập nhật hồ sơ` đúng khuôn; chỉ kiểm hình thức) |
 
 Các bước chạy theo thứ tự trong danh sách; không có bước "loop" riêng. Fail ở bước có `on_fail` thì task quay về bước đó và số vòng tăng 1. Hết `max_rounds`, hoặc bước không có `on_fail`, thì task chuyển `blocked`, cần người quyết định.
 
@@ -101,7 +101,11 @@ Plugin con khai báo một file `extension.yaml` (ví dụ `families/software-de
   workflow.yaml   bản chép của workflow: status/next dùng bản này
   decisions/      mỗi lần người duyệt tiếp một task bị blocked ghi một file
   tasks/T-001/reports/<bước>.md   báo cáo của từng bước (agentflow report)
-  project/  knowledge/
+  tasks/T-001/summary.md, spec-delta.md   do agentflow sinh lúc seal (spec-delta: cái task thật sự đổi)
+  tasks/T-001/replan.md                   đề xuất replan của scout (replan_write); chỉ "proposed" tới khi người chạy replan done
+  project/        profile.md (có mục ## Mission), architecture.md, sources.md, conventions.md, roadmap.md,
+                  confirmations.json (hash của cái người đã xác nhận), history/ (bản trước của tài liệu bị ghi đè)
+  knowledge/
 ```
 
 - Chạy lại `init` không ghi đè `state.json` hay bản chép workflow; chỉ tạo phần còn thiếu và cập nhật `source_path`. Đổi sang workflow của nhóm khác thì bị từ chối.
@@ -121,7 +125,7 @@ Task trong `state.json` có `id` (`T-001`), `title`, `status` (`open`/`blocked`/
 | `agentflow status` | Task đang mở, bước hiện tại, việc tiếp theo | Chưa có workspace, state hỏng |
 | `agentflow next` | Bước tiếp theo, dạng `<loại>: <mô tả>` | Như `status` |
 | `agentflow workflow sync [--force]` | Thay bản chép workflow bằng bản gốc đã kiểm | Bản gốc lỗi hoặc mất, khác nhóm, có task đang chạy |
-| `agentflow task new "<tiêu đề>" --type feature\|bugfix\|hotfix [--size <cỡ>]` | Tạo nhánh gitflow `<type>/T-001-<slug>` và ghi task | Cây làm việc chưa sạch, đã có task mở, thiếu nhánh gốc |
+| `agentflow task new "<tiêu đề>" --type feature\|bugfix\|hotfix [--size <cỡ>] [--roadmap Rn]` | Tạo nhánh gitflow `<type>/T-001-<slug>` và ghi task; `--roadmap` gắn task với một mục roadmap (chuyển mục sang `doing`). Cảnh báo (không chặn) khi thiếu mission/roadmap, chưa xác nhận, hoặc không có `--roadmap` | Cây làm việc chưa sạch, đã có task mở, thiếu nhánh gốc; `--roadmap` sai mã, không có roadmap, mục `done`/`dropped` |
 | `agentflow task advance --result pass\|fail` | Ghi kết quả bước hiện tại | Không có task, bước không ở trạng thái cho phép |
 | `agentflow task approve [--reason ...]` | Duyệt bước đang chờ; với task `blocked` là người cho làm tiếp (ghi `decisions/`) | Như trên |
 | `agentflow task cancel` | Hủy task đang mở | Không có task đang mở |
@@ -136,10 +140,17 @@ Task trong `state.json` có `id` (`T-001`), `title`, `status` (`open`/`blocked`/
 | `agentflow role list` | Grant của dự án, agent đang mang chúng và trạng thái (`current`, `stale`, `missing`), ghi chú Antigravity | |
 | `agentflow report --step <bước>` | Ghi stdin vào `tasks/<task>/reports/<bước>.md` | Bước không có trong workflow, nội dung rỗng |
 | `agentflow commit "<nội dung>" [--item C1]` | Scan secret rồi commit với tiền tố `T-001: `; `--item` ghi trailer `Plan-Item: C1` | Sai nhánh, không có gì staged, thấy secret, engine container không chạy, mục không có trong plan |
-| `agentflow project confirm <mã...>\|--all` | Việc của người: đánh dấu quy ước `confirmed` trong `project/conventions.md` | Chưa có quy ước, mã không có, file có lỗi |
+| `agentflow project confirm <mã...>\|--all` | Việc của người: xác nhận quy ước (`PC-01`, `status: confirmed` trong `project/conventions.md`), mission (`mission`), `profile`, `architecture` hoặc mục roadmap (`R1`), lưu hash trong `project/confirmations.json`; `--all` chỉ gồm quy ước | Mã không có, tài liệu chưa có, mission thiếu trường, file có lỗi; một mã sai thì không xác nhận gì |
+| `agentflow project status` | Chỉ đọc: `mission:`, `profile:`, `architecture:`, `conventions:`, `roadmap:` là `missing`/`unconfirmed`/`confirmed`, và `removed: R4 (confirmed)` cho mục roadmap đã xác nhận mà agent bỏ đi | Chưa có workspace |
+| `agentflow roadmap list` | Chỉ đọc: `R1 [todo] Tiêu đề` kèm `(unconfirmed)` | Chưa có workspace |
+| `agentflow roadmap set <Rn> todo\|doing\|done\|dropped` | Việc của người: đổi trạng thái một mục roadmap (không làm mục mất xác nhận) | Mã không có, chưa có roadmap |
 | `agentflow conventions` | Liệt kê quy ước đã gộp từ decisions, project và kho cá nhân (quy ước chưa xác nhận ghi rõ là gợi ý) | |
 | `agentflow decide --answer <Q1\|S1> --text ... --check plan\|semgrep\|review [--rule r] [--overrides code] [--global]` | Việc của người: trả lời câu hỏi (của plan hoặc của setup), sinh quy ước `DC-NN` trong `decisions/`; `--global` ghi thêm `KC-NN` vào kho cá nhân | Không có câu hỏi đó, thiếu `--text`/`--check`, đã trả lời, quy ước không hợp lệ |
 | `agentflow knowledge init [--dir D]` / `pull <file...>` / `push <file> [--as lessons\|patterns]` | Việc của người: tạo khung kho cá nhân; chép file người chọn vào `.agentflow/knowledge/`; đưa một bài học từ workspace về kho | Đường dẫn ra ngoài kho/workspace, file đã có ở đích |
+| `agentflow replan status` | Chỉ đọc: `replan: no-finished-task\|task-open\|not-sealed\|pending\|proposed\|done\|skipped` và `task: <id>` |
+| `agentflow replan write` | stdin: đề xuất replan của task xong gần nhất (`tasks/<task>/replan.md`); từ chối khi có task mở/blocked, thiếu hai mục bắt buộc hay nêu mục roadmap lạ |
+| `agentflow replan done` / `agentflow replan skip <task> --reason ...` | Việc của người: xác nhận replan đã `proposed` là xong (`replanned_at`, summary, xóa `removed:`) / chủ động bỏ qua |
+| `agentflow tests verify-red` / `tests check` / `tests amend <file>... --reason ... [--accept-green]` | `verify-red`: ở bước test-spec chạy lại lệnh của báo cáo, đòi đỏ. `check` (chỉ đọc): so hash file khóa với cây làm việc và HEAD. `amend` (việc của người): mở cửa sổ đổi file đã khóa | `verify-red`/`check`: có lệnh không đỏ / file lệch (mã `GATE_FAILED`). `amend`: thiếu `--reason`, file không khóa, chưa có khóa |
 | `agentflow mcp serve` | Chạy server MCP trên stdio (do Claude Code/Antigravity khởi động) | |
 | `agentflow hook <pre-tool\|session-start\|stop> --cli claude\|antigravity` | Trả lời hook của CLI (JSON trên stdin): chặn lệnh và ghi nguy hiểm, nạp tóm tắt task đầu phiên, nhắc khi dừng | Không bao giờ: lỗi chỉ báo ra stderr, hook luôn thoát 0 để không làm hỏng agent |
 | `agentflow guard` | Đọc `{"command","cwd"}` từ stdin, in `{"decision","rule","reason"}` | Input không phải JSON hợp lệ |
@@ -152,7 +163,7 @@ Task trong `state.json` có `id` (`T-001`), `title`, `status` (`open`/`blocked`/
 
 `agentflow commit` chỉ chạy khi đang ở nhánh của task và có file staged. Gitleaks (image ghim phiên bản, chạy qua Docker, dự phòng Podman, mount chỉ đọc) quét phần staged; engine không chạy hoặc có secret thì báo lỗi và **không commit**.
 
-`agentflow guard` chặn: `git push` mọi dạng; mọi dạng `git commit` trong dự án đã có `.agentflow/` (chỉ cho commit qua `agentflow commit`; repo không có `.agentflow/` thì không chặn); `merge`/`commit`/`rebase`/`cherry-pick`/`revert`/`am` khi đang ở `main` hoặc `develop`; `reset --hard`; `clean` có cả `-f` và `-d`; `branch -D` (và `-d -f`); xóa tag; tạo tag hoặc ref dưới `agentflow/` (tag duyệt chỉ do `task approve` tạo); các lệnh của người (`decide`, `ext add`, `ext sync`, `config set`, `task seal`, `project confirm`, `knowledge init|pull|push`) khi agent tự chạy. Hiểu lệnh ghép (`&&`, `;`, `|`), `git -C`, `bash -c "..."` và việc `git switch` sang nhánh được bảo vệ ngay trong chuỗi lệnh. Đây là lưới an toàn cho agent, không phải sandbox: alias git, script hay biến môi trường vẫn có thể vượt qua.
+`agentflow guard` chặn: `git push` mọi dạng; mọi dạng `git commit` trong dự án đã có `.agentflow/` (chỉ cho commit qua `agentflow commit`; repo không có `.agentflow/` thì không chặn); `merge`/`commit`/`rebase`/`cherry-pick`/`revert`/`am` khi đang ở `main` hoặc `develop`; `reset --hard`; `clean` có cả `-f` và `-d`; `branch -D` (và `-d -f`); xóa tag; tạo tag hoặc ref dưới `agentflow/` (tag duyệt chỉ do `task approve` tạo); các lệnh của người (`decide`, `ext add`, `ext sync`, `config set`, `task seal`, `project confirm`, `roadmap set`, `replan done`, `replan skip`, `state accept`, `tests amend`, `knowledge init|pull|push`) khi agent tự chạy. Hiểu lệnh ghép (`&&`, `;`, `|`), `git -C`, `bash -c "..."` và việc `git switch` sang nhánh được bảo vệ ngay trong chuỗi lệnh. Với `task approve` và `task cancel` (trong dự án có workspace) guard không từ chối mà trả `ask`: Claude Code hiện câu hỏi (`permissionDecision: "ask"`), Antigravity buộc hỏi (`decision: "force_ask"`); một lệnh bị từ chối thắng một lệnh phải hỏi trong cùng dòng. Lệnh `agentflow` được nhận ở mọi vị trí hợp lệ, không chỉ đầu dòng (xem "Bảo vệ workspace"). Đây là lưới an toàn cho agent, không phải sandbox: alias git, script hay biến môi trường vẫn có thể vượt qua.
 
 ### Bảo vệ workspace
 
@@ -160,8 +171,71 @@ Mọi ghi vào `.agentflow/` chỉ đi qua lệnh `agentflow` (và tool MCP củ
 
 - **Tool ghi file của CLI.** Claude Code: `Write`, `Edit`, `NotebookEdit` (và `MultiEdit` cho chắc); Antigravity: `write_to_file`, `replace_file_content`, `multi_replace_file_content`. Đường dẫn được đổi thành tuyệt đối, bỏ `.`/`..`/dấu phân cách thừa, theo symlink; trên Windows so tên không phân biệt hoa thường. Một thư mục `.agentflow` chỉ được bảo vệ khi trong nó có `config.yaml`, nên thư mục trùng tên (`.agentflow-notes`) không bị ảnh hưởng.
 - **Lệnh shell ghi vào `.agentflow/`, mức cố gắng tốt nhất.** Chuyển hướng `>`, `>>`, `>|`, `&>`, `2>`; `tee`, `cp`/`copy` (chỉ đích), `mv`, `rm`, `touch`, `truncate`, `mkdir`, `sed -i`, `dd of=`; `Set-Content`, `Add-Content`, `Out-File`, `Clear-Content`, `New-Item`, `Remove-Item`, `Copy-Item`, `Move-Item` và bí danh PowerShell. Lệnh ghép, `cd` trước đó và `bash -c "..."` được hiểu. Thân heredoc được bỏ qua (đó là dữ liệu cho lệnh đọc nó), nên `agentflow report ... <<'EOF'` có dấu `>` trong nội dung không bị chặn nhầm. Đọc `.agentflow/` luôn được phép.
+- **Lệnh của người và lệnh phải hỏi, ở mọi dạng gọi.** Hook tìm `agentflow` sau các lớp khởi chạy: `uv run agentflow`, `uv run --project <dir> agentflow`, `uv run --with ... agentflow`, `uvx agentflow`, `uv tool run`, `python -m agentflow` (`python3`, `py -3`, `python.exe`, đường dẫn đầy đủ), wrapper `timeout`, `nohup`, `time`, `nice`, `command`, `env`, `xargs`, `sudo`, tiền tố biến môi trường (`FOO=1 agentflow`), đường dẫn đầy đủ tới `agentflow`, `bash -c`/`bash -lc`/`cmd /c`/`powershell -Command`, `eval`/`iex`, `Start-Process agentflow -ArgumentList '...'`, và `python -c`/`node -e` có chứa `agentflow` kèm các từ của lệnh. Lệnh chỉ nhắc chữ (`echo "agentflow task approve"`, `grep`, commit message) không bị tính.
+- **Heredoc, pipe và here-string.** Thân heredoc là dữ liệu cho `agentflow report`, `cat`, `tee`, `python script.py` (không chạy nội dung), nên báo cáo nhắc "agentflow task approve" không bị hỏi nhầm. Khi nội dung được đưa vào **trình thông dịch** chạy nó (`bash`, `sh`, `zsh`, `python`, `node`, `perl`, `ruby`, `pwsh`, `powershell`, `cmd`, `uv run python`...) qua heredoc, `|`, `<<<` hay `-c`, hook quét nó như lệnh: có lệnh của người thì từ chối, có `task approve`/`task cancel` thì hỏi. Nội dung không đọc được trước (`curl ... | sh`, `cat file | bash`, `bash < file`, `ls | bash`) thì hỏi, vì có thể chứa lệnh của người. Script đã nằm sẵn trong file (`bash run.sh`) hay do biến sinh ra không được đọc.
 
 Đây là lưới an toàn, **không phải sandbox**. Không bị chặn: `python -c`/`node -e` và script (`bash run.sh`), alias, biến môi trường, hay một chương trình khác tự ghi file. Muốn chặn cứng cần sandbox của hệ điều hành hoặc quyền `deny` của CLI.
+
+Hook không đọc được: biến (`& $exe task approve`, `agentflow $args`), alias, script có sẵn trong file, chương trình khác tự gọi `agentflow`, và mọi thứ chạy ngoài hook (một cửa sổ terminal khác). `python -c` hay script tự ghi file chỉ bị phát hiện qua việc `state.json` đổi. Sandbox của Claude Code chỉ có trên macOS, Linux và WSL2; trên Windows gốc không có sandbox, và sandbox cũng chỉ bao lệnh shell, không bao tool file, MCP hay hook. Chặn cứng chỉ có sandbox hoặc quyền hệ điều hành.
+
+### Mô hình bảo vệ duyệt
+
+Bước cần người duyệt có một checklist `.agentflow/tasks/<task>/approve-<bước>.md` (bước khai `approval_checklist` / `approval_items` trong `workflow.yaml`; agentflow ghi lúc bước chuyển sang `awaiting_approval`). `agentflow task approve` đọc nó: từ chối (mã 36) khi còn ô bắt buộc chưa tick hoặc khung (các dòng, đầu file) khác bản agentflow đã ghi; từ chối (mã 37) khi `state.json` khác hash đã lưu hoặc nhật ký hook có lệnh có khả năng ghi vào checklist. Ghi chú của người vào `decisions/<task>-<bước>-approval.md`. Không lớp nào dưới đây đứng một mình; mỗi lớp có giới hạn:
+
+| Lớp | Chặn gì | Giới hạn |
+|---|---|---|
+| Quy tắc `permissions` của README Bước 4 (`deny` ghi `state.json`, `ask` cho approve/cancel) | Tool file của Claude Code ghi `state.json`; hỏi trước approve/cancel | Quy tắc Bash không bóc `uv run`, đường dẫn đầy đủ, `sh -c`; Antigravity không có quy tắc `ask` |
+| Hook `pre-tool` `deny` | Tool file và lệnh shell ghi vào `.agentflow/` (kể cả `approve-*.md`, `audit.jsonl`); lệnh của người (`state accept`, `project confirm`...) | Mức cố gắng: `python -c`/`node -e`, script, alias, biến, chương trình khác tự ghi file không bị thấy |
+| Hook `ask` / `force_ask` | Luôn hỏi người trước `task approve`/`task cancel`, mọi dạng gọi hook đọc được | Không có tác dụng với `agy --dangerously-skip-permissions`; người dùng chế độ tự duyệt thì chỉ còn các lớp khác |
+| Checklist `approve-*.md` + khung | Approve khi còn ô chưa tick; thêm, xóa, sửa dòng; sửa đầu file | Chỉ ngăn nhầm lẫn và sửa vụng: ai chạy được mã cùng quyền người dùng vẫn tick hộ được |
+| Hash `state.json` trong `integrity.json` | Sửa tay `state.json` bị phát hiện trước `new`/`advance`/`approve`; hash khung của từng checklist | Agent viết mã Python có thể tính lại và ghi đè cả hai file: hash không chống được người cố ý |
+| Nhật ký `audit.jsonl` | Ghi mọi lệnh/tool chạm tên `state.json`, `STATE.md`, `integrity.json`, `approve-*.md`, `locked-files.json`, `confirmations.json`, kèm quyết định; approve từ chối khi có dòng được cho qua mà có khả năng ghi | Chỉ thấy cái đi qua hook (Bash, PowerShell, tool ghi file): lệnh `python -c` chạy bên ngoài hook, tool đọc Read/Glob/Grep không ghi nhật ký, và chương trình tự ghi file không để lại dòng nào |
+| `agentflow commit` | Từ chối commit khi sai nhánh, có secret, hoặc đụng file không được phép | Chỉ cho commit đi qua agentflow; `git commit` trực tiếp bị hook chặn nhưng không phải sandbox |
+| `agentflow state accept` | Người đọc thay đổi rồi mới tin lại file; ghi `decisions/` | Là lệnh của người: chỉ hiệu lực khi hook chặn agent tự chạy |
+| Khóa test đã duyệt (`locked-files.json`, hook, `agentflow commit`, cổng `locked-files-intact`) | Sửa, xóa, đổi tên test đã duyệt và file hạ tầng test; thêm file cấu hình test để bỏ qua test | Hook không đọc `python -c`, script, `patch`; chỉ cổng hash bắt ở bước sau; xem "Khóa test đã duyệt" |
+| Sandbox của CLI | Chặn ghi file ở mức hệ điều hành | Sandbox của Claude Code chỉ có trên macOS, Linux, WSL2; trên Windows gốc không có sandbox, và nó chỉ bao lệnh shell, không bao tool file/MCP/hook |
+
+Nhìn chung: các lớp trên làm cho việc duyệt hộ khó xảy ra do sơ suất và để lại dấu vết, **không** biến nó thành không thể. Chặn cứng cần quyền hệ điều hành hoặc sandbox. Một agent chạy được mã tùy ý có thể tính lại mọi hash và xóa dấu vết mà hook không thấy; vì vậy bạn nên đọc `decisions/` và `audit.jsonl` khi nghi ngờ, và không bật chế độ bỏ qua quyền (`permissions.disableBypassPermissionsMode`).
+
+### Khóa test đã duyệt
+
+Bước khai `lock_on_approval: true` trong `workflow.yaml` (với dev-core: `test-spec`) khóa file khi người `task approve` nó. Cơ chế chung của foundation (không biết "test" là gì ngoài tên file cấu hình thông dụng); dev-core khai bước nào khóa, gate nào kiểm, câu nào trong checklist.
+
+**Danh sách khóa** (`tasks/<task>/locked-files.json`: `task`, `step`, `locked_at`, `files`, `windows`). Mỗi mục của `files` có `sha256`, `head_sha256` (blob ở HEAD), `kind` (`test` | `infra`), `scope` (`file` | `part`) và, với `part`, nhãn `part`. Nguồn: (1) file trong các dòng `- tests:` của báo cáo; (2) file ở mục `## Hạ tầng test` cuối báo cáo; (3) file cấu hình test có sẵn trong repo theo tên: `conftest.py` (mọi thư mục), `pytest.ini`, `tox.ini`, `jest.config.*`, `vitest.config.*`, `vitest.workspace.*`, `.mocharc.*`, `karma.conf.*`, `phpunit.xml(.dist)` (khóa nguyên file, `scope: file`); `pyproject.toml`, `setup.cfg`, `package.json` khóa theo **phần cấu hình test** (`scope: part`): các bảng `[tool.pytest...]`, mục `tool:pytest*`, khóa `jest`/`vitest`/`mocha`/`ava` và `scripts.test|pretest|posttest`, hash của dữ liệu đã phân tích (khoảng trắng, chú thích, thứ tự và phần khác không đổi hash). File bị Git bỏ qua (ignored) không tính. Cổng `test-spec-valid` kiểm file khai phải có thật, trong dự án, đã commit và sạch, và ghi hash từng file ở `verify-red.json["files"]`; `task approve` từ chối nếu hash lúc duyệt khác hash lúc chạy đỏ. Khóa có hiệu lực tới khi task `done` hoặc `cancelled`.
+
+**Các lớp.**
+
+| Lớp | Chặn gì | Giới hạn |
+|---|---|---|
+| Hook `pre-tool` (chính sách đường dẫn đọc `locked-files.json` của task đang chạy; `state.json` hỏng thì coi khóa là còn hiệu lực) | Tool file và lệnh shell ghi, xóa, đổi tên, copy đè file `scope: file`; `git rm`, `git mv`, `git checkout|restore` lấy từ commit khác; tạo mới hay sửa mọi file cấu hình test chuyên dụng không có trong khóa; lý do nêu `agentflow tests amend` | Không đọc `python -c`, `node -e`, `perl -pi`, `patch`, `git apply`, script, hard link; cố ý để mở file `scope: part` (hook không biết phần nào bị đổi) |
+| `agentflow commit` | Staged có file khóa (sửa, xóa, đổi tên: `diff --cached --no-renames`), file `scope: part` đổi phần cấu hình test, file cấu hình test mới | Chỉ chặn đường đi qua agentflow |
+| Cổng `locked-files-intact` (`implement`, `test`, `security`, `review`), cổng `tests-pass` (trước mọi lệnh), `agentflow tests check` | So hash cây làm việc và HEAD; file mất, đổi tên, file cấu hình mới (kể cả file trở thành cấu hình pytest sau khóa) | Bắt sau khi việc đã xảy ra, ở bước kế tiếp |
+| hash trong `integrity.json` (`locked_files_sha256`) | Sửa tay hay xóa `locked-files.json` (mã 37) | Agent chạy mã Python tính lại được cả hai file |
+| hash `test_command`, `test_timeout_minutes` (`integrity.json`) và runner bỏ `PYTEST_ADDOPTS`, `PYTEST_PLUGINS` | Đổi lệnh test qua `config.yaml` hoặc qua biến môi trường (mã 37) | Chương trình khác chạy test không qua agentflow |
+
+**Đổi test đã duyệt.** `agentflow tests amend <file>... --reason "..." [--accept-green]` (lệnh của người, guard từ chối agent mọi dạng gọi) mở `windows[<file>]` (`reason`, `opened_at`, `accept_green`, đường dẫn decision) và ghi `decisions/<thời điểm>-tests-amend.md` với hash cũ. Hook cho ghi đúng file đó. `agentflow commit` file đó đóng cửa sổ: trước khi commit, `reverify` tạo checkout tạm (`git worktree`) của commit `verify-red.json["head"]`, chép nội dung staged vào, chạy lại lệnh của các mục dùng file (file hạ tầng hoặc `scope: part`: mọi mục có lệnh) bằng `agentflow.testrun`. Mục `green` (thoát 0 trên mã cũ) làm commit bị từ chối trừ khi cửa sổ có `--accept-green`; `red`, quá giờ hay không tìm thấy lệnh thì qua (hai loại sau chỉ cảnh báo). Sau commit, khóa nhận hash mới, `verify-red.json["reverified"]` ghi `{Cn: command, exit_code, status, files, at, accepted}`, decision ghi hash mới, commit và kết quả. `results` của `verify-red.json` không bị ghi đè.
+
+**Giới hạn trung thực.** Đây là lưới an toàn, không phải sandbox. Ghi bằng chương trình hook không đọc được chỉ bị cổng hash thấy ở bước sau; trên Windows gốc không có sandbox của Claude Code; `Makefile`, `package.json` (ngoài phần test), `tox.ini` và file helper test import chỉ khóa khi tester khai ở `## Hạ tầng test`; agent chạy mã tùy ý có thể tính lại hash. Cổng không biết một test đỏ vì đúng lý do hay không.
+
+### Giới hạn trên Antigravity
+
+Antigravity CLI không có quy tắc `ask` kiểu `permissions`; chỉ có chế độ phê duyệt lệnh của chính nó và hook. Hook `pre-tool` của dev-core trả `{"decision": "force_ask"}` cho `task approve`/`task cancel`: theo `hooks.md` của agy, `force_ask` bỏ qua bộ nhớ "Always Allow". Các lớp còn hiệu lực: hook `deny` (ghi vào `.agentflow/` bằng tool file hay lệnh shell, các lệnh của người), `agentflow commit` từ chối (sai nhánh, quét ra secret). Không hiệu lực khi người dùng chế độ tự duyệt mọi lệnh (`--dangerously-skip-permissions`): đã thử, lệnh vẫn chạy, nên chỉ còn các hook deny và `agentflow commit`. Đừng bật chế độ đó cho dự án dùng agentflow.
+
+### Thử thật hook `ask` (18/10/2026)
+
+Cách thử: dự án tạm có `.agentflow/` (workflow dev-core) và hook `pre-tool` gọi `agentflow` build từ `foundation/`; model được bảo chạy đúng một lệnh Bash rồi nói tool trả về gì. Claude Code: `claude -p --model haiku --output-format stream-json --verbose`, kèm quy tắc `permissions.allow: ["Bash(agentflow *)"]` để lệnh không phải hỏi vì lý do khác. Antigravity: `agy -p --model "Gemini 3.8 Flash (Low)"` với `.agents/hooks.json`. Cột "chế độ quyền" là tham số thật của từng lệnh (và `permissionMode`/`permission_mode` trong init của CLI).
+
+| CLI | Phiên bản | Ngày | Chế độ quyền (tham số lệnh) | Lệnh agent chạy | Kết quả |
+|---|---|---|---|---|---|
+| claude | 2.1.302 | 2026-10-18 | `--permission-mode default` | `agentflow status .` | không hỏi: lệnh chạy (đối chứng, quy tắc allow có tác dụng) |
+| claude | 2.1.302 | 2026-10-18 | `--permission-mode default` | `agentflow task approve .` | hỏi: lệnh không chạy; `-p` không trả lời được nên tool báo "requested permissions ... haven't granted" |
+| claude | 2.1.302 | 2026-10-18 | `--permission-mode acceptEdits` | `agentflow task approve .` | hỏi: như trên |
+| claude | 2.1.302 | 2026-10-18 | `--permission-mode bypassPermissions` | `agentflow task approve .` | hỏi: hook `ask` vẫn hỏi trong bypassPermissions (lệnh không chạy) |
+| claude | 2.1.302 | 2026-10-18 | `--permission-mode dontAsk` | `agentflow task approve .` | chặn: dontAsk đổi câu hỏi thành từ chối, lệnh không chạy |
+| agy | 1.4.0 | 2026-10-18 | không cờ (`request-review`) | `agentflow task approve` | hỏi: "user denied permission" vì `-p` không trả lời được; đối chứng `git status` chạy không hỏi |
+| agy | 1.4.0 | 2026-10-18 | `--dangerously-skip-permissions` (`always-proceed`) | `agentflow task approve` | không hỏi: lệnh vẫn chạy; chưa tách được việc hook có chạy hay không |
+
+Chưa thử: người thật bấm có/không ở giao diện tương tác (trong `-p` không ai trả lời được), chế độ `auto` và `plan` của Claude Code, `--mode accept-edits|auto` của agy, và `--dangerously-skip-permissions` với lệnh bị `deny` để biết hook có chạy trong chế độ đó.
 
 ### Cấp tool theo dự án
 
@@ -171,7 +245,7 @@ Claude Code (theo tài liệu sub-agents và plugins-reference): `tools` của a
 
 ### Tool MCP
 
-`agentflow mcp serve` (SDK `mcp` 2.x, stdio) cho agent chín tool, mỗi tool gọi `WorkspaceService` (`services.py`), cùng mã với CLI nên cùng luật; luật bị vi phạm trả về dưới dạng lỗi tool kèm thông báo rõ.
+`agentflow mcp serve` (SDK `mcp` 2.x, stdio) cho agent mười tool, mỗi tool gọi `WorkspaceService` (`services.py`), cùng mã với CLI nên cùng luật; luật bị vi phạm trả về dưới dạng lỗi tool kèm thông báo rõ.
 
 | Tool | Việc |
 |---|---|
@@ -179,6 +253,7 @@ Claude Code (theo tài liệu sub-agents và plugins-reference): `tools` của a
 | `plan_check` | Kiểm kế hoạch; plan sai là kết quả `{ok, problems}`, không phải lỗi tool |
 | `report_write(step, content)` | Ghi báo cáo. **Chỉ cho bước hiện tại của task đang mở, khi bước còn `in_progress`**: từ chối bước khác và từ chối ghi đè báo cáo của bước đã qua/đang chờ duyệt (cả `agentflow report`) |
 | `project_write(section, content)` | Ghi `project/{profile,architecture,sources,conventions}.md`; từ chối khi còn task mở |
+| `replan_write(content)` | Đề xuất replan của task xong gần nhất; chỉ khi không có task mở; chỉ đề xuất (`proposed`), người chạy `replan done` mới xong |
 | `scan_summary` | Kết quả scan và phát hiện chặn còn lại |
 | `conventions` | Quy ước đã gộp từ decisions, project, kho cá nhân; `enforced=false` là quy ước dự án chưa xác nhận |
 | `knowledge_search`, `knowledge_read` | Chỉ đọc bản chép trong `.agentflow/knowledge/` |
@@ -186,6 +261,14 @@ Claude Code (theo tài liệu sub-agents và plugins-reference): `tools` của a
 Không có tool cho việc của người: duyệt, hủy, seal, `decide`, extension, `config set`, push kiến thức. Một test giữ danh sách tool là danh sách đóng.
 
 Plugin khai báo server ở `.mcp.json` (Claude Code) và `mcp_config.json` (Antigravity), cùng lệnh `agentflow mcp serve`. Điều đã thử thật nằm trong [mcp-notes.md](mcp-notes.md): tên tool ở Claude Code, tên tool của agent plugin, việc Antigravity chạy server ở thư mục plugin (nên server tìm dự án qua `cwd`, `AGENTFLOW_PROJECT_DIR`, `PWD`, rồi con trỏ `~/.agentflow/active-project.txt` mà hook Antigravity để lại), và việc Antigravity không cho giới hạn tool MCP theo role.
+
+### Spec delta và replan
+
+Khi seal một task (`TaskSealer`), agentflow ghi `tasks/<task>/spec-delta.md` cạnh `summary.md`: mục `## Đề xuất của reviewer` (chép mục `## Đề xuất cập nhật hồ sơ` của báo cáo review, ở bước mang gate `drift-reviewed`, nếu workflow không có gate thì bước cuối), `## Thay đổi thật của task` (mục kế hoạch, commit, file đổi từ `git diff --name-status -z -M`, gom theo thư mục cấp đầu) và `## Liên kết` (mục roadmap; mission, profile, architecture là `missing|unconfirmed|confirmed`). Mọi thứ được tính trước khi ghi nên seal lỗi không để lại file dở.
+
+Replan có bốn trạng thái do `replan_status` suy ra: `pending` (chưa có `replan.md`), `proposed` (có `replan.md`), `done` (task có `replanned_at` trong `state.json`, trường tùy chọn, vắng với task cũ), `skipped` (có `decisions/<task>-replan-skip.md`); task mở hoặc `blocked` thắng mọi trạng thái, và task xong chưa có tag là `not-sealed`. `replan write` / `replan_write` chỉ chuyển sang `proposed` (không ghi `replanned_at`, không xóa dòng `removed:`, không đổi trạng thái roadmap); bản `replan.md` cũ vào `project/history/replan-<task>-...`. Chỉ người chạy `replan done` mới chuyển sang `done`; lệnh này và `replan skip` nằm trong danh sách lệnh của người mà guard từ chối khi agent chạy.
+
+Tham chiếu: ý tưởng này gần với luồng thay đổi theo đặc tả của [OpenSpec](https://github.com/Fission-AI/OpenSpec) (không phụ thuộc, *not a dependency*: không cài gì): `spec-delta.md` tương ứng *propose* (cái thay đổi so với đặc tả), task tương ứng *apply*, `agentflow project confirm` là chấp nhận thay đổi vào hồ sơ, còn seal cùng tag duyệt tương ứng *archive*.
 
 ### Hồ sơ dự án và quy ước
 
@@ -197,7 +280,13 @@ Quyền xác nhận thuộc về người:
 - Quy ước agent ghi luôn là `unconfirmed`. Ghi `confirmed` thì bị đưa về `unconfirmed` (tool báo trong `demoted`).
 - Quy ước đã `confirmed` mà nội dung (tiêu đề, check, rule, source, description, overrides) bị đổi thì tự về `unconfirmed`; giữ nguyên thì vẫn `confirmed`.
 - Xóa một quy ước đã `confirmed` bị từ chối; chỉ người làm (sửa tay file).
-- `agentflow project confirm <mã...>|--all` (chỉ người chạy, guard từ chối khi agent chạy) đánh dấu `confirmed`. `agentflow task new` cảnh báo (không chặn) khi còn quy ước `unconfirmed`.
+- `agentflow project confirm <mã...>|--all` (chỉ người chạy, guard từ chối khi agent chạy) đánh dấu `confirmed` cho quy ước. `agentflow task new` cảnh báo (không chặn) khi còn quy ước `unconfirmed`.
+
+**Mission và roadmap.** `profile.md` có mục `## Mission` (`- why:`, `- for:`, `- scope:`, `- out-of-scope:`, `- source:`); scout lấy từ tài liệu người đưa và không suy từ code. `project_write profile` không từ chối mission thiếu, chỉ trả `warnings` (thiếu mục hoặc trường, trường rỗng, hai mục Mission, Mission chỉ nằm trong khối code). `project/roadmap.md` là danh sách mục `### R1 - tiêu đề` với `- status: todo|doing|done|dropped`, `- goal:`, `- docs:` (link, `file:dòng` hoặc `không có — lý do`); thứ tự file là thứ tự ưu tiên. Sai khuôn thì `project_write roadmap` bị từ chối (mã 35 `ROADMAP_INVALID`, file cũ giữ nguyên).
+
+Hồ sơ nào cũng có thể được xác nhận bằng **hash**, không bằng cờ trong file: `project confirm mission|profile|architecture|R1` lưu sha256 (đã chuẩn hóa xuống dòng và khoảng trắng cuối dòng) vào `project/confirmations.json`, file chỉ agentflow ghi. Tài liệu hay mục `confirmed` khi nội dung hiện tại còn khớp hash đã lưu; agent ghi lại khác đi thì tự `unconfirmed`, ghi lại đúng văn bản đã xác nhận thì lại `confirmed`. Hash của một mục roadmap không gồm dòng `status:`, nên đổi trạng thái không làm mất xác nhận. Quyền của agent với roadmap: mục mới luôn `todo`; trạng thái mục đã có luôn được giữ (agent ghi khác thì `warnings` nói); không bỏ được mục `doing`/`done`/`dropped` (mã 31); bỏ mục `todo` chưa xác nhận thì tự do, còn mục đã xác nhận thì vẫn bỏ được nhưng có warning, và `project status` ghi dòng `removed: R4 (confirmed)` để replan thấy (dòng này mất khi mục được thêm lại). Mỗi lần ghi đè một tài liệu dự án, bản cũ được lưu ở `project/history/<tài-liệu>-<thời-điểm>.md`.
+
+`agentflow task new --roadmap R3` gắn task với mục (trường `roadmap` trong `state.json`, `STATE.md`, `status`, `summary.md`) và chuyển mục sang `doing`; mục `done`/`dropped` bị từ chối. Task xong hay được duyệt **không** đổi mục sang `done` (một mục có thể cần nhiều task): người quyết, bằng `agentflow roadmap set R3 done`. Hủy task trả mục `doing` về `todo` nếu không còn task nào khác (không bị hủy) dùng nó. `agentflow status` gợi ý mục tiếp theo: mục `doing` chưa có task mở đầu tiên theo thứ tự file, rồi mục `todo` đầu tiên (kèm `(unconfirmed)` khi chưa xác nhận); tool MCP `status` trả thêm `next_roadmap`.
 
 ### Quy ước, kho kiến thức và bài học
 
@@ -214,10 +303,13 @@ Quyền xác nhận thuộc về người:
 
 **Bài học.** Cuối báo cáo review, reviewer có thể thêm `## Bài học đề xuất` (`### L1 - tiêu đề`). Khi seal, `agentflow` tách thành `tasks/<task>/lessons/L<n>.md`, liệt kê trong `summary.md`; người chọn bài nào đưa về kho bằng `agentflow knowledge push <file>`.
 
+**Lệch hồ sơ (drift).** Khi thay đổi làm `profile`, `mission`, `architecture`, `conventions` hoặc `roadmap` sai, reviewer ghi mục `## Đề xuất cập nhật hồ sơ` trong báo cáo review: `không có`, hoặc mỗi tài liệu một dòng `- <tài liệu>: <đề xuất>`. Gate `drift-reviewed` (bước `review`) chỉ kiểm **hình thức**: mục có đúng một lần (heading cấp 2, ngoài khối code và chú thích HTML), không rỗng, mỗi dòng đúng khuôn với tên tài liệu hợp lệ, không vừa `không có` vừa liệt kê. Gate không kiểm đề xuất có đúng không và không sửa hồ sơ: tính đúng do người kiểm ở checklist Review, và reviewer không bao giờ ghi vào hồ sơ. Tiêu đề và tên tài liệu là hằng `DRIFT_HEADING`, `DriftDoc` trong `constants.py`; `tools/test_reviewer_drift.py` giữ prompt, schema và tài liệu khớp với chúng.
+
 ### Kế hoạch, gate và tag duyệt
 
 - Mục kế hoạch còn có `tier:` (`fast` hoặc `deep`, thiếu là `deep`; `plan check` từ chối giá trị khác) và `layer:` (xem `layer-order`). Foundation chỉ biết hai trường này và giá trị hợp lệ của `tier`; việc role nào chia tier do `tiered_roles` của workflow quyết định.
 - Mỗi mục kế hoạch là một khối `### C1 - tiêu đề` kèm `role:`, `files:`, `done-when:`, `docs:` (xem README). `plan check` đòi mã duy nhất, role thuộc bộ role hợp lệ (role của workflow cộng role extension đăng ký), `done-when` không rỗng, `docs` là link hoặc `không có — <lý do>`.
+- **Test trước.** Gate `test-spec-valid` (bước `test-spec`) đọc báo cáo (mỗi mục kế hoạch một khối `tests`/`command`/`red: fail`/`reason`/`output`, hoặc `không có — <cách kiểm>`), kiểm file test có thật, trong dự án, đã commit; lệnh phải nhắc tới một file test của mục; rồi **tự chạy** từng lệnh (một lần cho mỗi lệnh khác nhau, từ gốc dự án, qua bộ chạy chung `agentflow.testrun`) và đòi mã thoát khác 0 (không phải 126/127, không quá giờ). Kết quả ở `tasks/<task>/verify-red.json`. Gate `tests-pass` (bước `test`) chạy lệnh test của dự án (setting `test_command`, hoặc dòng `- test-command:` của `profile.md` đã xác nhận; timeout `test_timeout_minutes`, mặc định 15 phút) **và chạy lại** các lệnh của báo cáo `test-spec` đã duyệt, đối chiếu với `verify-red.json`; tất cả phải thoát 0. Kết quả ở `tasks/<task>/tests-pass.json` (lệnh dự án, và `spec_results` cho từng mục). Thiếu lệnh test thì chặn, trừ khi mọi mục kế hoạch là `kind: other` (cảnh báo, `skipped`). Giới hạn: máy chỉ biết lệnh đỏ hay xanh và có nhắc tới tên file test, không biết nó đỏ vì **lý do** đúng hay lệnh có thực sự chạy các test đó; lý do và lệnh do người đọc ở checklist. Dòng `exit` ở checklist là của agentflow, `output` trong báo cáo là của tester.
 - Gate `plan-valid` gắn vào bước `plan` trong `workflow.yaml`: `task advance --result pass` bị từ chối (mã `GATE_FAILED`) nếu báo cáo plan không qua kiểm tra. Gate chỉ áp dụng cho kết quả `pass`.
 - Khi task chuyển sang `done` (duyệt bước cuối, hoặc bước cuối pass mà không cần duyệt), `agentflow` ghi `tasks/<task>/summary.md` rồi tạo annotated tag `agentflow/<task>/approved` ở commit cuối của nhánh task, **trước** khi lưu state: nếu việc đó lỗi thì task không bị đánh dấu xong. `task new` từ chối khi task `done` gần nhất thiếu tag.
 ### Scan

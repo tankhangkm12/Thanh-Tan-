@@ -48,10 +48,10 @@ EXTENSION = BACKEND / "extension.yaml"
 README = REPO / "README.md"
 MARKETPLACE = "thanh-tan-plugins"
 CORE_NAME, BACKEND_NAME = "dev-core", "dev-backend"
-CORE_VERSION, BACKEND_VERSION = "0.4.0", "0.2.0"
+CORE_VERSION, BACKEND_VERSION = "0.5.0", "0.3.0"
 TASK_ID = "T-001"
 USAGE_ERROR_CODES = {"plan_invalid": 24, "gate_failed": 25, "scan_blocked": 27}
-MANDATORY_ASK = ("task approve", "task cancel", "decide")
+MANDATORY_ASK = ("task approve", "task cancel")
 READY_TIMEOUT_SECONDS = 90
 IN_USE_MESSAGE = "being used by another process"
 AGY_PLUGINS = Path.home() / ".gemini" / "config" / "plugins"
@@ -107,7 +107,7 @@ def readme_permissions() -> dict:
 
 
 def missing_ask_rules(settings_path: Path) -> list[str]:
-    """The mandatory `ask` rules (task approve, task cancel, decide) that a project's Claude Code settings lack."""
+    """The mandatory `ask` rules (task approve, task cancel) that a project's Claude Code settings lack."""
     try:
         data = json.loads(settings_path.read_text(encoding=ENCODING))
         asked = " ".join(data.get("permissions", {}).get("ask", []))
@@ -173,7 +173,7 @@ def task_flow(s: Session, project: str, port: int, until: str) -> None:
     task_id = active_task(repo)  # the probe task of the setup used T-001
     s.af("report", "--step", "confirm", stdin="# Confirmed\nAdd GET /items backed by an items table.\n")
     s.af("task", "advance", "--result", "pass")
-    s.af("task", "approve")
+    s.approve()
 
     # --- the plan: wrong role and missing down command are refused, a good plan passes
     wrong_role = plan_text("implementer", up, f"`{down}`")
@@ -197,7 +197,8 @@ def task_flow(s: Session, project: str, port: int, until: str) -> None:
     s.af("decide", "--answer", "Q1", "--text", "Routes use plural nouns.", "--check", "review")
     s.af("plan", "check")
     s.af("task", "advance", "--result", "pass")
-    s.af("task", "approve")
+    s.approve()
+    s.test_first()
     if until == Stage.PLAN:
         return
 
@@ -249,7 +250,7 @@ def task_flow(s: Session, project: str, port: int, until: str) -> None:
     af_code(s, 25, "task", "advance", "--result", "pass")  # the conventions are not answered
     s.af("report", "--step", "review", stdin=REVIEW_REPORT.replace("DC-02: đạt\n", "DC-02: đạt\nDC-03: đạt\n").replace("DC-03: đạt\n", ""))
     s.af("task", "advance", "--result", "pass")
-    s.af("task", "approve")
+    s.approve()
     expect((repo / ".agentflow" / "tasks" / task_id / "lessons" / "L1.md").is_file(), "the proposed lesson is a file a person can push")
     s.af("knowledge", "push", str(repo / ".agentflow" / "tasks" / task_id / "lessons" / "L1.md"))
     expect((store / "lessons" / "L1.md").is_file(), "a person pushed the lesson into their own store")

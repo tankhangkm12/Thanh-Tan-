@@ -11,6 +11,7 @@ from typing import Any
 
 from agentflow.constants import CheckKind, GateKind, PlanRuleKind
 from agentflow.conventions import Convention
+from agentflow.errors import AgentflowError
 from agentflow.convention_sources import load_effective_conventions, semgrep_rule_files
 from agentflow.plan_rules import ItemOrderRule, LayerOrderRule, MaxPlanItemsRule
 from agentflow.ext_rules import ExtensionRules
@@ -74,14 +75,18 @@ def load_project_context(workspace_dir: Path, workflow: Workflow, task: Task | N
         "custom_semgrep_problems": tuple(custom_problems),
         "scan_filter": dict(profile.scans) if profile is not None else {},
     }
-    if not registered:
-        return ProjectContext(RoleSet(frozenset(roles)), **from_conventions)
-    settings = load_config(paths).settings
-    extensions = [item.extension for item in registered]
-    roles |= {role for extension in extensions for role in extension.role_ids}
+    try:
+        settings = load_config(paths).settings
+    except AgentflowError:
+        settings = {}
 
     def lookup(key: str) -> Any:
         return get_value(settings, key)
+
+    if not registered:
+        return ProjectContext(RoleSet(frozenset(roles)), lookup=lookup, **from_conventions)
+    extensions = [item.extension for item in registered]
+    roles |= {role for extension in extensions for role in extension.role_ids}
 
     rules = ExtensionRules(extensions, lookup)
     return ProjectContext(

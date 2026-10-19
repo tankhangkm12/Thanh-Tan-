@@ -41,11 +41,12 @@ PLAN = (
     "### C1 - Add a greeting\n- role: implementer\n- files: greeting.txt\n"
     "- done-when: `test -f greeting.txt`\n- docs: không có — a one-line text file\n"
 )
+REPLAN = "# Replan\n\n## Mục roadmap đã hoàn thành\nkhông có\n\n## Đề xuất cải tiến quy trình\nkhông có\n"
 
 
 def main() -> int:
     if shutil.which(AGENTFLOW) is None or shutil.which("git") is None:
-        print("agentflow and git must be on PATH (see README: uv tool install)", file=sys.stderr)
+        print("git must be on PATH", file=sys.stderr)
         return 2
     base = Path(tempfile.mkdtemp(prefix="agentflow-smoke-"))
     repo = base / "sample"
@@ -71,16 +72,21 @@ def main() -> int:
         s.af("report", "--step", "confirm", stdin="# Confirmed\n")
         s.af("task", "advance", "--result", "pass")
         s.af("task", "advance", "--result", "pass", ok=False)  # confirm now waits for approval
+        checklist = repo / ".agentflow" / "tasks" / TASK_ID / "approve-confirm.md"
+        expect(checklist.is_file(), "the confirm checklist is written when the step waits for approval", str(checklist))
+        refused = s.af("task", "approve", ok=False)  # nothing is ticked yet
+        expect("K1" in refused.stderr, "approve names the boxes still open", refused.stderr)
         s.af("report", "--step", "confirm", stdin="# Changed my mind\n", ok=False)  # the approved report is final
         s.af("report", "--step", "plan", stdin="# Too early\n", ok=False)  # only the current step can be reported
-        s.af("task", "approve")  # confirm -> plan
+        s.approve()  # confirm -> plan
         bad = s.af("plan", "check", "--file", str(repo / "README.md"), ok=False)
         expect("no checklist items" in bad.stdout, "plan check rejects a README as a plan", bad.stdout)
         s.af("task", "advance", "--result", "pass", ok=False)  # no plan report yet: the plan-valid gate refuses
         s.af("report", "--step", "plan", stdin=PLAN)
         s.af("plan", "check")
         s.af("task", "advance", "--result", "pass")
-        s.af("task", "approve")  # plan -> implement
+        s.approve()  # plan -> test-spec
+        s.test_first()
 
         (repo / "greeting.txt").write_text("hello\n", encoding=ENCODING)
         s.git("add", "greeting.txt")
@@ -96,18 +102,30 @@ def main() -> int:
         expect("step 'implement'" in status and "rework rounds: 1/3" in status, "fail goes back to implement", status)
         for _ in range(2):  # implement, test
             s.af("task", "advance", "--result", "pass")
+        record = json.loads((repo / ".agentflow" / "tasks" / TASK_ID / "tests-pass.json").read_text(encoding=ENCODING))
+        expect(record["status"] == "pass" and record["spec_results"]["C1"]["status"] == "green", "agentflow ran the project tests and the test-spec command again", str(record))
         s.af("task", "advance", "--result", "pass", ok=False)  # security: no scan results yet, the scans-clean gate refuses
         scan = s.af("scan")  # Semgrep, Trivy, Gitleaks in containers
         expect("semgrep: " in scan.stdout and "trivy: " in scan.stdout and "gitleaks: " in scan.stdout, "scan runs three tools", scan.stdout)
         s.af("task", "advance", "--result", "pass")  # security
+        s.af("report", "--step", "review", stdin="# Review\nNo findings.\n\n## Đề xuất cập nhật hồ sơ\nkhông có\n")
         s.af("task", "advance", "--result", "pass")  # review passes -> awaiting approval
-        s.af("task", "approve")
+        s.approve()
         state = json.loads((repo / ".agentflow" / "state.json").read_text(encoding=ENCODING))
         expect(state["tasks"][0]["status"] == "done" and state["active_task_id"] is None, "task is done after review approval")
         tag = f"agentflow/{TASK_ID}/approved"
         expect(s.git("tag", "-l", tag) == tag and s.git("cat-file", "-t", tag) == "tag", "approval tag is annotated")
         summary = (repo / ".agentflow" / "tasks" / TASK_ID / "summary.md").read_text(encoding=ENCODING)
         expect("### C1 - Add a greeting" in summary, "summary.md lists the plan item")
+        delta = (repo / ".agentflow" / "tasks" / TASK_ID / "spec-delta.md").read_text(encoding=ENCODING)
+        expect("- A greeting.txt" in delta and "T-001: add greeting" in delta, "the seal wrote a spec delta from git")
+        expect(s.af("replan", "status").stdout.splitlines()[0] == "replan: pending", "a finished task waits for its replan")
+        s.af("replan", "write", stdin=REPLAN)
+        expect(s.af("replan", "status").stdout.splitlines()[0] == "replan: proposed", "the replan is only proposed")
+        asked = json.loads(s.af("guard", stdin=json.dumps({"command": "agentflow replan done", "cwd": str(repo)})).stdout)
+        expect(asked["decision"] == "deny", "guard keeps `replan done` for a person", str(asked))
+        s.af("replan", "done")  # what a person runs after reading replan.md
+        expect(s.af("replan", "status").stdout.splitlines()[0] == "replan: done", "a person closed the replan")
 
         s.af("task", "new", "Second task")
         s.af("task", "cancel")
@@ -115,10 +133,11 @@ def main() -> int:
         # A finding that blocks: Semgrep ERROR in a changed file stops the security step.
         s.af("task", "new", "Risky code")
         s.af("task", "advance", "--result", "pass")
-        s.af("task", "approve")
+        s.approve()
         s.af("report", "--step", "plan", stdin=PLAN.replace("greeting.txt", "risky.py"))
         s.af("task", "advance", "--result", "pass")
-        s.af("task", "approve")
+        s.approve()
+        s.test_first()
         (repo / "risky.py").write_text("import subprocess\n\n\ndef run(cmd):\n    subprocess.call(cmd, shell=True)\n", encoding=ENCODING)
         s.git("add", "risky.py")
         s.af("commit", "add risky code", "--item", "C1")

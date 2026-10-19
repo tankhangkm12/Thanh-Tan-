@@ -19,6 +19,7 @@ from agentflow.constants import (
 from agentflow.engine import next_action
 from agentflow.errors import AgentflowError
 from agentflow.fsutil import write_text_atomic
+from agentflow.integrity import Integrity, sha256_hex
 from agentflow.models import State, Task, Workflow, state_from_dict, state_to_dict
 from agentflow.render import NONE_TEXT, describe_action, describe_step
 from agentflow.validation import schema_errors
@@ -75,7 +76,9 @@ class JsonStateStore:
         )
         if problems:
             raise AgentflowError(f"refusing to save invalid state:{_INDENT}{_INDENT.join(problems)}", ExitCode.INVALID_STATE)
-        write_text_atomic(self.state_path, json.dumps(data, indent=JSON_INDENT, ensure_ascii=False) + "\n")
+        written = json.dumps(data, indent=JSON_INDENT, ensure_ascii=False) + "\n"
+        write_text_atomic(self.state_path, written)
+        Integrity(self.state_path.parent).record_state(sha256_hex(written.encode(ENCODING)))
         self.write_state_md(state)
         return state
 
@@ -138,6 +141,8 @@ def render_state_md(state: State, workflow: Workflow) -> str:
         ]
         if task.size:
             lines.append(f"- Size: {task.size}")
+        if task.roadmap:
+            lines.append(f"- Roadmap: {task.roadmap}")
     lines += [f"- Next: {describe_action(next_action(workflow, task))}", "", "## Tasks", ""]
     if not state.tasks:
         lines.append("No tasks yet.")

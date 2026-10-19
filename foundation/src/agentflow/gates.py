@@ -5,8 +5,10 @@ from collections.abc import Callable, Collection, Sequence
 from dataclasses import dataclass, field
 from pathlib import Path
 
-from agentflow.constants import ENCODING, MARKDOWN_SUFFIX, REPORTS_DIR, TASKS_DIR, CheckKind, GateKind
+from agentflow.constants import DRIFT_HEADING, ENCODING, MARKDOWN_SUFFIX, REPORTS_DIR, TASKS_DIR, CheckKind, GateKind
 from agentflow.convention_sources import answered_questions, load_effective_conventions
+from agentflow import lockfiles, testspec
+from agentflow.drift import drift_problems
 from agentflow.scan import scan_problems, tools_for_step
 from agentflow.scan_store import ScanStore
 from agentflow.models import Step, Task, Workflow
@@ -82,10 +84,43 @@ def _conventions_reviewed(context: GateContext, task: Task, step: Step) -> list[
     return problems
 
 
+def _drift_reviewed(context: GateContext, task: Task, step: Step) -> list[str]:
+    """The review report must say, in its `## Đề xuất cập nhật hồ sơ` section, whether the project documents need to change."""
+    path = plan_report_path(context.workspace_dir, task.id, step.id)
+    if not path.is_file():
+        return [f"no report for step '{step.id}' yet: it must have a '## {DRIFT_HEADING}' section"]
+    return drift_problems(path.read_text(encoding=ENCODING))
+
+
+def _test_spec_valid(context: GateContext, task: Task, step: Step) -> list[str]:
+    """The test-spec report is in order and every command, run by agentflow itself, fails (tests come before the code)."""
+    problems, _record = testspec.verify_red(
+        context.workspace_dir, context.workflow, task, context.workspace_dir.parent, context.head(), context.project.lookup
+    )
+    return problems
+
+
+def _tests_pass(context: GateContext, task: Task, step: Step) -> list[str]:
+    """agentflow runs the project's test command and the commands of the test-spec again; all must pass."""
+    problems, _warning = testspec.tests_pass(
+        context.workspace_dir, context.workflow, task, context.workspace_dir.parent, context.head(), context.project.lookup
+    )
+    return problems
+
+
+def _locked_files_intact(context: GateContext, task: Task, step: Step) -> list[str]:
+    """Every file locked at the approval of the tests is as it was (working tree and HEAD), and no test configuration file was added."""
+    return lockfiles.check(context.workspace_dir, context.workspace_dir.parent, task.id) or []
+
+
 CHECKS: dict[GateKind, GateCheck] = {
+    GateKind.LOCKED_FILES_INTACT: _locked_files_intact,
+    GateKind.TEST_SPEC_VALID: _test_spec_valid,
+    GateKind.TESTS_PASS: _tests_pass,
     GateKind.PLAN_VALID: _plan_valid,
     GateKind.SCANS_CLEAN: _scans_clean,
     GateKind.CONVENTIONS_REVIEWED: _conventions_reviewed,
+    GateKind.DRIFT_REVIEWED: _drift_reviewed,
 }
 
 

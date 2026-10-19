@@ -13,6 +13,8 @@ ENCODING = "utf-8"
 WORKSPACE_DIR = ".agentflow"
 STATE_FILE = "state.json"
 STATE_MD_FILE = "STATE.md"
+INTEGRITY_FILE = "integrity.json"
+AUDIT_FILE = "audit.jsonl"
 CONFIG_FILE = "config.yaml"
 WORKFLOW_COPY_FILE = "workflow.yaml"
 DECISIONS_DIR = "decisions"
@@ -72,8 +74,33 @@ COMMIT_PREFIX_SEPARATOR = ": "
 # Git trailer that ties a commit to a plan item.
 PLAN_ITEM_TRAILER = "Plan-Item"
 SUMMARY_FILE = "summary.md"
+SPEC_DELTA_FILE = "spec-delta.md"
+REPLAN_FILE = "replan.md"
+# Per-task replan history in project/history/: replan-<task id>-<time>.md
+REPLAN_HISTORY_NAME = "replan-{task_id}"
+REPLAN_SKIP_HISTORY_NAME = "replan-skip-{task_id}"
+REPLAN_SKIP_SUFFIX = "-replan-skip"
+# The sections of replan.md: which roadmap items the task finished (a proposal) and what to change in the workflow.
+REPLAN_DONE_HEADING = "Mục roadmap đã hoàn thành"
+REPLAN_PROCESS_HEADING = "Đề xuất cải tiến quy trình"
+# The sections of spec-delta.md.
+SPEC_DELTA_PROPOSALS_HEADING = "Đề xuất của reviewer"
+SPEC_DELTA_CHANGES_HEADING = "Thay đổi thật của task"
+SPEC_DELTA_LINKS_HEADING = "Liên kết"
+NO_REVIEW_REPORT_TEXT = "không có báo cáo review"
 LESSONS_DIR = "lessons"
 LESSONS_HEADING = "Bài học đề xuất"
+# The review report section where the reviewer says whether the project documents must change.
+DRIFT_HEADING = "Đề xuất cập nhật hồ sơ"
+CHECKLIST_HEADING = "Checklist"
+CHECKLIST_NOTES_HEADING = "Ghi chú của bạn"
+CHECKLIST_OPTIONAL_MARK = "(tùy chọn)"
+CHECKLIST_ROADMAP_CODE = "roadmap"
+CHECKLIST_FIXED_PREFIX = "K"
+CHECKLIST_PLAN_PREFIX = "C"
+CHECKLIST_DRIFT_PREFIX = "D"
+CHECKLIST_LOCK_PREFIX = "L"
+DRIFT_NONE_TEXT = "không có"
 
 # Secret scanning with Gitleaks in a container. The image is pinned on purpose.
 GITLEAKS_IMAGE = "zricethezav/gitleaks:v8.24.0"
@@ -119,6 +146,9 @@ class ExitCode(IntEnum):
     KNOWLEDGE_NOT_FOUND = 32
     CONVENTIONS_INVALID = 33
     ROLE_GRANT_REFUSED = 34
+    ROADMAP_INVALID = 35
+    CHECKLIST_REFUSED = 36
+    INTEGRITY_FAILED = 37
 
 
 class ToolName(StrEnum):
@@ -134,6 +164,7 @@ class ToolName(StrEnum):
     CONVENTIONS = "conventions"
     KNOWLEDGE_SEARCH = "knowledge_search"
     KNOWLEDGE_READ = "knowledge_read"
+    REPLAN_WRITE = "replan_write"
 
 
 MCP_SERVER_NAME = "agentflow"
@@ -210,6 +241,16 @@ SETUP_QUESTION_PATTERN = r"S\d+"
 SEMGREP_RULE_SUFFIXES = (".yaml", ".yml")
 
 
+class DriftDoc(StrEnum):
+    """The project documents a review may propose to change (``- <document>: <proposal>``)."""
+
+    PROFILE = "profile"
+    MISSION = "mission"
+    ARCHITECTURE = "architecture"
+    CONVENTIONS = "conventions"
+    ROADMAP = "roadmap"
+
+
 class ProjectSection(StrEnum):
     """The project documents a scout writes (``.agentflow/project/<section>.md``)."""
 
@@ -217,6 +258,7 @@ class ProjectSection(StrEnum):
     ARCHITECTURE = "architecture"
     SOURCES = "sources"
     CONVENTIONS = "conventions"
+    ROADMAP = "roadmap"
 
 
 # Limits for what the knowledge tools hand to a model.
@@ -339,16 +381,106 @@ class Command(StrEnum):
     PROJECT = "project"
     CONVENTIONS = "conventions"
     KNOWLEDGE = "knowledge"
+    ROADMAP = "roadmap"
+    REPLAN = "replan"
     PLAN = "plan"
     SCAN = "scan"
     DECIDE = "decide"
     EXT = "ext"
     CONFIG = "config"
     ROLE = "role"
+    STATE = "state"
+    TESTS = "tests"
+
+
+class TestsCommand(StrEnum):
+    __test__ = False  # not a pytest class
+
+    VERIFY_RED = "verify-red"
+    CHECK = "check"
+    AMEND = "amend"
+
+
+class StateCommand(StrEnum):
+    ACCEPT = "accept"
 
 
 class ProjectCommand(StrEnum):
     CONFIRM = "confirm"
+    STATUS = "status"
+
+
+class RoadmapCommand(StrEnum):
+    LIST = "list"
+    SET = "set"
+
+
+class ReplanCommand(StrEnum):
+    STATUS = "status"
+    WRITE = "write"
+    DONE = "done"
+    SKIP = "skip"
+
+
+class ReplanState(StrEnum):
+    """Where the replan of the latest finished task stands (``agentflow replan status``)."""
+
+    NO_FINISHED_TASK = "no-finished-task"
+    TASK_OPEN = "task-open"
+    NOT_SEALED = "not-sealed"
+    PENDING = "pending"
+    PROPOSED = "proposed"
+    DONE = "done"
+    SKIPPED = "skipped"
+
+
+class RoadmapStatus(StrEnum):
+    """Where a roadmap item stands. Only a person (or agentflow when a task is tied to the item) moves it."""
+
+    TODO = "todo"
+    DOING = "doing"
+    DONE = "done"
+    DROPPED = "dropped"
+
+
+class RoadmapField(StrEnum):
+    STATUS = "status"
+    GOAL = "goal"
+    DOCS = "docs"
+
+
+class MissionField(StrEnum):
+    """The bullets of the ``## Mission`` section of the project profile."""
+
+    WHY = "why"
+    FOR = "for"
+    SCOPE = "scope"
+    OUT_OF_SCOPE = "out-of-scope"
+    SOURCE = "source"
+
+
+class ConfirmUnit(StrEnum):
+    """Project documents (or parts of one) a person confirms by name; an agent can rewrite them but never confirm."""
+
+    MISSION = "mission"
+    PROFILE = "profile"
+    ARCHITECTURE = "architecture"
+    CONVENTIONS = "conventions"
+    ROADMAP = "roadmap"
+
+
+class ConfirmState(StrEnum):
+    MISSING = "missing"
+    UNCONFIRMED = "unconfirmed"
+    CONFIRMED = "confirmed"
+
+
+# Files under .agentflow/project/ that agentflow writes itself.
+CONFIRMATIONS_FILE = "confirmations.json"
+HISTORY_DIR = "history"
+MISSION_HEADING = "Mission"
+ROADMAP_ITEM_PATTERN = r"R[0-9]+"
+ROADMAP_FILE_STEM = "roadmap"
 
 
 class UserConfigKey(StrEnum):
@@ -402,6 +534,7 @@ class ReplyKind(StrEnum):
 
     NONE = "none"
     DENY = "deny"
+    ASK = "ask"
     CONTEXT = "context"
     REMINDER = "reminder"
 
@@ -426,6 +559,7 @@ class ClaudeHookValue(StrEnum):
     PRE_TOOL_USE = "PreToolUse"
     SESSION_START = "SessionStart"
     DENY = "deny"
+    ASK = "ask"
 
 
 class AntigravityHookKey(StrEnum):
@@ -445,6 +579,8 @@ class AntigravityHookKey(StrEnum):
 
 class AntigravityDecision(StrEnum):
     DENY = "deny"
+    # Asks the person even when the command was approved with "Always Allow".
+    FORCE_ASK = "force_ask"
     # Any value but "continue" lets the agent stop.
     ALLOW_STOP = "allow"
 
@@ -464,6 +600,7 @@ EMPTY_JSON_OBJECT = "{}"
 class GuardDecision(StrEnum):
     ALLOW = "allow"
     DENY = "deny"
+    ASK = "ask"
 
 
 class GuardRule(StrEnum):
@@ -478,7 +615,10 @@ class GuardRule(StrEnum):
     DIRECT_COMMIT = "direct-commit"
     APPROVAL_TAG = "approval-tag"
     PERSON_ONLY = "person-only"
+    PERSON_CONFIRMS = "person-confirms"
+    SCRIPT_UNREAD = "script-unread"
     WORKSPACE_WRITE = "workspace-write"
+    LOCKED_FILE = "locked-file"
 
 
 class GuardKey(StrEnum):
@@ -509,6 +649,9 @@ class WorkflowKey(StrEnum):
     REQUIRES_APPROVAL = "requires_approval"
     ON_FAIL = "on_fail"
     GATES = "gates"
+    APPROVAL_CHECKLIST = "approval_checklist"
+    APPROVAL_ITEMS = "approval_items"
+    LOCK_ON_APPROVAL = "lock_on_approval"
     TIERED_ROLES = "tiered_roles"
     SIZES = "sizes"
     READ_ONLY_ROLES = "read_only_roles"
@@ -525,12 +668,26 @@ class SizeKey(StrEnum):
     SCANS = "scans"
 
 
+class ApprovalItem(StrEnum):
+    """Where the dynamic lines of an approval checklist come from (the report of the step being approved)."""
+
+    PLAN_ITEMS = "plan-items"
+    REVIEW_CONVENTIONS = "review-conventions"
+    DRIFT_PROPOSALS = "drift-proposals"
+    SPEC_ITEMS = "spec-items"
+    LOCKED_FILES = "locked-files"
+
+
 class GateKind(StrEnum):
     """Checks a step must pass before ``task advance --result pass`` is accepted."""
 
     PLAN_VALID = "plan-valid"
     SCANS_CLEAN = "scans-clean"
     CONVENTIONS_REVIEWED = "conventions-reviewed"
+    DRIFT_REVIEWED = "drift-reviewed"
+    TEST_SPEC_VALID = "test-spec-valid"
+    TESTS_PASS = "tests-pass"
+    LOCKED_FILES_INTACT = "locked-files-intact"
 
 
 class PlanCommand(StrEnum):
@@ -596,6 +753,8 @@ class StateKey(StrEnum):
     LOOP_ROUND = "loop_round"
     BRANCH = "branch"
     SIZE = "size"
+    ROADMAP = "roadmap"
+    REPLANNED_AT = "replanned_at"
     HISTORY = "history"
     AT = "at"
     STEP = "step"

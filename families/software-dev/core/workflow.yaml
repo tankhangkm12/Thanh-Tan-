@@ -14,6 +14,9 @@ read_only_roles: [orchestrator, planner, security, reviewer, scout]
 agent_dirs:
   claude: claude/agents
   antigravity: agents
+# Approval checklists: a step that needs a person lists what they check. `approval_checklist` are the fixed questions
+# (codes K1, K2...); `approval_items` add lines from the step's report (plan items, review conventions, proposals).
+# agentflow writes them to .agentflow/tasks/<task>/approve-<step>.md and `task approve` reads the ticks.
 # Task sizes (`agentflow task new "<title>" --size small|normal`). A small task skips the approval of the plan (the plan
 # check still runs, and the plan has at most 3 items; confirm and review still need a person) and its security step runs
 # Gitleaks and Semgrep only (also Semgrep with the project's own convention rules).
@@ -31,31 +34,70 @@ steps:
     name: Xác nhận task
     role: orchestrator
     requires_approval: true
+    approval_checklist:
+      - Phần "Mục tiêu" được nhắc lại đúng ý bạn.
+      - Phạm vi và ngoài phạm vi khớp những gì bạn viết, không thêm, không bớt.
+      - Tiêu chí "Xong khi" kiểm được bằng lệnh hoặc quan sát cụ thể.
+      - Mọi câu hỏi mở đã được bạn trả lời, không để agent đoán.
 
   - id: plan
     name: Vào workspace và lập kế hoạch
     role: planner
     requires_approval: true
     gates: [plan-valid]
+    approval_checklist:
+      - Mỗi mục có `done-when` là lệnh hoặc sự kiện kiểm được, không phải lời mô tả mơ hồ.
+      - Các mục đủ nhỏ để kiểm từng mục; không mục nào "làm hết".
+      - "`tier` hợp lý: phần khó và nhạy cảm là `deep`, phần quen thuộc là `fast`."
+      - Mục `docs` có link tài liệu chính thức, hoặc `không có — <lý do>` mà bạn chấp nhận.
+      - Mục `files` không vượt phạm vi đã duyệt ở `confirm`.
+      - Mục `## Chưa có quy ước` (nếu có) đã được bạn trả lời bằng `agentflow decide --answer Q1 ...`.
+    approval_items: [plan-items]
+
+  - id: test-spec
+    name: Viết test trước
+    role: tester
+    requires_approval: true
+    gates: [test-spec-valid]
+    on_fail: plan
+    # When a person approves this step agentflow locks the test files of its report, the test infrastructure the tester
+    # declared (`## Hạ tầng test`) and the test configuration found in the project: see `locked-files-intact` below.
+    lock_on_approval: true
+    approval_checklist:
+      - Mỗi mục kế hoạch có test, hoặc `không có — <cách kiểm>` mà bạn chấp nhận (không ép viết test cho việc không test tự động được).
+      - Các test đo đúng `done-when` của mục, không phải thứ dễ qua hơn.
+      - "Mỗi test đỏ vì đúng lý do: tính năng chưa có, không phải lỗi cú pháp, thiếu import hay môi trường (đọc `reason` và `output` trong báo cáo)."
+      - Lệnh của mỗi mục chạy đúng các test đã khai, không phải lệnh chạy cho có (như `false`); agentflow đã tự chạy lại và ghi `exit` ở dòng dưới.
+      - "Các dòng L (danh sách file sẽ khóa) là đủ: file test, file hạ tầng test (conftest.py, cấu hình pytest/jest/vitest, script chạy test) và phần cấu hình test của pyproject.toml, setup.cfg, package.json. Sau khi bạn duyệt, không agent nào sửa được chúng; muốn đổi phải chạy `agentflow tests amend <file> --reason \"...\"`."
+    approval_items: [spec-items, locked-files]
 
   - id: implement
     name: Triển khai
     role: implementer
+    gates: [locked-files-intact]
 
   - id: test
     name: Kiểm thử
     role: tester
+    gates: [locked-files-intact, tests-pass]
     on_fail: implement
 
   - id: security
     name: Kiểm tra bảo mật
     role: security
-    gates: [scans-clean]
+    gates: [locked-files-intact, scans-clean]
     on_fail: implement
 
   - id: review
     name: Review
     role: reviewer
     requires_approval: true
-    gates: [conventions-reviewed]
+    gates: [locked-files-intact, conventions-reviewed, drift-reviewed]
     on_fail: implement
+    approval_checklist:
+      - Mục "must fix" đã xử lý hoặc có lý do rõ ràng.
+      - Mục `## Đề xuất cập nhật hồ sơ` đúng và đủ, hoặc `không có` là đúng. Gate `drift-reviewed` chỉ kiểm hình thức, phần đúng sai do bạn kiểm; reviewer chỉ đề xuất, đề xuất nào bạn đồng ý thì bạn tự cập nhật hồ sơ (hoặc nhờ scout ghi lại rồi xác nhận).
+      - Thay đổi đúng kế hoạch đã duyệt, không có việc ngoài phạm vi.
+      - "`summary.md` và kết quả scan (`.agentflow/tasks/<task>/scans/`) không còn phát hiện chặn nào chưa giải thích."
+      - '"Bài học đề xuất" đáng giữ thì đưa về kho: `agentflow knowledge push .agentflow/tasks/<task>/lessons/L1.md`.'
+    approval_items: [review-conventions, drift-proposals]

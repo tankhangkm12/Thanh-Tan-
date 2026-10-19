@@ -48,6 +48,11 @@ def reference_problems(workflow: Workflow) -> list[str]:
     problems += [f"tiered role '{role}' is not the role of any step" for role in workflow.tiered_roles if role not in step_roles]
 
     problems += _size_problems(workflow)
+    problems += [
+        f"step '{step.id}': an approval checklist needs requires_approval"
+        for step in workflow.steps
+        if step.has_checklist and not step.requires_approval
+    ]
 
     position = {step.id: index for index, step in enumerate(workflow.steps)}
     for index, step in enumerate(workflow.steps):

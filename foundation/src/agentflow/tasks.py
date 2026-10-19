@@ -6,6 +6,7 @@ from collections.abc import Callable
 from dataclasses import dataclass, replace
 from pathlib import Path
 
+from agentflow.checklist import ChecklistWriter
 from agentflow.constants import (
     BRANCH_SEPARATOR,
     DECISIONS_DIR,
@@ -81,7 +82,14 @@ def branch_name(task_type: TaskType, task_id: str, title: str) -> str:
 
 
 def new_task(
-    store: StateStore, workflow: Workflow, git: GitClient, title: str, task_type: TaskType, clock: Clock, size: str | None = None
+    store: StateStore,
+    workflow: Workflow,
+    git: GitClient,
+    title: str,
+    task_type: TaskType,
+    clock: Clock,
+    size: str | None = None,
+    roadmap: str | None = None,
 ) -> Task:
     """Create the task's gitflow branch from its base, switch to it, and record the task as active."""
     title = title.strip()
@@ -112,7 +120,7 @@ def new_task(
         raise AgentflowError(f"branch '{branch}' already exists", ExitCode.BRANCH_PROBLEM)
 
     git.create_branch(branch, base)
-    task = start_task(workflow, task_id, title, branch, clock(), size)
+    task = start_task(workflow, task_id, title, branch, clock(), size, roadmap)
     store.save(replace(state, active_task_id=task.id, tasks=(*state.tasks, task)))
     return task
 
@@ -137,12 +145,15 @@ def advance_task(
     clock: Clock,
     gates: GateRunner | None = None,
     sealer: TaskSealer | None = None,
+    checklists: ChecklistWriter | None = None,
 ) -> Task:
     """Record that the active task's current step passed or failed; a pass must clear the step's gates.
 
+    A pass into ``awaiting_approval`` writes the step's approval checklist first; if that fails the state is not changed.
+
     A pass of a last step that needs no approval finishes the task, so it seals it like an approval would.
     """
-    return _apply(store, workflow, result, clock, gates, _sealing(sealer))[1]
+    return _apply(store, workflow, result, clock, gates, _sealing(sealer), _checklist_writing(workflow, checklists))[1]
 
 
 def cancel_task(store: StateStore, workflow: Workflow, clock: Clock) -> Task:
@@ -255,6 +266,17 @@ def _sealing(sealer: TaskSealer | None) -> Callable[[Task, Task], None] | None:
     return seal
 
 
+def _checklist_writing(workflow: Workflow, writer: ChecklistWriter | None) -> Callable[[Task, Task], None] | None:
+    if writer is None:
+        return None
+
+    def write(before: Task, after: Task) -> None:
+        if after.status is TaskStatus.OPEN and after.step_status is StepStatus.AWAITING_APPROVAL:
+            writer.write(workflow, after)
+
+    return write
+
+
 def _apply(
     store: StateStore,
     workflow: Workflow,
@@ -262,12 +284,15 @@ def _apply(
     clock: Clock,
     gates: GateRunner | None = None,
     before_save: Callable[[Task, Task], None] | None = None,
+    after_transition: Callable[[Task, Task], None] | None = None,
 ) -> tuple[Task, Task]:
     state = store.load()
     before = require_active_task(state)
     if event is TaskEvent.PASS and gates is not None:
         _require_gates(workflow, before, gates)
     after = transition(workflow, before, event, clock())
+    if after_transition is not None:
+        after_transition(before, after)
     if before_save is not None and after.status is TaskStatus.DONE:
         before_save(before, after)
     tasks = tuple(after if task.id == before.id else task for task in state.tasks)

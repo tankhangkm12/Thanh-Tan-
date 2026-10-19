@@ -53,7 +53,7 @@ def test_the_tool_list_is_exactly_the_agreed_one(server):
     names = {tool.name for tool in tool_list(server)}
     assert names == {str(name) for name in ToolName}
     assert names == {
-        "status", "next_step", "plan_check", "report_write", "project_write", "scan_summary", "conventions", "knowledge_search", "knowledge_read",
+        "status", "next_step", "plan_check", "report_write", "project_write", "replan_write", "scan_summary", "conventions", "knowledge_search", "knowledge_read",
     }  # fmt: skip
     assert not [name for name in names if PERSON_WORDS & set(name.split("_"))]
 

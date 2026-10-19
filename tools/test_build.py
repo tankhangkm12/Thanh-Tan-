@@ -151,7 +151,7 @@ def test_real_generated_agents_are_all_declared_in_the_manifest():
 
 def test_real_skills_use_only_portable_frontmatter():
     skills = {path.parent.name: path for path in (REAL_PLUGIN / "skills").glob("*/SKILL.md")}
-    assert set(skills) == {"start", "continue", "status", "approve", "setup"}
+    assert set(skills) == {"start", "continue", "status", "approve", "setup", "replan"}
     for name, path in skills.items():
         data = frontmatter(path)
         assert set(data) == {"name", "description"} and data["name"] == name
@@ -224,7 +224,7 @@ README = REPO / "README.md"
 RULE = __import__("re").compile(r"^(Bash|PowerShell)\(agentflow( [a-z-]+)+ \*\)$")
 MCP_PREFIX = "mcp__plugin_dev-core_agentflow__"
 WORKSPACE_TOOL_NAMES = build.WORKSPACE_TOOL_NAMES
-MANDATORY_ASK = {"task approve", "task cancel", "decide"}
+MANDATORY_ASK = {"task approve", "task cancel"}
 
 
 def readme_permissions() -> dict:
@@ -251,7 +251,7 @@ def test_readme_asks_for_the_commands_that_carry_a_persons_authority():
         for command in MANDATORY_ASK:
             assert f"{tool}(agentflow {command} *)" in permissions["ask"]
     allowed = " ".join(permissions["allow"])
-    assert not any(f"agentflow {command}" in allowed for command in MANDATORY_ASK)
+    assert not any(f"agentflow {command}" in allowed for command in MANDATORY_ASK | {"decide"})
 
 
 # ------------------------------------------------------------- agentflow MCP tools
@@ -287,7 +287,7 @@ def test_other_roles_may_not_write_project_documents(plugin, role):
 def test_every_real_agent_can_use_the_workspace_tools(plugin_dir):
     for path in sorted((plugin_dir / "claude" / "agents").glob("*.md")):
         tools = frontmatter(path)["tools"].split(", ")
-        assert [MCP_PREFIX + name for name in WORKSPACE_TOOL_NAMES] == [t for t in tools if t.startswith(MCP_PREFIX) and not t.endswith("project_write")], path
+        assert [MCP_PREFIX + name for name in WORKSPACE_TOOL_NAMES] == [t for t in tools if t.startswith(MCP_PREFIX) and not t.endswith(("project_write", "replan_write"))], path
         assert (MCP_PREFIX + "project_write" in tools) is (path.stem == "scout"), path
 
 
@@ -358,13 +358,13 @@ def test_model_settings_are_checked_against_the_documented_values(plugin, extra,
 
 
 def test_the_real_implementer_has_a_fast_and_a_deep_agent_and_db_engineer_is_deep():
-    for cli_dir, expected in (("claude/agents", ("sonnet", "opus")), ("agents", ("flash", "pro"))):
+    for cli_dir, expected in (("claude/agents", ("sonnet", "sonnet")), ("agents", ("flash", "pro"))):
         fast = frontmatter(CORE_DIR / cli_dir / "implementer-fast.md")
         deep = frontmatter(CORE_DIR / cli_dir / "implementer-deep.md")
         assert (fast["model"], deep["model"]) == expected
     assert frontmatter(CORE_DIR / "claude/agents/implementer-fast.md")["effort"] == "low"
-    assert frontmatter(CORE_DIR / "claude/agents/implementer-deep.md")["effort"] == "medium"
-    assert frontmatter(BACKEND_DIR / "claude/agents/db-engineer.md")["model"] == "opus"
+    assert frontmatter(CORE_DIR / "claude/agents/implementer-deep.md")["effort"] == "high"
+    assert frontmatter(BACKEND_DIR / "claude/agents/db-engineer.md")["model"] == "sonnet"
     assert frontmatter(BACKEND_DIR / "agents/db-engineer.md")["model"] == "pro"
 
 

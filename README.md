@@ -49,6 +49,8 @@ agentflow --version
 agentflow doctor
 ```
 
+`agentflow doctor` còn so phiên bản `agentflow` trên PATH với phiên bản đang chạy: nếu lệch phiên bản (sau khi cập nhật plugin hoặc `git pull` mà chưa cài lại) nó cảnh báo và in lệnh `uv tool install --force --reinstall ./foundation` (chạy từ thư mục repo). Hook cũ không hiểu các câu trả lời mới như `ask`, nên đừng bỏ qua cảnh báo này.
+
 Không cần clone cũng được: `uv tool install --force "git+https://github.com/tankhangkm12/Thanh-Tan-#subdirectory=foundation"`.
 
 Nếu terminal không nhận `agentflow`: chạy `uv tool update-shell` rồi mở lại terminal. Sau mỗi lần `git pull` repo, chạy lại lệnh `uv tool install --force --reinstall ...` ở trên. Gỡ: `uv tool uninstall agentflow`.
@@ -72,6 +74,8 @@ claude plugin install dev-core@thanh-tan-plugins
 Kiểm tra: `claude plugin list` phải thấy `dev-core@thanh-tan-plugins` ở trạng thái enabled. Mở lại Claude Code, gõ `/dev-core:` sẽ thấy `setup`, `start`, `continue`, `status`, `approve`. 8 agent (7 role, riêng implementer có hai biến thể) hiện dưới tên `dev-core:orchestrator`, `dev-core:planner`, `dev-core:implementer-fast`, `dev-core:implementer-deep`, `dev-core:tester`, `dev-core:security`, `dev-core:reviewer`, `dev-core:scout`. (Lệnh `claude plugin details` hiện báo `Agents (0)` do cách đếm của nó; agent vẫn được nạp.) Cập nhật: `claude plugin update dev-core@thanh-tan-plugins`.
 
 ### Bước 2b: cài vào Antigravity CLI
+
+**KHÔNG dùng `agy --dangerously-skip-permissions` với plugin này.** Đã thử (agy 1.4.0, 18/10/2026): ở chế độ đó lệnh vẫn chạy và `force_ask` của hook không có tác dụng, nên mọi bước duyệt (`task approve`, `task cancel`) bị bỏ qua. Dùng chế độ mặc định `request-review`.
 
 ```
 agy plugin install "<repo>/families/software-dev/core"
@@ -101,6 +105,9 @@ Cần cả hai. Cách dùng, chạy không tương tác và bản Antigravity: [
 
 ### Thay đổi từ agentflow 0.5.0 (dev-core 0.4.0, dev-backend 0.2.0)
 
+- Bước `test-spec` giữa `plan` và `implement`: tester viết test trước, agentflow tự chạy lại lệnh và đòi chúng đỏ; ở bước `test`, gate `tests-pass` tự chạy lệnh test của dự án (đặt bằng `agentflow config set test_command "<lệnh>"`, hoặc dòng `- test-command:` trong profile đã xác nhận) và chạy lại các lệnh của `test-spec` (đỏ trước, xanh sau). Xem mục "Test trước (test-spec)" của [USAGE](families/software-dev/USAGE.md).
+- **Khóa test đã duyệt** (agentflow 0.6.0, dev-core 0.5.0, dev-backend 0.3.0): sau khi bạn duyệt `test-spec`, file test, file hạ tầng test tester khai (mục `## Hạ tầng test`) và cấu hình test của dự án (`conftest.py`, `pytest.ini`, `tox.ini`, `jest.config.*`, `vitest.config.*`; riêng `pyproject.toml`, `setup.cfg`, `package.json` chỉ khóa phần cấu hình test) bị khóa bằng hash: hook, `agentflow commit` và cổng `locked-files-intact` chặn hoặc phát hiện mọi cách sửa. Đổi test đã duyệt chỉ qua lệnh của bạn `agentflow tests amend <file> --reason "..."`; test sửa xong mà xanh trên mã cũ bị chặn, trừ khi bạn thêm `--accept-green`. Đây là lưới an toàn, không phải sandbox: xem mục "Khóa test đã duyệt" của [USAGE](families/software-dev/USAGE.md) và [docs/architecture.md](docs/architecture.md).
+- **Nâng cấp lên bản này**: `uv tool install --force --reinstall ./foundation` (hook cũ không biết khóa), `claude plugin update dev-core@thanh-tan-plugins` (và `dev-backend@thanh-tan-plugins`) hoặc chạy lại `agy plugin install` cho Antigravity, rồi ở mỗi dự án đang dùng `agentflow workflow sync`. Task mở trước khi nâng cấp không có khóa.
 - Hook chặn mọi tool ghi file vào `.agentflow/` (Claude Code: `Write`, `Edit`, `NotebookEdit`; Antigravity: `write_to_file`, `replace_file_content`, `multi_replace_file_content`) và các lệnh shell phổ biến ghi vào đó (mức cố gắng tốt nhất, không phải sandbox: `python -c`, script, alias vẫn qua được).
 - Server MCP `agentflow mcp serve` (tool `status`, `next_step`, `plan_check`, `report_write`, `project_write`, `scan_summary`, `conventions`, `knowledge_search`, `knowledge_read`) khai báo sẵn trong dev-core; báo cáo không còn cần heredoc. `report_write` chỉ ghi báo cáo của bước hiện tại và không ghi đè báo cáo của bước đã qua.
 - Skill `setup` và role `scout` hồ sơ hóa dự án có sẵn; quy ước (`PC-`, `DC-`, `KC-`), câu hỏi "Chưa có quy ước", rule Semgrep của riêng bạn, gate review theo từng quy ước, kho kiến thức cá nhân và bài học đề xuất: xem [Quy ước và kho kiến thức](#quy-ước-và-kho-kiến-thức).
@@ -118,7 +125,7 @@ agentflow init --workflow "<repo>/families/software-dev/core/workflow.yaml"
 `.agentflow/` được tạo ở local và tự thêm vào `.git/info/exclude` (không bị commit). Sau đó, trong Claude Code gõ `/dev-core:start` (Antigravity: nhờ agent dùng skill `start`) rồi làm theo hướng dẫn; hoặc tự chạy:
 
 ```
-agentflow task new "Tiêu đề" --type feature    # tạo nhánh feature/T-001-...
+agentflow task new "Tiêu đề" --type feature --roadmap R1   # tạo nhánh feature/T-001-..., gắn task với mục R1 của roadmap
 agentflow status
 agentflow task advance --result pass           # xong bước; bước cần duyệt thì tiếp theo là:
 agentflow task approve
@@ -130,9 +137,9 @@ Hook chỉ hoạt động trong dự án đã có `.agentflow/`; ở dự án kh
 
 ### Bước 4 (BẮT BUỘC): quy tắc permissions của Claude Code
 
-Agent chạy hàng loạt lệnh `agentflow`. Để không bị hỏi từng lệnh, thêm quy tắc **allow** cho các lệnh thường ngày. Đồng thời **bắt buộc** thêm quy tắc **ask** cho ba lệnh mang quyền của người: `agentflow task approve`, `agentflow task cancel`, `agentflow decide`. Quy tắc `ask` thắng `allow` (thứ tự đánh giá là deny, rồi ask, rồi allow), nên chúng luôn hỏi bạn dù allow có khớp. Nếu bỏ `ask`, agent có thể tự duyệt bước của chính nó, và workflow mất ý nghĩa.
+Agent chạy hàng loạt lệnh `agentflow`. Để không bị hỏi từng lệnh, thêm quy tắc **allow** cho các lệnh thường ngày. Đồng thời **bắt buộc** thêm quy tắc **ask** cho hai lệnh mang quyền duyệt của người: `agentflow task approve` và `agentflow task cancel`. Thứ tự đánh giá là deny, rồi ask, rồi allow, nên `ask` luôn hỏi bạn dù allow có khớp. Nếu bỏ `ask`, agent có thể tự duyệt bước của chính nó, và workflow mất ý nghĩa.
 
-Dán vào `.claude/settings.json` của dự án (hoặc `~/.claude/settings.json` cho mọi dự án). Cú pháp theo [tài liệu permissions](https://code.claude.com/docs/en/permissions): `Bash(lệnh *)` khớp lệnh có hoặc không có đối số; `Bash(lệnh:*)` là cách viết tương đương.
+Dán vào `.claude/settings.json` của dự án (hoặc `~/.claude/settings.json` cho mọi dự án). Cú pháp theo [tài liệu permissions](https://code.claude.com/docs/en/permissions): `Bash(lệnh *)` khớp lệnh có hoặc không có đối số; `Bash(lệnh:*)` là cách viết tương đương; `Edit(<mẫu>)` áp cho mọi tool sửa file của Claude Code (`Write`, `Edit`, `NotebookEdit`).
 
 ```json
 {
@@ -173,22 +180,38 @@ Dán vào `.claude/settings.json` của dự án (hoặc `~/.claude/settings.jso
     "ask": [
       "Bash(agentflow task approve *)",
       "Bash(agentflow task cancel *)",
-      "Bash(agentflow decide *)",
       "PowerShell(agentflow task approve *)",
-      "PowerShell(agentflow task cancel *)",
-      "PowerShell(agentflow decide *)"
-    ]
+      "PowerShell(agentflow task cancel *)"
+    ],
+    "deny": [
+      "Edit(./.claude/settings.json)",
+      "Edit(./.claude/settings.local.json)",
+      "Edit(./.agentflow/state.json)",
+      "Edit(./.agentflow/**/state.json)"
+    ],
+    "disableBypassPermissionsMode": "disable"
   }
 }
 ```
 
 Ghi chú:
 
+- **Quy tắc `deny` có hiệu lực ở mọi chế độ quyền**, kể cả `bypassPermissions`; quy tắc `ask` cũng vẫn hỏi ở mọi chế độ. Quy tắc **allow** không có tác dụng trong chế độ `bypassPermissions` (mọi thứ đã được duyệt sẵn). Vì vậy khối trên đặt `permissions.disableBypassPermissionsMode: "disable"`: Claude Code từ chối chế độ bỏ qua quyền ở dự án này. Nó chặn cả chính bạn: muốn chạy `bypassPermissions` ở dự án đó thì phải tự gỡ dòng này. Chỗ chắc nhất cho thiết lập này là managed settings của máy.
+- **Quy tắc `Bash` không phải ranh giới bảo mật.** Quy tắc khớp theo văn bản lệnh sau khi bỏ một số wrapper cố định (`timeout`, `time`, `nice`, `nohup`, `stdbuf`, `command`, `builtin`, `xargs`...); nó không khớp `uv run agentflow task approve`, `python -m agentflow task approve`, lệnh gọi bằng đường dẫn đầy đủ, hay `sh -c "..."`. Lớp chính là **hook `pre-tool`** của dev-core: nó đọc `agentflow` ở mọi dạng gọi đó (và `uvx`, `Start-Process`, tiền tố biến môi trường, `bash -lc`, `python -c`, cả nội dung heredoc, pipe hay here-string đưa vào bash/python/node), trả `ask` cho `task approve`/`task cancel` và từ chối các lệnh của người. Quy tắc `ask` ở trên là lớp phụ cho các dạng gọi đơn giản.
+- **Allow hẹp.** Tuyệt đối không thêm `Bash(python *)`, `Bash(uv run *)`, `Bash(*)` hoặc `Bash` trần (hay `PowerShell` trần) vào `allow`: chúng cho agent chạy mã tùy ý, nên mọi lớp bảo vệ còn lại chỉ là lưới mỏng. Đã từng thử `Bash(python *)` để heredoc chạy được; đó là rủi ro, không phải khuyến nghị.
+- **Sandbox của Claude Code chỉ có trên macOS, Linux và WSL2; Windows gốc không có sandbox.** Cũng không sandbox nào bao các tool file, MCP hay hook. Chặn cứng agent chạy mã tùy ý cùng quyền với bạn thì chỉ có sandbox hoặc quyền hệ điều hành; các lớp ở đây là lưới an toàn (xem [docs/architecture.md](docs/architecture.md), mục "Bảo vệ workspace").
 - Claude Code tách lệnh ghép (`&&`, `;`, `|`, xuống dòng) và đòi mỗi lệnh con khớp một quy tắc; vì vậy prompt của dev-core bắt mọi lệnh `agentflow` chạy riêng.
-- Báo cáo được ghi bằng tool MCP `report_write` (tên đầy đủ có tiền tố `mcp__plugin_dev-core_agentflow__`), nên không cần heredoc. Lệnh `agentflow report` (nhận nội dung qua heredoc `<<'EOF'`) chỉ còn là dự phòng khi không có tool MCP. Đã thử thật bằng `claude -p`: quy tắc `Bash(python *)` cho phép lệnh `python - <<'EOF' ... EOF`, còn không có quy tắc thì lệnh bị từ chối; heredoc không làm quy tắc mất tác dụng.
+- Báo cáo được ghi bằng tool MCP `report_write` (tên đầy đủ có tiền tố `mcp__plugin_dev-core_agentflow__`), nên không cần heredoc. Lệnh `agentflow report` (nhận nội dung qua heredoc `<<'EOF'`) chỉ còn là dự phòng khi không có tool MCP.
 - Tám tool MCP trong `allow` chỉ đọc workspace hoặc ghi báo cáo/hồ sơ dự án theo luật của `agentflow` (báo cáo chỉ cho bước hiện tại và không ghi đè bước đã qua; hồ sơ dự án chỉ ghi khi không có task đang mở). Không có tool MCP cho việc của người (duyệt, hủy, seal, `decide`, extension, `config set`).
-- Các lệnh `agentflow decide`, `ext add`, `ext sync`, `config set`, `task seal` là việc của **người**: hook từ chối khi agent tự chạy. Bạn chạy trực tiếp: trong Claude Code gõ `! agentflow decide ...`, hoặc dùng terminal riêng (Antigravity).
-- Cách viết cho Antigravity: dùng chế độ phê duyệt lệnh của chính CLI đó; tài liệu của nó không có cú pháp quy tắc tương đương.
+- Các lệnh `agentflow decide`, `ext add`, `ext sync`, `config set`, `task seal`, `project confirm`, `roadmap set`, `replan done|skip` là việc của **người**: hook **từ chối** khi agent tự chạy (không phải `ask`, nên không có trong khối trên). Bạn chạy trực tiếp: trong Claude Code gõ `! agentflow decide ...`, hoặc dùng terminal riêng (Antigravity).
+
+### Giới hạn của Antigravity (không có quy tắc ask)
+
+Antigravity CLI không có quy tắc `ask` kiểu `permissions` của Claude Code; chế độ phê duyệt lệnh của chính CLI đó là lớp duy nhất ở phía nó. Phần còn lại do hook `pre-tool` của dev-core đảm nhiệm:
+
+- Với `agentflow task approve` và `task cancel` (mọi dạng gọi như trên Claude Code), hook trả `force_ask`: theo tài liệu của Antigravity, nó bỏ qua bộ nhớ "Always Allow", nên bạn luôn thấy câu hỏi.
+- Hook từ chối ghi vào `.agentflow/` (tool file và lệnh shell) và các lệnh của người; `agentflow commit` từ chối commit khi quét ra secret hoặc khi sai nhánh.
+- Đã thử thật (agy 1.4.0, 18/10/2026, kết quả ở [docs/architecture.md](docs/architecture.md), mục "Thử thật hook ask"): chế độ mặc định `request-review` hỏi đúng; với `--dangerously-skip-permissions` (tự duyệt mọi lệnh) lệnh vẫn chạy, nên khi dùng chế độ tự duyệt thì `force_ask` không giúp được và chỉ còn các hook deny cùng `agentflow commit`. **KHÔNG dùng `agy --dangerously-skip-permissions` với plugin này** (xem Bước 2b).
 
 ### Kiểm tra nhanh toàn bộ
 
@@ -207,7 +230,7 @@ uv run tools/trial_cli.py --modes --only agy          # Antigravity thật: agen
 
 ### Quy ước và kho kiến thức
 
-Lần đầu trên một dự án có sẵn: gọi skill `setup` (xem hướng dẫn dùng thử ở cuối). Scout đọc tài liệu bạn chỉ và code, rồi viết `.agentflow/project/{profile,architecture,sources,conventions}.md`; mọi quy ước ban đầu là `unconfirmed`. Bạn đọc, trả lời câu hỏi mở (`S1`...) và xác nhận bằng `agentflow project confirm PC-01 PC-02` (hoặc `--all`). `agentflow task new` cảnh báo khi còn quy ước chưa xác nhận.
+Lần đầu trên một dự án có sẵn: gọi skill `setup` (xem hướng dẫn dùng thử ở cuối). Scout đọc tài liệu bạn chỉ và code, rồi viết `.agentflow/project/{profile,architecture,sources,conventions,roadmap}.md`; mọi quy ước ban đầu là `unconfirmed`. Bạn đọc, trả lời câu hỏi mở (`S1`...) và xác nhận bằng `agentflow project confirm PC-01 PC-02` (hoặc `--all`, chỉ gồm quy ước). Scout cũng viết **mission** (mục `## Mission` của `profile.md`, lấy từ tài liệu bạn đưa) và đề xuất **roadmap** (`project/roadmap.md`, mục `R1`, `R2`...): bạn xác nhận bằng `agentflow project confirm mission` và `agentflow project confirm R1 R2`, xem tình trạng bằng `agentflow project status`, đổi trạng thái một mục bằng `agentflow roadmap set R3 dropped`. Tài liệu đã xác nhận mà agent sửa nội dung thì tự về `unconfirmed`. `agentflow task new --roadmap Rn` gắn task với một mục (chuyển sang `doing`; task xong không tự đóng mục, bạn đặt `done`) và cảnh báo khi còn quy ước, mission hoặc mục roadmap chưa xác nhận hay task không gắn mục nào.
 
 Mỗi quy ước có `check:` là `plan` (luật `item-order`: mục `kind: interface` đứng trước mục `kind: implement` đụng cùng file; luật `layer-order`: các mục theo thứ tự lớp của dự án, xem [Tier và thứ tự lớp](#tier-và-thứ-tự-lớp)), `semgrep` (rule do **bạn** viết, để trong `.agentflow/knowledge/semgrep/`, chạy cùng scan ở bước security) hoặc `review` (reviewer ghi `PC-01: đạt` hoặc `vi phạm PC-01 ở file:dòng` cho từng mã). Ưu tiên: `decisions/` > `project/conventions.md` > `knowledge/conventions.md`. Xem bằng `agentflow conventions`.
 
@@ -266,14 +289,14 @@ Tên tool là tên MCP đầy đủ như Claude Code đặt: `mcp__<server>__<to
 
 ### Tier và thứ tự lớp
 
-**Tier.** Mỗi mục kế hoạch có thể ghi `tier: fast` hoặc `tier: deep`; thiếu thì là `deep`. Planner đề xuất, bạn sửa trực tiếp trong báo cáo plan khi duyệt (hoặc nhờ planner sửa), và `agentflow plan check` từ chối giá trị khác. Skill `continue` chạy `agentflow plan assign` (in `mã role tier agent` cho từng mục) rồi giao mục `fast` cho `implementer-fast`, mục `deep` cho `implementer-deep`; role không chia tier (như `db-engineer` của dev-backend) luôn dùng một agent duy nhất, và agent đó đặt ở mức mạnh nhất.
+**Tier.** Mỗi mục kế hoạch có thể ghi `tier: fast` hoặc `tier: deep`; thiếu thì là `deep`. Planner đề xuất, bạn sửa trực tiếp trong báo cáo plan khi duyệt (hoặc nhờ planner sửa), và `agentflow plan check` từ chối giá trị khác. Skill `continue` chạy `agentflow plan assign` (in `mã role tier agent` cho từng mục) rồi giao mục `fast` cho `implementer-fast`, mục `deep` cho `implementer-deep`; role không chia tier (như `db-engineer` của dev-backend) luôn dùng một agent duy nhất, với model và effort do plugin của role đó đặt (`db-engineer`: Sonnet, effort `high`).
 
 | | fast | deep |
 |---|---|---|
-| Claude Code | `model: sonnet`, `effort: low` | `model: opus`, `effort: medium` |
+| Claude Code | `model: sonnet`, `effort: low` | `model: sonnet`, `effort: high` |
 | Antigravity | `model: flash` | `model: pro` |
 
-Giá trị nằm trong nguồn role (`families/software-dev/core/src/roles/implementer.md`, khối `variants`) và được `tools/build.py` sinh ra. **Lưu ý giới hạn sử dụng:** `deep` dùng Opus nên tốn giới hạn hơn Sonnet; `db-engineer` cũng dùng Opus. Muốn tiết kiệm, đổi `deep` của Claude Code thành `claude: {model: sonnet, effort: high}` trong nguồn role, chạy `uv run tools/build.py` rồi cài lại plugin. Antigravity không có trường effort. Build kiểm giá trị theo danh sách trong tài liệu từng CLI (`sonnet|opus|haiku|fable|inherit` và `low|medium|high|xhigh|max` cho Claude Code; `inherit|flash|pro` cho Antigravity) và từ chối giá trị khác.
+Giá trị nằm trong nguồn role (`families/software-dev/core/src/roles/implementer.md`, khối `variants`) và được `tools/build.py` sinh ra. **Lưu ý giới hạn sử dụng:** trên Claude Code cả `fast` và `deep` đều là Sonnet, chỉ khác effort (`low` và `high`), và `db-engineer` cũng là Sonnet `high`; Antigravity phân biệt bằng model (`flash` và `pro`) và không có trường effort. Muốn dùng Opus cho mục khó, đổi dòng `deep` của Claude Code thành `claude: {model: opus, effort: medium}` trong nguồn role (với `db-engineer`: khối `settings:` trong `families/software-dev/backend/src/roles/db-engineer.md`), chạy `uv run tools/build.py` rồi cài lại plugin; Opus tốn giới hạn sử dụng hơn Sonnet. Build kiểm giá trị theo danh sách trong tài liệu từng CLI (`sonnet|opus|haiku|fable|inherit` và `low|medium|high|xhigh|max` cho Claude Code; `inherit|flash|pro` cho Antigravity) và từ chối giá trị khác.
 
 **Thứ tự lớp (`layer-order`).** Quy ước do **dự án** khai báo; plugin không có sẵn quy ước nào. Ví dụ trong `project/conventions.md` (hoặc trả lời câu hỏi bằng `agentflow decide`):
 
@@ -312,9 +335,9 @@ Hướng dẫn đầy đủ (chọn plugin, khuôn yêu cầu task, checklist du
 2. Cài plugin vào Claude Code (`claude plugin marketplace add "<repo>"`, `claude plugin install dev-core@thanh-tan-plugins`, `dev-backend@thanh-tan-plugins`) và/hoặc Antigravity (`agy plugin install "<repo>/families/software-dev/core"` và `.../backend`). Mở lại CLI để nạp skill, agent, hook và server MCP.
 3. Dán khối `permissions` ở **Bước 4** vào `.claude/settings.json` của dự án. Quy tắc `ask` là bắt buộc.
 4. Trong dự án (repo git có `main` và `develop`, cây làm việc sạch): `agentflow init --workflow "<repo>/families/software-dev/core/workflow.yaml"`. Với dev-backend, thêm bước của **bạn**: `agentflow ext add "<repo>/families/software-dev/backend/extension.yaml"`, `agentflow config set backend.*`, `agentflow config check`.
-5. **Hồ sơ hóa dự án:** gõ `/dev-core:setup` (Antigravity: nhờ agent dùng skill `setup`). Bạn đưa đường dẫn tài liệu; scout đọc rồi viết `.agentflow/project/*.md`. Mở các file đó, trả lời câu hỏi mở `S1...` bằng `agentflow decide --answer S1 --text "..." --check review`, rồi xác nhận quy ước đồng ý: `agentflow project confirm PC-01 PC-02` (hoặc `--all`).
+5. **Hồ sơ hóa dự án:** gõ `/dev-core:setup` (Antigravity: nhờ agent dùng skill `setup`). Bạn đưa đường dẫn tài liệu; scout đọc rồi viết `.agentflow/project/*.md`. Mở các file đó, trả lời câu hỏi mở `S1...` bằng `agentflow decide --answer S1 --text "..." --check review`, rồi xác nhận quy ước đồng ý: `agentflow project confirm PC-01 PC-02` (hoặc `--all`), cùng mission và các mục roadmap: `agentflow project confirm mission R1 R2`.
 6. **Kho kiến thức (tùy chọn):** `agentflow knowledge init`; đặt rule Semgrep của bạn vào `<kho>/semgrep/` và quy ước cá nhân vào `<kho>/conventions.md`; chép vào dự án bằng `agentflow knowledge pull semgrep/<rule>.yaml conventions.md`.
-7. **Làm việc:** `/dev-core:start`, rồi `/dev-core:continue`. Agent tự chạy các bước không cần duyệt và dừng ở `confirm`, `plan`, `review` để bạn `agentflow task approve` (hoặc `/dev-core:approve`). Plan có mục `## Chưa có quy ước` thì bạn trả lời bằng `agentflow decide --answer Q1 ...` rồi để agent chạy tiếp. Phát hiện chặn của scan mà bạn xác nhận là báo nhầm: `agentflow decide --suppress <id> --reason "..."`.
-8. **Sau khi xong:** xem `.agentflow/tasks/<task>/summary.md` (mục, commit, scan, "Bài học đề xuất") và tag `git tag -l "agentflow/*"`. Bài học đáng giữ: `agentflow knowledge push .agentflow/tasks/<task>/lessons/L1.md`. Merge và push là việc của bạn.
+7. **Làm việc:** `/dev-core:start` (chọn mục roadmap `Rn` cho task; `agentflow roadmap list` để xem), rồi `/dev-core:continue`. Agent tự chạy các bước không cần duyệt và dừng ở `confirm`, `plan`, `review` để bạn `agentflow task approve` (hoặc `/dev-core:approve`). Plan có mục `## Chưa có quy ước` thì bạn trả lời bằng `agentflow decide --answer Q1 ...` rồi để agent chạy tiếp. Phát hiện chặn của scan mà bạn xác nhận là báo nhầm: `agentflow decide --suppress <id> --reason "..."`.
+8. **Sau khi xong:** xem `.agentflow/tasks/<task>/summary.md` (mục, commit, scan, "Bài học đề xuất") và `spec-delta.md` (task thật sự đổi gì); gõ `/dev-core:replan` (Antigravity: nhờ agent dùng skill `replan`) để scout đề xuất cập nhật hồ sơ, bạn đọc `replan.md`, xác nhận và chốt bằng `agentflow replan done` (hoặc `agentflow replan skip <task> --reason "..."`) và tag `git tag -l "agentflow/*"`. Bài học đáng giữ: `agentflow knowledge push .agentflow/tasks/<task>/lessons/L1.md`. Merge và push là việc của bạn.
 
-Các lệnh của người (`decide`, `project confirm`, `knowledge init|pull|push`, `ext add|sync`, `config set`, `task seal`): trong Claude Code gõ với tiền tố `!`; agent tự chạy sẽ bị hook từ chối.
+Các lệnh của người (`decide`, `project confirm`, `roadmap set`, `replan done|skip`, `knowledge init|pull|push`, `ext add|sync`, `config set`, `task seal`): trong Claude Code gõ với tiền tố `!`; agent tự chạy sẽ bị hook từ chối.

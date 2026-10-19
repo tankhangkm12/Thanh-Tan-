@@ -74,7 +74,7 @@ def to_plan_step(s: Session, title: str, size: str | None = None) -> None:
     s.af(*args)
     s.af("report", "--step", "confirm", stdin="# Confirmed\n")
     s.af("task", "advance", "--result", "pass")
-    s.af("task", "approve")
+    s.approve()
 
 
 def tiers_and_layers(s: Session) -> None:
@@ -153,7 +153,8 @@ def small_task(s: Session, repo: Path) -> None:
     expect(refused.returncode == EXIT_GATE_FAILED and "at most 3" in refused.stdout + refused.stderr, "a small plan over 3 items is refused", refused.stdout + refused.stderr)
     s.af("report", "--step", "plan", stdin=item("C1", "Only item", "api", "tiny.txt"))
     passed = s.af("task", "advance", "--result", "pass")
-    expect("step 'implement'" in passed.stdout and "wait for a person" not in passed.stdout, "the plan needs no approval in a small task", passed.stdout)
+    expect("step 'test-spec'" in passed.stdout and "wait for a person" not in passed.stdout, "the plan needs no approval in a small task", passed.stdout)
+    s.test_first()  # the test-spec step still waits for a person in a small task
     (repo / "tiny.txt").write_text("tiny\n", encoding=ENCODING)
     s.git("add", "tiny.txt")
     s.af("commit", "add tiny file", "--item", "C1")
@@ -163,9 +164,10 @@ def small_task(s: Session, repo: Path) -> None:
     expect("semgrep: " in scan.stdout and "gitleaks: " in scan.stdout, "a small task still runs Gitleaks and Semgrep", scan.stdout)
     expect("trivy" not in scan.stdout, "a small task does not run Trivy", scan.stdout)
     s.af("task", "advance", "--result", "pass")  # security
+    s.af("report", "--step", "review", stdin="# Review\nNo findings.\n\n## Đề xuất cập nhật hồ sơ\nkhông có\n")
     waiting = s.af("task", "advance", "--result", "pass")  # review
     expect("awaiting_approval" in waiting.stdout, "review of a small task still waits for a person", waiting.stdout)
-    s.af("task", "approve")
+    s.approve()
     latest = sorted((repo / ".agentflow" / "tasks").glob("T-*/summary.md"))[-1].read_text(encoding=ENCODING)
     expect("- Size: small" in latest, "summary.md records the size", latest[:200])
     state = json.loads((repo / ".agentflow" / "state.json").read_text(encoding=ENCODING))
@@ -174,7 +176,7 @@ def small_task(s: Session, repo: Path) -> None:
 
 def main() -> int:
     if shutil.which(AGENTFLOW) is None or shutil.which("git") is None:
-        print("agentflow and git must be on PATH (see README: uv tool install)", file=sys.stderr)
+        print("git must be on PATH", file=sys.stderr)
         return 2
     base = Path(tempfile.mkdtemp(prefix="agentflow-modes-"))
     repo = base / "sample"

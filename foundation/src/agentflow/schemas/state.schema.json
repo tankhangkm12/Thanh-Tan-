@@ -45,6 +45,8 @@
           "anyOf": [{ "type": "null" }, { "type": "string", "minLength": 1 }]
         },
         "size": { "type": "string", "pattern": "^[a-z][a-z0-9-]*$" },
+        "roadmap": { "type": "string", "pattern": "^R[0-9]+$" },
+        "replanned_at": { "type": "string" },
         "history": {
           "type": "array",
           "items": { "$ref": "#/$defs/history_entry" }

@@ -42,7 +42,9 @@ def next_action(workflow: Workflow, task: Task | None) -> NextAction:
     )
 
 
-def start_task(workflow: Workflow, task_id: str, title: str, branch: str | None, at: str, size: str | None = None) -> Task:
+def start_task(
+    workflow: Workflow, task_id: str, title: str, branch: str | None, at: str, size: str | None = None, roadmap: str | None = None
+) -> Task:
     first = workflow.first_step()
     return Task(
         id=task_id,
@@ -53,6 +55,7 @@ def start_task(workflow: Workflow, task_id: str, title: str, branch: str | None,
         branch=branch,
         history=(HistoryEntry(at, first.id, HistoryEvent.STARTED),),
         size=size,
+        roadmap=roadmap,
     )
 
 
