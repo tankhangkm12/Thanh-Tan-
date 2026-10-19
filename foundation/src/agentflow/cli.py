@@ -63,7 +63,7 @@ from agentflow.doctor import SystemToolProbe, run_doctor, running_version
 from agentflow.engine import next_action
 from agentflow.errors import AgentflowError
 from agentflow.gates import GateContext, WorkspaceGates, plan_problems, plan_report_path
-from agentflow.git import GitBranchLookup, SubprocessGit
+from agentflow.git import GitBranchLookup, SubprocessGit, run_git
 from agentflow.guard import evaluate, parse_request, verdict_to_dict
 from agentflow.hook import handle_hook
 from agentflow.models import State, ToolCheck, Workflow
@@ -79,6 +79,9 @@ from agentflow.scan_store import ScanStore, suppressed_ids, write_suppression
 from agentflow.scan_tools import VAR_RANGE
 from agentflow.scan_types import ScanContext
 from agentflow.seal import NOT_SCANNED, TaskSealer, base_branch
+from agentflow.fsutil import write_text_atomic
+from agentflow import reviewmarks
+from agentflow.reviewmap import REVIEW_MAP_FILE, build_review_map, collect_commits
 from agentflow.semgrep_rules import HttpRuleFetcher, default_cache_dir
 from agentflow.runner import SubprocessRunner
 from agentflow.scanner import ContainerGitleaksScanner
@@ -180,6 +183,11 @@ def build_parser() -> argparse.ArgumentParser:
 
     scan = commands.add_parser(Command.SCAN, help="run the scanners of the current step in containers (--all: every configured scan)")
     scan.add_argument(ALL_OPTION, action="store_true", help="run every configured scan, not only the current step's")
+
+    commands.add_parser(Command.REVIEW_MAP, help="write review-map.md for the active task: its commits and files by plan item (read-only on the project)")
+
+    scope = commands.add_parser(Command.SCOPE, help="what to review in this round: the changes since the last review or security round of the step (read-only)")
+    scope.add_argument("--step", help="the step whose last round marks the start (default: the current step)")
 
     decide = commands.add_parser(Command.DECIDE, help="for a person: record a decision (accept a scan finding, or answer a question)")
     what = decide.add_mutually_exclusive_group(required=True)
@@ -482,11 +490,15 @@ def cmd_task(args: argparse.Namespace) -> ExitCode:
             _warn_project_documents(opened.paths.dir, task)
             _warn_replan(before)
         case TaskCommand.ADVANCE:
+            ending = opened.state.active_task()
             task = advance_task(store, opened.workflow, args.result, utc_now, _gates(opened), _sealer(opened), ChecklistWriter(opened.paths.dir))
             print(f"{task.id}: step '{task.current_step}' is now {task.step_status} (task {task.status})")
             _warn_skipped_tests(opened, args.result)
+            _mark_review_round(opened, ending)
             if task.step_status is StepStatus.AWAITING_APPROVAL and task.status is TaskStatus.OPEN and (step := opened.workflow.get_step(task.current_step)) and step.has_checklist:
                 print(f"checklist to tick before approving: {checklist_path(opened.paths.dir, task.id, step.id)}")
+                if GateKind.DRIFT_REVIEWED in step.gates:
+                    print(f"review map (where each plan item changed the code): {_write_review_map(opened, task)}")
         case TaskCommand.APPROVE:
             active = opened.state.active_task()
             approval = check_approval(opened.paths.dir, opened.workflow, active) if active is not None else None
@@ -675,6 +687,64 @@ def cmd_config(args: argparse.Namespace) -> ExitCode:
     return ExitCode.OK
 
 
+def _mark_review_round(opened: _Opened, ending: Task | None) -> None:
+    """A review or security round that has just ended leaves the commit it looked at, for the next round's `agentflow scope`."""
+    step = opened.workflow.get_step(ending.current_step) if ending is not None else None
+    if ending is None or step is None or not ({GateKind.DRIFT_REVIEWED, GateKind.SCANS_CLEAN} & set(step.gates)):
+        return
+    try:
+        head = SubprocessGit(opened.paths.root).rev_parse(ending.branch or "HEAD")
+    except AgentflowError:
+        return
+    reviewmarks.record(task_file(opened.paths.dir, ending.id, ""), step.id, head, utc_now())
+
+
+def _write_review_map(opened: _Opened, task: Task) -> Path:
+    """Work out review-map.md of the task from git and tests-pass.json and save it in the task folder."""
+    items = list((_plan_items(opened) or {}).values())
+    base = base_branch(task)
+    commits = collect_commits(opened.paths.root, base, task.branch or "HEAD") if SubprocessGit(opened.paths.root).branch_exists(base) else []
+    try:
+        results = json.loads(task_file(opened.paths.dir, task.id, TESTS_PASS_FILE).read_text(encoding="utf-8")).get("spec_results") or {}
+    except (OSError, ValueError):
+        results = {}
+    path = task_file(opened.paths.dir, task.id, REVIEW_MAP_FILE)
+    write_text_atomic(path, build_review_map(task.id, task.title, items, commits, results))
+    return path
+
+
+def cmd_scope(args: argparse.Namespace) -> ExitCode:
+    opened = _open_workspace()
+    task = require_active_task(opened.state)
+    step_id = args.step or task.current_step
+    root, tip = opened.paths.root, task.branch or "HEAD"
+    base, note = base_branch(task), ""
+    marked = reviewmarks.mark(task_file(opened.paths.dir, task.id, ""), step_id)
+    if marked is not None:
+        if run_git(root, "merge-base", "--is-ancestor", marked, tip).returncode == 0:
+            base = marked
+        else:
+            note = f" ({marked[:SHORT_SHA_LENGTH]} marked by the last round is not in the branch)"
+    since = f"since {base[:SHORT_SHA_LENGTH]}, the end of the last '{step_id}' round" if base == marked else "whole task"
+    print(f"scope: {since}{note}")
+    print(f"diff: git diff {base}..{tip}")
+    commits = collect_commits(root, base, tip)
+    print(f"commits: {len(commits)}")
+    for commit in commits:
+        print(f"- {commit.sha[:SHORT_SHA_LENGTH]} {commit.subject}" + (f" [{commit.item}]" if commit.item else ""))
+        for path, added, removed in commit.files:
+            print(f"    {path} (+{added} -{removed})")
+    if not commits:
+        print("nothing changed since the last round: report that the earlier findings still stand or are closed, and stop")
+    return ExitCode.OK
+
+
+def cmd_review_map(args: argparse.Namespace) -> ExitCode:
+    opened = _open_workspace()
+    print(f"review map: {_write_review_map(opened, require_active_task(opened.state))}")
+    return ExitCode.OK
+
+
 def cmd_scan(args: argparse.Namespace) -> ExitCode:
     opened = _open_workspace()
     task = require_active_task(opened.state)
@@ -849,6 +919,8 @@ def cmd_commit(args: argparse.Namespace) -> ExitCode:
         _store(opened), SubprocessGit(opened.paths.root), scanner, args.message, args.item, _plan_items(opened), lockflow.commit_rules(project.rules, lock)
     )
     print(f"committed {result.sha[:SHORT_SHA_LENGTH]}: {result.message}")
+    for path in result.outside:
+        _err(f"{WARNING_PREFIX}{path} is not in the files of item {args.item}; the reviewer will see it as outside the plan")
     if lock is not None and lock.active:
         for warning_text in lock.closed(result.sha):
             _err(f"{WARNING_PREFIX}{warning_text}")
@@ -989,6 +1061,8 @@ HANDLERS: dict[str, Handler] = {
     Command.CONFIG: cmd_config,
     Command.ROLE: cmd_role,
     Command.SCAN: cmd_scan,
+    Command.REVIEW_MAP: cmd_review_map,
+    Command.SCOPE: cmd_scope,
     Command.DECIDE: cmd_decide,
     Command.PLAN: cmd_plan,
     Command.REPORT: cmd_report,

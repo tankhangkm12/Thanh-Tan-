@@ -12,7 +12,7 @@ from agentflow.drift import drift_problems
 from agentflow.scan import scan_problems, tools_for_step
 from agentflow.scan_store import ScanStore
 from agentflow.models import Step, Task, Workflow
-from agentflow.plan import check_plan, parse_plan
+from agentflow.plan import check_plan, parse_plan, parse_requirements
 from agentflow.projectcontext import ProjectContext
 
 
@@ -32,10 +32,16 @@ def plan_report_path(workspace_dir: Path, task_id: str, step_id: str) -> Path:
     return workspace_dir / TASKS_DIR / task_id / REPORTS_DIR / f"{step_id}{MARKDOWN_SUFFIX}"
 
 
-def plan_problems(text: str, project: ProjectContext, answered: Collection[str] | None = None) -> list[str]:
+def requirements_of(workspace_dir: Path, task_id: str, first_step: str) -> tuple[str, ...]:
+    """The requirement codes (Y1, ...) listed in the confirm report of the task, or none."""
+    path = plan_report_path(workspace_dir, task_id, first_step)
+    return parse_requirements(path.read_text(encoding=ENCODING)) if path.is_file() else ()
+
+
+def plan_problems(text: str, project: ProjectContext, answered: Collection[str] | None = None, requirements: Collection[str] | None = None) -> list[str]:
     """Problems of a plan. ``answered`` are the questions a person answered; ``None`` skips that check (no task)."""
     plan = parse_plan(text)
-    found = check_plan(plan, project.roles, project.plan_rules, project.require_files, project.plan_wide_rules, answered)
+    found = check_plan(plan, project.roles, project.plan_rules, project.require_files, project.plan_wide_rules, answered, requirements)
     return [str(p) for p in found]
 
 
@@ -44,7 +50,8 @@ def _plan_valid(context: GateContext, task: Task, step: Step) -> list[str]:
     if not path.is_file():
         return [f"no plan report for step '{step.id}' yet (save it with `agentflow report --step {step.id}`)"]
     answered = answered_questions(context.workspace_dir, task.id)
-    return plan_problems(path.read_text(encoding=ENCODING), context.project, answered)
+    requirements = requirements_of(context.workspace_dir, task.id, context.workflow.steps[0].id)
+    return plan_problems(path.read_text(encoding=ENCODING), context.project, answered, requirements)
 
 
 def _scans_clean(context: GateContext, task: Task, step: Step) -> list[str]:

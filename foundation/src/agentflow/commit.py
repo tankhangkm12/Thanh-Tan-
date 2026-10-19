@@ -5,6 +5,7 @@ from typing import Protocol
 
 from agentflow.constants import COMMIT_PREFIX_SEPARATOR, PLAN_ITEM_TRAILER, ExitCode
 from agentflow.errors import AgentflowError
+from agentflow.ext_rules import file_listed
 from agentflow.interfaces import GitClient, SecretScanner, StateStore
 from agentflow.models import CommitResult
 from agentflow.plan import PlanItem
@@ -49,8 +50,9 @@ def commit_staged(
     if not git.has_staged_changes():
         raise AgentflowError("nothing is staged; `git add` the files to commit first", ExitCode.NOTHING_STAGED)
 
+    staged = git.staged_files()
     if rules is not None:
-        problems = rules.commit_problems(plan_items.get(item) if item and plan_items else None, git.staged_files())
+        problems = rules.commit_problems(plan_items.get(item) if item and plan_items else None, staged)
         if problems:
             raise AgentflowError("the commit is refused:\n  - " + "\n  - ".join(problems), ExitCode.PLAN_INVALID)
     scan = scanner.scan_staged(git.root)
@@ -59,4 +61,6 @@ def commit_staged(
 
     full_message = f"{task.id}{COMMIT_PREFIX_SEPARATOR}{message}"
     body = f"{full_message}\n\n{PLAN_ITEM_TRAILER}: {item}" if item else full_message
-    return CommitResult(git.commit(body), full_message)
+    listed = plan_items[item].files if item and plan_items and item in plan_items else None
+    outside = tuple(path for path in staged if not file_listed(path, listed)) if listed else ()
+    return CommitResult(git.commit(body), full_message, outside)

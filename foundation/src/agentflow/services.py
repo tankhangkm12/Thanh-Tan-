@@ -26,7 +26,7 @@ from agentflow.confirmations import Confirmations
 from agentflow.engine import next_action
 from agentflow.errors import AgentflowError
 from agentflow.fsutil import write_text_atomic
-from agentflow.gates import plan_problems, plan_report_path
+from agentflow.gates import plan_problems, plan_report_path, requirements_of
 from agentflow.convention_sources import answered_questions, load_effective_conventions
 from agentflow.models import (
     ConventionInfo,
@@ -113,7 +113,8 @@ class WorkspaceServices:
         if not path.is_file():
             raise AgentflowError(f"no plan report yet: {path}", ExitCode.PLAN_INVALID)
         project = load_project_context(self.paths.dir, workflow, task)
-        problems = plan_problems(path.read_text(encoding=ENCODING), project, answered_questions(self.paths.dir, task.id))
+        requirements = requirements_of(self.paths.dir, task.id, workflow.steps[0].id)
+        problems = plan_problems(path.read_text(encoding=ENCODING), project, answered_questions(self.paths.dir, task.id), requirements)
         return PlanCheckInfo(not problems, tuple(problems))
 
     def write_report(self, step: str, content: str) -> ReportInfo:

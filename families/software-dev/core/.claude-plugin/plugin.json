@@ -1,6 +1,6 @@
 {
   "name": "dev-core",
-  "version": "0.5.0",
+  "version": "0.6.0",
   "description": "Core of the software-dev family: shared workflow, standards and gates for all dev-* plugins",
   "author": {
     "name": "tankhangkm12"

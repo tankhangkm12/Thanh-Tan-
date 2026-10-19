@@ -117,3 +117,54 @@ def test_plan_check_refuses_an_unknown_tier_and_accepts_the_known_ones():
 
     assert found(_tiered("- tier: fast\n")) == [] and found(_tiered("- tier: deep\n")) == [] and found(_tiered("")) == []
     assert any("C1" in p and "tier 'turbo'" in p for p in found(_tiered("- tier: turbo\n")))
+
+
+def _plan_with_files(files):
+    return parse_plan(f"### C1 - Big\n- role: implementer\n- files: {files}\n- done-when: `uv run pytest`\n- docs: không có — none\n")
+
+
+def test_an_item_with_too_many_files_has_to_be_split():
+    many = ", ".join(f"src/f{n}.py" for n in range(11))
+    problems = check_plan(_plan_with_files(many), Roles("implementer"))
+    assert [p.code for p in problems] == ["C1"] and "split" in problems[0].message
+
+
+def test_an_item_at_the_limit_is_fine_and_a_folder_counts_once():
+    ten = ", ".join(f"src/f{n}.py" for n in range(10))
+    assert check_plan(_plan_with_files(ten), Roles("implementer")) == []
+    assert check_plan(_plan_with_files("src/, tests/, docs/"), Roles("implementer")) == []
+
+
+# ------------------------------------------------------------------ requirements of the confirm step covered by the plan
+
+
+def _covering(*covers):
+    items = "".join(
+        f"### C{n} - Do {n}\n- role: implementer\n- files: f{n}.py\n- covers: {cover}\n- done-when: `uv run pytest`\n- docs: không có — none\n\n"
+        for n, cover in enumerate(covers, 1)
+    )
+    return parse_plan(items)
+
+
+def test_requirements_are_read_from_the_confirm_report():
+    from agentflow.plan import parse_requirements
+
+    text = "# Confirmed\n\n## Yêu cầu\n- Y1: users can log in\n- Y2 - and log out\n* Y10: a long one\nY3 is mentioned in prose\n"
+    assert parse_requirements(text) == ("Y1", "Y2", "Y10")
+
+
+def test_an_item_carries_the_requirements_it_covers():
+    plan = _covering("Y1, y2")
+    assert plan.items[0].covers == ("Y1", "Y2")
+
+
+def test_every_requirement_has_to_be_covered_and_every_cover_has_to_exist():
+    problems = check_plan(_covering("Y1"), Roles("implementer"), requirements=("Y1", "Y2"))
+    assert [str(p) for p in problems] == ["requirement Y2 is not covered by any plan item (add `covers: Y2` to the item that does it)"]
+    problems = check_plan(_covering("Y1, Y9"), Roles("implementer"), requirements=("Y1",))
+    assert [(p.code, "Y9" in p.message) for p in problems] == [("C1", True)]
+
+
+def test_without_requirements_nothing_is_checked():
+    assert check_plan(_covering("Y1"), Roles("implementer"), requirements=None) == []
+    assert check_plan(_covering("Y1"), Roles("implementer"), requirements=()) == []
