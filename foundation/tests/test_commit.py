@@ -98,3 +98,37 @@ def test_no_active_task(gitflow_repo, workflow_file):
     with pytest.raises(AgentflowError) as exc:
         commit_staged(store, SubprocessGit(gitflow_repo), FakeScanner(), "x")
     assert exc.value.code is ExitCode.NO_ACTIVE_TASK
+
+
+# ------------------------------------------------------------------ files outside the plan item (a warning, never a refusal)
+
+
+def _item(*files):
+    from agentflow.plan import PlanItem
+
+    return {"C1": PlanItem(code="C1", title="t", files=tuple(files))}
+
+
+def test_a_staged_file_outside_the_files_of_the_item_is_reported(env):
+    store, client, repo = env
+    (repo / "b.txt").write_text("b", encoding="utf-8")
+    git(repo, "add", "b.txt")
+    result = commit_staged(store, client, FakeScanner(), "add", "C1", _item("a.txt"))
+    assert result.outside == ("b.txt",)
+
+
+def test_files_listed_by_name_folder_or_glob_are_not_reported(env):
+    store, client, repo = env
+    (repo / "src").mkdir()
+    (repo / "src" / "x.py").write_text("x", encoding="utf-8")
+    git(repo, "add", "src/x.py")
+    result = commit_staged(store, client, FakeScanner(), "add", "C1", _item("a.txt", "src/"))
+    assert result.outside == ()
+
+
+def test_nothing_is_reported_without_an_item_or_when_the_item_lists_no_files(env):
+    store, client, repo = env
+    assert commit_staged(store, client, FakeScanner(), "no item").outside == ()
+    (repo / "c.txt").write_text("c", encoding="utf-8")
+    git(repo, "add", "c.txt")
+    assert commit_staged(store, client, FakeScanner(), "empty list", "C1", _item()).outside == ()

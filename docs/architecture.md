@@ -130,6 +130,8 @@ Task trong `state.json` có `id` (`T-001`), `title`, `status` (`open`/`blocked`/
 | `agentflow task approve [--reason ...]` | Duyệt bước đang chờ; với task `blocked` là người cho làm tiếp (ghi `decisions/`) | Như trên |
 | `agentflow task cancel` | Hủy task đang mở | Không có task đang mở |
 | `agentflow task seal <id>` | Việc của người: ghi `summary.md` và tag duyệt cho task đã xong mà chưa có (`--commit <sha>` khi nhánh đã xóa) | Task chưa xong, đã có tag, không thấy commit |
+| `agentflow scope [--step <bước>]` | Chỉ đọc: phạm vi review của vòng này (cả task, hoặc từ commit mà vòng trước của bước đã xem, ghi trong `review-marks.json`), kèm lệnh `git diff`, commit và số dòng từng file | Không có task đang mở |
+| `agentflow review-map` | Ghi `tasks/<task>/review-map.md`: mỗi mục kế hoạch → commit, file, số dòng, kết quả lệnh agentflow đã chạy, file ngoài `files` của mục (cũng tự ghi khi `review` chờ duyệt) | Không có task đang mở |
 | `agentflow scan [--all]` | Chạy trong container các scan của bước hiện tại (bước `security`: Semgrep, Trivy, Gitleaks; plugin có thể thêm tool cho bước khác). Ghi `tasks/<task>/scans/` | Có phát hiện chặn (`SCAN_BLOCKED`), cây làm việc chưa sạch, engine container không chạy |
 | `agentflow decide --suppress <id> --reason ...` | Việc của người: ghi `decisions/<task>-suppress-<mã>.md` để bỏ qua một báo nhầm của scan | Không có phát hiện đó trong kết quả scan, thiếu `--reason` |
 | `agentflow ext add <file>` / `ext list` / `ext sync [tên] [--force]` | Đăng ký, liệt kê, đồng bộ extension (`add`, `sync` là việc của người) | File không hợp lệ, sai family, trùng role/tool, nguồn mất |

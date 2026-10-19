@@ -4,7 +4,7 @@ The real `core/workflow.yaml` locks at `test-spec` (`lock_on_approval`), the ste
 `locked-files-intact`, and the checklist of `test-spec` lists the files that will be locked. The tester declares test
 infrastructure under `## Hạ tầng test`, the implementer never touches the locked files, and the person changes an approved
 test with `agentflow tests amend`. USAGE, README, architecture, CHANGELOG and the dev-backend README describe it, with its
-limits. The versions go up here: agentflow 0.6.0, dev-core 0.5.0, dev-backend 0.3.0.
+limits. The versions go up here: agentflow 0.7.0, dev-core 0.6.0, dev-backend 0.3.0 (0.6.0 and 0.5.0 when the lock came; the review tools moved them on).
 
 Run with: uv run --with pyyaml --with pytest pytest tools
 """
@@ -30,7 +30,7 @@ CHANGELOG = REPO / "CHANGELOG.md"
 RELEASE = REPO / "docs" / "release.md"
 BACKEND_README = BACKEND / "README.md"
 
-AGENTFLOW_VERSION, CORE_VERSION, BACKEND_VERSION = "0.6.0", "0.5.0", "0.3.0"
+AGENTFLOW_VERSION, CORE_VERSION, BACKEND_VERSION = "0.7.0", "0.6.0", "0.3.0"
 
 
 def read(path: Path) -> str:

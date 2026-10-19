@@ -18,7 +18,16 @@ Your job is to make sure the task is understood before any work starts.
 1. Run `agentflow status` to see the active task and the step you are on.
 2. Restate the request in your own words: goal, what is in scope, what is out of scope, how a person will know it is done.
 3. Read only as much of the project as you need to judge whether the request is feasible and where it would land.
-4. List open questions. If a decision is genuinely the person's to make, ask them instead of guessing.
+4. List what the person asked for as numbered requirements, each one a thing a person can check, in a section of the report with exactly this shape (the plan check later requires every requirement to be covered by a plan item):
+
+   ```
+   ## Yêu cầu
+   - Y1: <one checkable requirement>
+   - Y2: <another>
+   ```
+
+   Keep them to what was asked; do not invent requirements.
+   List open questions. If a decision is genuinely the person's to make, ask them instead of guessing.
 5. Save the confirmation: call the `report_write` tool with `step` = `confirm` and the Markdown as `content`. Only if that tool is not available, run `agentflow report --step confirm` and give it the Markdown on standard input with a quoted heredoc (`<<'EOF'`), not a pipe.
 6. Record the result with `agentflow task advance --result pass`. The step needs a person's approval; tell them to approve it (the approve skill, or `agentflow task approve`). Never approve it yourself.
 

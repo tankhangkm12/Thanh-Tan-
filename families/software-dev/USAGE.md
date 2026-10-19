@@ -275,6 +275,21 @@ Cửa sổ không bỏ qua việc hash khác: file sửa mà chưa commit thì `
 - Agent chạy được mã tùy ý cùng quyền người dùng vẫn có thể tính lại hash và sửa `locked-files.json`; hash là tripwire, không phải ổ khóa. Chặn cứng cần sandbox hay quyền hệ điều hành. Đọc `decisions/` và `audit.jsonl` khi nghi ngờ.
 - `agentflow tests check` chạy được bất cứ lúc nào để thấy file nào đã lệch.
 
+## Review khi task quay lại sửa
+
+Mục tiêu: sau mỗi vòng sửa, reviewer và security chỉ đọc phần **đã đổi**, không đọc lại phần đã đúng.
+
+- Khi một vòng `security` hoặc `review` kết thúc (đạt hay trả về), agentflow ghi commit nó đã xem vào `tasks/<task>/review-marks.json`. `agentflow scope` (chỉ đọc) cho biết vòng này đọc gì: `scope: whole task` ở vòng đầu, `scope: since <commit>` ở các vòng sau, kèm lệnh `git diff` cần chạy, các commit và số dòng từng file. Mốc không còn trong nhánh (rebase) thì quay về cả task và nói rõ.
+- Prompt của `reviewer` và `security` bắt dùng `agentflow scope`. Ở vòng sau reviewer mở báo cáo bằng mục `## Phạm vi`, đóng từng must-fix cũ (`đã sửa ở <commit>` hoặc `còn`) và không nêu lỗi mới ở file ngoài phần đổi trừ khi thay đổi mới làm nó sai. Đây là quy định trong prompt, agentflow không kiểm bằng cổng.
+- `agentflow scan` vẫn quét cả task mỗi vòng (chạy bằng máy, không tốn token).
+- **Bản đồ review cho bạn:** khi `review` chờ duyệt, agentflow ghi `tasks/<task>/review-map.md` (cũng chạy được bằng `agentflow review-map`): với mỗi mục kế hoạch, các commit, file và số dòng, kết quả lệnh agentflow đã chạy gần nhất, file mục đã đổi mà dòng `files` của nó không liệt kê, commit không gắn mục nào. Dùng nó để biết nên đọc đâu trước. Nó tính từ git, không phải ý kiến của agent.
+- `agentflow commit --item Cn` in cảnh báo (không từ chối) cho file đã stage mà dòng `files` của mục không liệt kê.
+
+### Yêu cầu và độ lớn của mục kế hoạch
+
+- Báo cáo `confirm` liệt kê yêu cầu thành các dòng `- Y1: ...` trong mục `## Yêu cầu`. Mỗi mục kế hoạch ghi `covers: Y1, Y2`. `agentflow plan check` (cổng `plan-valid`) từ chối khi có yêu cầu không mục nào phủ hoặc mục phủ mã không có. Báo cáo `confirm` không liệt kê `Y` thì không kiểm. Cổng chỉ kiểm phủ, không kiểm hiểu đúng: bạn vẫn đọc ở checklist.
+- Mục kế hoạch tối đa 10 mục trong `files` (thư mục hay glob tính một): lớn hơn thì `plan check` yêu cầu chia nhỏ để diff của từng mục đủ nhỏ để review.
+
 ## Replan sau mỗi task
 
 Vòng làm việc: `setup` (một lần) → mission + roadmap → `task new --roadmap Rn` → confirm → plan → test-spec → implement → test → security → review → **replan** → task kế. Replan là bước giữa hai task: cập nhật hồ sơ dự án cho đúng với cái task thật sự đã làm. Nó **chỉ đề xuất**; bạn đọc rồi quyết.

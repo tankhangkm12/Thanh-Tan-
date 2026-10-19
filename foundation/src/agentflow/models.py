@@ -393,6 +393,8 @@ class CommitInfo:
 class CommitResult:
     sha: str
     message: str
+    # Staged files the plan item does not list (a warning for the person, never a refusal).
+    outside: tuple[str, ...] = ()
 
 
 @dataclass(frozen=True)

@@ -385,6 +385,8 @@ class Command(StrEnum):
     REPLAN = "replan"
     PLAN = "plan"
     SCAN = "scan"
+    REVIEW_MAP = "review-map"
+    SCOPE = "scope"
     DECIDE = "decide"
     EXT = "ext"
     CONFIG = "config"
@@ -785,6 +787,8 @@ class PlanField(StrEnum):
     KIND = "kind"
     TIER = "tier"
     LAYER = "layer"
+    # The requirements (Y1, Y2, ...) of the confirm report that the item fulfils.
+    COVERS = "covers"
     # Fields of a question under "Chưa có quy ước".
     ASK = "ask"
     OPTIONS = "options"

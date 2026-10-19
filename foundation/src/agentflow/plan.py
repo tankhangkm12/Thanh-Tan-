@@ -30,10 +30,13 @@ _BAD_HEADING = re.compile(r"^###\s+(\S+)")
 _FIELD = re.compile(r"^\s*[-*]\s+([A-Za-z-]+)\s*:\s*(.*?)\s*$")
 _FIELD_NAMES = {field.value: field for field in PlanField}
 _URL = re.compile(r"https?://\S+")
+_REQUIREMENT = re.compile(r"^\s*[-*]\s+(Y\d+)\s*[:\-—–]")
 _REASON_SEPARATOR = re.compile(r"^\s*[—–:-]+\s*(.+)$")
 _FILE_SEPARATOR = re.compile(r"\s*,\s*")
 _BACKTICKS = "`"
 _CODE_FENCE = "```"
+# An item that changes more entries than this is too big to review in one piece (a folder or a glob counts as one).
+MAX_ITEM_FILES = 10
 
 
 @dataclass(frozen=True)
@@ -52,6 +55,8 @@ class PlanItem:
     tier: str | None = None
     # One of the layers a ``layer-order`` convention declares (lower case); ``None`` when the item has no layer line.
     layer: str | None = None
+    # Codes of the confirm report's requirements (Y1, ...) this item fulfils.
+    covers: tuple[str, ...] = ()
 
     @property
     def effective_tier(self) -> str:
@@ -163,6 +168,8 @@ def _store(current: dict[str, object], field: PlanField, value: str) -> None:
             current["tier"] = value.strip(_BACKTICKS).strip().lower()
         case PlanField.LAYER:
             current["layer"] = value.strip(_BACKTICKS).strip().lower()
+        case PlanField.COVERS:
+            current["covers"] = tuple(part.strip(_BACKTICKS + " ").upper() for part in _FILE_SEPARATOR.split(value) if part.strip(_BACKTICKS + " "))
 
 
 def _parse_files(value: str) -> tuple[str, ...]:
@@ -192,8 +199,9 @@ def check_plan(
     require_files: bool = False,
     wide_rules: Sequence[PlanWideRule] = (),
     answered_questions: Collection[str] | None = None,
+    requirements: Collection[str] | None = None,
 ) -> list[PlanProblem]:
-    """Every problem found, so the planner can fix them in one go."""
+    """Every problem found, so the planner can fix them in one go. ``requirements`` are the codes of the confirm report."""
     problems: list[PlanProblem] = [PlanProblem(f"heading '### {name}' is not a valid item code (C1, C2, ...)") for name in plan.bad_headings]
     if not plan.items:
         problems.append(PlanProblem("the plan has no checklist items (### C1 - <title>)"))
@@ -209,7 +217,35 @@ def check_plan(
     for wide in wide_rules:
         problems += (PlanProblem(message, code) for code, message in wide.problems(plan.items))
     problems += _question_problems(plan, answered_questions)
+    problems += _requirement_problems(plan, requirements)
     return problems
+
+
+def parse_requirements(text: str) -> tuple[str, ...]:
+    """The requirement codes (``- Y1: ...``) a confirm report lists, in order."""
+    found: list[str] = []
+    for line in text.splitlines():
+        match = _REQUIREMENT.match(line)
+        if match and match.group(1) not in found:
+            found.append(match.group(1))
+    return tuple(found)
+
+
+def _requirement_problems(plan: Plan, requirements: Collection[str] | None) -> list[PlanProblem]:
+    """With requirements listed, each one needs an item that covers it, and an item may only cover a listed one."""
+    if not requirements:
+        return []
+    covered = {code for item in plan.items for code in item.covers}
+    found = [
+        PlanProblem(f"requirement {code} is not covered by any plan item (add `covers: {code}` to the item that does it)")
+        for code in requirements
+        if code not in covered
+    ]
+    for item in plan.items:
+        unknown = [code for code in item.covers if code not in requirements]
+        if unknown:
+            found.append(PlanProblem(f"covers {', '.join(unknown)}, which the confirm report does not list", item.code))
+    return found
 
 
 def _question_problems(plan: Plan, answered: Collection[str] | None) -> list[PlanProblem]:
@@ -248,4 +284,6 @@ def _item_problems(item: PlanItem, valid_roles: Iterable[str], require_files: bo
         found.append(PlanProblem(f"unknown tier '{item.tier}' (one of: {', '.join(PlanTier)}; no tier counts as {DEFAULT_PLAN_TIER})", item.code))
     if require_files and item.files is None:
         found.append(PlanProblem(f"missing '{PlanField.FILES}' (list the paths this item changes, or '{PLAN_NO_FILES_PREFIX}')", item.code))
+    if item.files is not None and len(item.files) > MAX_ITEM_FILES:
+        found.append(PlanProblem(f"lists {len(item.files)} files (the limit is {MAX_ITEM_FILES}): split it into smaller items, each easy to review", item.code))
     return found

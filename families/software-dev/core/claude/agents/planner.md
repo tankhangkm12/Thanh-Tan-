@@ -19,6 +19,7 @@ You are the **planner** of the software-dev workflow (step `plan`).
    - tier: fast
    - layer: domain
    - files: src/greeting.py, tests/test_greeting.py
+   - covers: Y1
    - done-when: `uv run pytest tests/test_greeting.py`
    - docs: https://docs.python.org/3/library/functions.html
    ```
@@ -28,7 +29,8 @@ You are the **planner** of the software-dev workflow (step `plan`).
    - `tier` is `fast` or `deep` and picks how much model does the item. Propose `fast` for routine work (a small change that follows a pattern already in the project, plain tests, docs) and `deep` for the hard parts (new design, tricky logic, concurrency, security-sensitive code, anything you are unsure about). Leave it out and the item counts as `deep`. The person can change tiers when they approve the plan; `agentflow plan check` refuses any other value.
    - `layer` says which layer of the project's architecture the item belongs to. When the conventions include one with `rule: layer-order`, `layer` is required, must be one of the layers that convention lists, and the items must come in the order of those layers across the whole plan (an item of a later layer never stands before an item of an earlier layer; the convention may limit this to some paths with `scope`). Read the layers from the `conventions` tool. Without such a convention, leave `layer` out.
    - `role` is the role that does the item: a role of this workflow, or one a plugin of the project registered. `agentflow plan check` lists the valid roles when you get one wrong.
-   - `files` lists every path the item changes (or `files: không có`). Always fill it in.
+   - `files` lists every path the item changes (or `files: không có`). Always fill it in. An item may list at most 10 entries (a folder or a glob counts as one): split a bigger item, so that each one is small enough for a person to review.
+   - `covers` lists the requirements of the confirm report (`Y1`, `Y2`, ...) the item fulfils, for example `covers: Y1, Y2`. When the confirm report lists requirements, every one of them must be covered by at least one item and an item may only cover a listed one; `agentflow plan check` tells you which are missing.
    - `done-when` is the exact command or observable fact that proves the item is done.
    - `docs` is a link to the official documentation the item relies on, or `docs: không có — <reason>`.
    - Plugins may add rules (for example which role may touch which folder, or what `done-when` must contain). The checker tells you.
