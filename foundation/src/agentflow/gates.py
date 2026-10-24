@@ -7,12 +7,13 @@ from pathlib import Path
 
 from agentflow.constants import DRIFT_HEADING, ENCODING, MARKDOWN_SUFFIX, REPORTS_DIR, TASKS_DIR, CheckKind, GateKind
 from agentflow.convention_sources import answered_questions, load_effective_conventions
-from agentflow import lockfiles, testspec
+from agentflow import lockfiles, stats, testspec
 from agentflow.drift import drift_problems
 from agentflow.scan import scan_problems, tools_for_step
 from agentflow.scan_store import ScanStore
 from agentflow.models import Step, Task, Workflow
-from agentflow.plan import check_plan, parse_plan, parse_requirements
+from agentflow.plan import check_plan, parse_plan, parse_requirement_texts, parse_requirements
+from agentflow.state import utc_now
 from agentflow.projectcontext import ProjectContext
 
 
@@ -91,6 +92,42 @@ def _conventions_reviewed(context: GateContext, task: Task, step: Step) -> list[
     return problems
 
 
+def requirement_texts_of(workspace_dir: Path, task_id: str, first_step: str) -> dict[str, str]:
+    """The requirements (Y1 to its text) listed in the confirm report of the task, or none."""
+    path = plan_report_path(workspace_dir, task_id, first_step)
+    return parse_requirement_texts(path.read_text(encoding=ENCODING)) if path.is_file() else {}
+
+
+def requirement_problems(text: str, requirements: Sequence[str]) -> list[str]:
+    """Each requirement must have a verdict line in the review report: ``Y1: đạt ...`` or ``Y1: chưa đạt ...``."""
+    problems: list[str] = []
+    for requirement in requirements:
+        code = re.escape(requirement)
+        lead = rf"(?im)^[\s>*-]*`?{code}`?(?![\w-])\s*[:\-–—]\s*"
+        if re.search(lead + r"chưa\s+đạt\b", text):
+            problems.append(
+                f"{requirement} is not met: a review that finds an unmet requirement fails "
+                "(`agentflow task advance --result fail`) so the implementer can finish it"
+            )
+        elif not re.search(lead + r"đạt\b", text):
+            problems.append(
+                f"{requirement} has no verdict: write `{requirement}: đạt ở <file:line or how it was checked>` "
+                f"or `{requirement}: chưa đạt — <what is missing>`"
+            )
+    return problems
+
+
+def _requirements_reviewed(context: GateContext, task: Task, step: Step) -> list[str]:
+    """The review report must say, for each requirement of the confirm report, whether the work meets it."""
+    wanted = requirements_of(context.workspace_dir, task.id, context.workflow.steps[0].id)
+    if not wanted:
+        return []
+    path = plan_report_path(context.workspace_dir, task.id, step.id)
+    if not path.is_file():
+        return [f"no report for step '{step.id}' yet: it must give a verdict for {', '.join(wanted)}"]
+    return requirement_problems(path.read_text(encoding=ENCODING), wanted)
+
+
 def _drift_reviewed(context: GateContext, task: Task, step: Step) -> list[str]:
     """The review report must say, in its `## Đề xuất cập nhật hồ sơ` section, whether the project documents need to change."""
     path = plan_report_path(context.workspace_dir, task.id, step.id)
@@ -128,6 +165,7 @@ CHECKS: dict[GateKind, GateCheck] = {
     GateKind.SCANS_CLEAN: _scans_clean,
     GateKind.CONVENTIONS_REVIEWED: _conventions_reviewed,
     GateKind.DRIFT_REVIEWED: _drift_reviewed,
+    GateKind.REQUIREMENTS_REVIEWED: _requirements_reviewed,
 }
 
 
@@ -147,8 +185,14 @@ class WorkspaceGates:
     def problems(self, task: Task, step: Step) -> list[str]:
         kinds = dict.fromkeys((*step.gates, *self.extra(step)))
         found: list[str] = []
+        refused: list[str] = []
         for kind in kinds:
             check = self.checks.get(kind)
             if check is not None:
-                found += [f"[{kind}] {message}" for message in check(self.context, task, step)]
+                messages = check(self.context, task, step)
+                found += [f"[{kind}] {message}" for message in messages]
+                if messages:
+                    refused.append(str(kind))
+        if refused:
+            stats.record_refusal(self.context.workspace_dir, task.id, step.id, refused, utc_now())
         return found

@@ -9,7 +9,7 @@ from dataclasses import dataclass, replace
 from importlib.metadata import version
 from pathlib import Path
 
-from agentflow import amend, lockfiles, lockflow
+from agentflow import amend, docpin, lockfiles, lockflow, stats
 from agentflow.assign import ProjectAgentNames, WorkflowAgentNames, assignment_lines
 from agentflow.convention_sources import load_effective_conventions
 from agentflow.services import WorkspaceServices
@@ -252,6 +252,10 @@ def build_parser() -> argparse.ArgumentParser:
     accept = state_commands.add_parser(StateCommand.ACCEPT, help="record why and trust state.json again (and clear what the audit log shows)")
     accept.add_argument("--reason", required=True, help="why you accept it")
 
+    stats_parser = commands.add_parser(Command.STATS, help="what the tasks cost: rounds, approvals, time by step, gates that refused a pass (read-only)")
+    stats_parser.add_argument("--task", default=None, help="only this task (T-001)")
+    stats_parser.add_argument("--json", action="store_true", help="print JSON instead of text")
+
     tests = commands.add_parser(Command.TESTS, help="the tests of the active task, run by agentflow itself")
     tests_commands = tests.add_subparsers(dest="tests_command", metavar="<tests command>", required=True)
     tests_commands.add_parser(TestsCommand.VERIFY_RED, help="at the test-spec step: run the commands of the report and check each one fails")
@@ -378,6 +382,8 @@ def cmd_status(args: argparse.Namespace) -> ExitCode:
         if task.roadmap:
             item = find_item(items_of(opened.paths.dir), task.roadmap)
             print(f"roadmap: {item.label if item else task.roadmap}")
+        for change in docpin.changes(opened.paths.dir, opened.paths.root, task.id):
+            _err(f"{WARNING_PREFIX}the document {change.path} {change.kind} since the task was approved: check the work still follows it")
     others = [t for t in state.tasks if t.status in IN_FLIGHT_TASK_STATUSES and t is not task]
     if others:
         print("other open tasks: " + ", ".join(f"{t.id} ({t.current_step}, {t.status})" for t in others))
@@ -505,8 +511,9 @@ def cmd_task(args: argparse.Namespace) -> ExitCode:
             locked, lock_warnings = (
                 lockflow.lock_on_approval(opened.paths.dir, opened.paths.root, opened.workflow, active, utc_now()) if active is not None else ([], [])
             )
+            pinned = docpin.pin_on_approval(opened.paths.dir, opened.paths.root, opened.workflow, active, utc_now()) if active is not None else []
             result = approve_task(store, opened.workflow, opened.paths.dir, utc_now, args.reason, _sealer(opened))
-            for line in locked:
+            for line in (*locked, *pinned):
                 print(line)
             for warning_text in lock_warnings:
                 _err(f"{WARNING_PREFIX}{warning_text}")
@@ -736,6 +743,19 @@ def cmd_scope(args: argparse.Namespace) -> ExitCode:
             print(f"    {path} (+{added} -{removed})")
     if not commits:
         print("nothing changed since the last round: report that the earlier findings still stand or are closed, and stop")
+    return ExitCode.OK
+
+
+def cmd_stats(args: argparse.Namespace) -> ExitCode:
+    opened = _open_workspace()
+    if args.task is not None and all(task.id != args.task for task in opened.state.tasks):
+        raise AgentflowError(f"no task {args.task} in this workspace", ExitCode.INVALID_INPUT)
+    found = stats.collect(opened.paths.dir, opened.state, args.task)
+    if args.json:
+        print(json.dumps([item.to_dict() for item in found], ensure_ascii=False, indent=2))
+    else:
+        for line in stats.render(found):
+            print(line)
     return ExitCode.OK
 
 
@@ -1073,6 +1093,7 @@ HANDLERS: dict[str, Handler] = {
     Command.ROADMAP: cmd_roadmap,
     Command.STATE: cmd_state,
     Command.TESTS: cmd_tests,
+    Command.STATS: cmd_stats,
     Command.REPLAN: cmd_replan,
     Command.CONVENTIONS: cmd_conventions,
     Command.KNOWLEDGE: cmd_knowledge,

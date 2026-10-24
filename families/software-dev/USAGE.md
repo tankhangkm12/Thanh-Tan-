@@ -173,6 +173,7 @@ Ba chỗ cần bạn duyệt: `confirm`, `plan`, `review`. Duyệt bằng `/dev-
 - [ ] Phạm vi và ngoài phạm vi khớp những gì bạn viết, không thêm, không bớt.
 - [ ] Tiêu chí "Xong khi" kiểm được bằng lệnh hoặc quan sát cụ thể.
 - [ ] Mọi câu hỏi mở đã được bạn trả lời, không để agent đoán.
+- [ ] Mục `## Tài liệu` liệt kê đúng các tài liệu task làm theo (đường dẫn trong dự án hoặc link), hoặc `không có`.
 
 **Plan — Vào workspace và lập kế hoạch** (`plan`)
 - [ ] Mỗi mục có `done-when` là lệnh hoặc sự kiện kiểm được, không phải lời mô tả mơ hồ.
@@ -198,7 +199,9 @@ Ba chỗ cần bạn duyệt: `confirm`, `plan`, `review`. Duyệt bằng `/dev-
 - [ ] Thay đổi đúng kế hoạch đã duyệt, không có việc ngoài phạm vi.
 - [ ] `summary.md` và kết quả scan (`.agentflow/tasks/<task>/scans/`) không còn phát hiện chặn nào chưa giải thích.
 - [ ] "Bài học đề xuất" đáng giữ thì đưa về kho: `agentflow knowledge push .agentflow/tasks/<task>/lessons/L1.md`.
+- Thêm tự động: một ô `Y<n>` cho mỗi yêu cầu của bước `confirm`, review phải ghi `Y<n>: đạt` hoặc `Y<n>: chưa đạt` (`review-requirements`).
 - Thêm tự động: một ô `PC-xx` cho mỗi quy ước `check: review` đang hiệu lực (`review-conventions`).
+- Thêm tự động: một ô `TL<n>` cho mỗi tài liệu ở mục `## Tài liệu` đã đổi từ lúc bạn duyệt `confirm` (`changed-docs`); không đổi thì không có ô.
 - Thêm tự động: một ô `D<n>` cho mỗi đề xuất ở mục `## Đề xuất cập nhật hồ sơ` (`drift-proposals`).
 
 <!-- END:checklists -->
@@ -289,6 +292,16 @@ Mục tiêu: sau mỗi vòng sửa, reviewer và security chỉ đọc phần **
 
 - Báo cáo `confirm` liệt kê yêu cầu thành các dòng `- Y1: ...` trong mục `## Yêu cầu`. Mỗi mục kế hoạch ghi `covers: Y1, Y2`. `agentflow plan check` (cổng `plan-valid`) từ chối khi có yêu cầu không mục nào phủ hoặc mục phủ mã không có. Báo cáo `confirm` không liệt kê `Y` thì không kiểm. Cổng chỉ kiểm phủ, không kiểm hiểu đúng: bạn vẫn đọc ở checklist.
 - Mục kế hoạch tối đa 10 mục trong `files` (thư mục hay glob tính một): lớn hơn thì `plan check` yêu cầu chia nhỏ để diff của từng mục đủ nhỏ để review.
+- **Review kết luận từng yêu cầu.** Cổng `requirements-reviewed` (bước `review`) đòi báo cáo review có một dòng cho **mỗi** `Y` của `confirm`: `Y1: đạt ở <file:dòng hoặc cách kiểm>`, hoặc `Y1: chưa đạt — <còn thiếu gì>`. Thiếu dòng thì bước không qua; có `chưa đạt` thì review phải `fail` để implementer làm tiếp. Checklist duyệt `review` có một ô `Y<n>` cho mỗi yêu cầu, kèm văn bản của nó, để bạn đối chiếu. Cổng chỉ kiểm có kết luận, không kiểm kết luận đúng.
+
+### Tài liệu của task (ghim lúc duyệt confirm)
+
+Báo cáo `confirm` có mục `## Tài liệu`: mỗi dòng một đường dẫn trong dự án (file hoặc thư mục) hoặc một link, hoặc `- không có`. Khi bạn duyệt `confirm`, agentflow ghi sha256 của từng đường dẫn vào `tasks/<task>/docs-pinned.json` (thư mục: mọi file bên trong, bỏ qua `.git`, `node_modules`...). Sau đó:
+
+- `agentflow status` cảnh báo tài liệu nào đã đổi, mất, hoặc trước không có mà nay có;
+- checklist duyệt `review` có thêm một ô `TL<n>` cho mỗi tài liệu đã đổi: bạn phải tick, tức là xác nhận công việc vẫn đúng với bản tài liệu bạn muốn. Không đổi thì không có ô nào.
+
+Link (`https://...`) được ghi lại nhưng không so được. Muốn agentflow theo dõi thì để tài liệu trong repo (hoặc một thư mục trên máy, ghi đường dẫn tuyệt đối). Task mở trước khi nâng cấp không có bản ghim.
 
 ## Replan sau mỗi task
 
@@ -343,6 +356,7 @@ Chi phí tăng theo kích thước ngữ cảnh: mỗi yêu cầu gửi lại c�
 - **Xem mức dùng:** `/usage` (Claude Code), hiện cả mức dùng của phiên và phần nào do skill, subagent, plugin hay MCP server. Antigravity: `/usage` mở bảng hạn mức theo từng model.
 - Phiên mở cả ngày vẫn tốn cho toàn bộ lịch sử ở mỗi lần hỏi; quay lại sau một khoảng nghỉ dài cũng làm cache hết hạn. `/clear` không tốn gì.
 - Dùng Sonnet cho phiên, hạ effort khi chạy (xem [Chọn chế độ](#chọn-chế-độ)), và chọn `small` cho việc nhỏ.
+- **Đo bằng `agentflow stats`** (chỉ đọc, `--task T-001` cho một task, `--json` để xử lý tiếp): mỗi task tốn bao lâu và bao nhiêu phần là chờ bạn duyệt, số lần duyệt, số vòng làm lại và ở bước nào, task có bị `blocked` không, cổng nào đã chặn `pass` bao nhiêu lần (đọc từ `tasks/<task>/gate-log.jsonl`, agentflow ghi mỗi lần cổng từ chối). Có nhiều task thì có dòng tổng. agentflow không biết số token: xem `/usage` của CLI và ghi kèm. Cổng chặn nhiều mà ít khi bắt lỗi thật là chỗ nên xem lại; task nhỏ mà tốn nhiều vòng thì nên chọn `small`.
 
 ## Xử lý tình huống
 

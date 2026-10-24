@@ -46,6 +46,8 @@ class Step:
     approval_items: tuple[ApprovalItem, ...] = ()
     # When a person approves this step, the files named by its report are locked (see lockfiles.py).
     lock_on_approval: bool = False
+    # When a person approves this step, the documents its report names are pinned (see docpin.py).
+    pin_docs_on_approval: bool = False
 
     @property
     def has_checklist(self) -> bool:
@@ -130,6 +132,7 @@ def _step_from_dict(data: Mapping[str, Any]) -> Step:
         approval_checklist=tuple(data.get(WorkflowKey.APPROVAL_CHECKLIST, ())),
         approval_items=tuple(ApprovalItem(item) for item in data.get(WorkflowKey.APPROVAL_ITEMS, ())),
         lock_on_approval=bool(data.get(WorkflowKey.LOCK_ON_APPROVAL, False)),
+        pin_docs_on_approval=bool(data.get(WorkflowKey.PIN_DOCS_ON_APPROVAL, False)),
     )
 
 

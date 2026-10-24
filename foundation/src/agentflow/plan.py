@@ -223,12 +223,17 @@ def check_plan(
 
 def parse_requirements(text: str) -> tuple[str, ...]:
     """The requirement codes (``- Y1: ...``) a confirm report lists, in order."""
-    found: list[str] = []
+    return tuple(parse_requirement_texts(text))
+
+
+def parse_requirement_texts(text: str) -> dict[str, str]:
+    """The requirements (``- Y1: <text>``) a confirm report lists, code to text, in order; the first line of a code wins."""
+    found: dict[str, str] = {}
     for line in text.splitlines():
         match = _REQUIREMENT.match(line)
         if match and match.group(1) not in found:
-            found.append(match.group(1))
-    return tuple(found)
+            found[match.group(1)] = line[match.end() :].strip()
+    return found
 
 
 def _requirement_problems(plan: Plan, requirements: Collection[str] | None) -> list[PlanProblem]:

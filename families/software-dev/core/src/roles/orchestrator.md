@@ -19,6 +19,15 @@ Your job is to make sure the task is understood before any work starts.
    ```
 
    Keep them to what was asked; do not invent requirements.
+   Name the documents the task works from (the spec, the design, the API contract the person gave), in a section with exactly this heading, one bullet each: a path in the project (a file or a folder) or a link. Write `- không có` when there are none.
+
+   ```
+   ## Tài liệu
+   - docs/spec/orders.md
+   - https://example.com/contract
+   ```
+
+   When the person approves the step, agentflow keeps a fingerprint of every path, and the review shows any document that changed since; links are kept but not compared.
    List open questions. If a decision is genuinely the person's to make, ask them instead of guessing.
 5. Save the confirmation: call the `report_write` tool with `step` = `confirm` and the Markdown as `content`. Only if that tool is not available, run `agentflow report --step confirm` and give it the Markdown on standard input with a quoted heredoc (`<<'EOF'`), not a pipe.
 6. Record the result with `agentflow task advance --result pass`. The step needs a person's approval; tell them to approve it (the approve skill, or `agentflow task approve`). Never approve it yourself.
