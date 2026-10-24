@@ -8,6 +8,10 @@ Repo chứa nhiều thành phần có số phiên bản riêng: `agentflow` (fou
 
 ### Added
 
+- `agentflow stats [--task T-001] [--json]` (agentflow, chỉ đọc): mỗi task tốn bao lâu (và bao nhiêu là chờ người duyệt), số lần duyệt, số vòng làm lại theo bước, số lần `blocked`, và cổng nào đã từ chối `pass` bao nhiêu lần; dòng tổng khi có nhiều task. Mỗi lần cổng từ chối, agentflow ghi một dòng vào `tasks/<task>/gate-log.jsonl`. README Bước 4 thêm `agentflow stats` vào `allow`.
+- Ghim tài liệu (dev-core, agentflow): bước khai `pin_docs_on_approval: true` (`confirm`) ghi sha256 của các đường dẫn ở mục `## Tài liệu` của báo cáo (file hoặc thư mục; link chỉ ghi lại) vào `tasks/<task>/docs-pinned.json` khi người duyệt. Tài liệu đổi, mất hoặc mới xuất hiện sau đó: `agentflow status` cảnh báo, và nguồn checklist mới `changed-docs` (bước `review`) thêm một ô `TL<n>` phải tick. Prompt `orchestrator` viết mục `## Tài liệu`.
+- Review kết luận từng yêu cầu (dev-core, agentflow): cổng mới `requirements-reviewed` (bước `review`) đòi `Y1: đạt ...` hoặc `Y1: chưa đạt ...` cho mỗi yêu cầu của `confirm`; `chưa đạt` thì không cho `pass`. Nguồn checklist mới `review-requirements` thêm một ô `Y<n>` kèm văn bản yêu cầu. Prompt `reviewer` ghi các dòng này. Cần `agentflow workflow sync` cho workspace có sẵn.
+
 - Review chỉ phần đã đổi (dev-core, agentflow): vòng `security` hoặc `review` kết thúc thì agentflow ghi commit đã xem vào `tasks/<task>/review-marks.json`; lệnh chỉ đọc mới `agentflow scope [--step]` cho biết vòng này đọc gì (cả task ở vòng đầu, từ mốc ở các vòng sau, kèm `git diff`, commit, số dòng). Prompt `reviewer` và `security` dùng lệnh này; vòng sau reviewer mở bằng `## Phạm vi` và đóng từng must-fix cũ. `agentflow scan` vẫn quét cả task. Bản đồ review cho người: `agentflow review-map` và tự ghi khi `review` chờ duyệt (`review-map.md`: mục kế hoạch → commit, file, số dòng, kết quả lệnh agentflow chạy, file ngoài `files` của mục).
 - Truy vết yêu cầu: báo cáo `confirm` liệt kê `- Y1: ...` ở mục `## Yêu cầu`; mục kế hoạch khai `covers: Y1, ...`; `plan check` từ chối yêu cầu không được phủ và `covers` trỏ mã không có (không kiểm khi `confirm` không liệt kê `Y`). Mục kế hoạch tối đa 10 mục trong `files`.
 - `agentflow commit --item` cảnh báo (không từ chối) file đã stage nằm ngoài `files` của mục.
@@ -43,6 +47,10 @@ Repo chứa nhiều thành phần có số phiên bản riêng: `agentflow` (fou
 - Chế độ nhẹ: `agentflow task new --size small|normal` (mặc định `normal`). Mục `sizes` trong `workflow.yaml` mô tả cỡ (bước bỏ duyệt, số mục kế hoạch tối đa, tool scan theo bước); `small` của dev-core bỏ duyệt `plan` (vẫn kiểm `plan check`), tối đa 3 mục, bước `security` chỉ chạy Gitleaks và Semgrep. Size nằm trong `state.json`, `STATE.md`, `status` và `summary.md`. Skill `start` và prompt planner biết cỡ nhỏ.
 
 - Cấp tool theo dự án cho role: `agentflow role grant|revoke|list|sync` (việc của người). Claude Code: sinh `.claude/agents/project-<agent>.md` cục bộ (loại khỏi git qua `.git/info/exclude`) mang thêm tool MCP đã cấp, không sửa plugin; Antigravity chỉ ghi nhận. Role chỉ đọc (`read_only_roles` trong `workflow.yaml`) chỉ nhận tool đọc, đúng tên. `plan assign --cli` trả tên agent cấp dự án khi có. Hook chặn agent ghi vào `project-*.md`.
+
+### Fixed
+
+- Khóa test trên Linux và macOS (agentflow): đường dẫn kiểu Windows trong lệnh (`Remove-Item .\tests\x.py`) giờ được đọc với `\` là dấu phân cách, nên không lọt qua khóa.
 
 ### Changed
 

@@ -329,6 +329,8 @@ ITEM_SOURCES = {
     "spec-items": "một ô `C<n>` cho mỗi mục kế hoạch, kèm test, lệnh và kết quả agentflow tự chạy lại (`spec-items`)",
     "drift-proposals": "một ô `D<n>` cho mỗi đề xuất ở mục `## Đề xuất cập nhật hồ sơ` (`drift-proposals`)",
     "locked-files": "một ô `L<n>` cho mỗi file sẽ bị khóa khi bạn duyệt: file test, file hạ tầng test, cấu hình test (`locked-files`)",
+    "review-requirements": "một ô `Y<n>` cho mỗi yêu cầu của bước `confirm`, review phải ghi `Y<n>: đạt` hoặc `Y<n>: chưa đạt` (`review-requirements`)",
+    "changed-docs": "một ô `TL<n>` cho mỗi tài liệu ở mục `## Tài liệu` đã đổi từ lúc bạn duyệt `confirm` (`changed-docs`); không đổi thì không có ô",
 }
 
 

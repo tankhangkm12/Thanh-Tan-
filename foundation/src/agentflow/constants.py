@@ -15,6 +15,10 @@ STATE_FILE = "state.json"
 STATE_MD_FILE = "STATE.md"
 INTEGRITY_FILE = "integrity.json"
 AUDIT_FILE = "audit.jsonl"
+# Per task: one line each time a gate refuses a pass (read by `agentflow stats`).
+GATE_LOG_FILE = "gate-log.jsonl"
+# Per task: the sha256 of the documents the confirm report names, taken when a person approves it.
+DOCS_PINNED_FILE = "docs-pinned.json"
 CONFIG_FILE = "config.yaml"
 WORKFLOW_COPY_FILE = "workflow.yaml"
 DECISIONS_DIR = "decisions"
@@ -92,6 +96,8 @@ LESSONS_DIR = "lessons"
 LESSONS_HEADING = "Bài học đề xuất"
 # The review report section where the reviewer says whether the project documents must change.
 DRIFT_HEADING = "Đề xuất cập nhật hồ sơ"
+# The confirm report section that names the documents the task works from (paths in the project, or links).
+DOCS_HEADING = "Tài liệu"
 CHECKLIST_HEADING = "Checklist"
 CHECKLIST_NOTES_HEADING = "Ghi chú của bạn"
 CHECKLIST_OPTIONAL_MARK = "(tùy chọn)"
@@ -100,6 +106,7 @@ CHECKLIST_FIXED_PREFIX = "K"
 CHECKLIST_PLAN_PREFIX = "C"
 CHECKLIST_DRIFT_PREFIX = "D"
 CHECKLIST_LOCK_PREFIX = "L"
+CHECKLIST_DOCS_PREFIX = "TL"
 DRIFT_NONE_TEXT = "không có"
 
 # Secret scanning with Gitleaks in a container. The image is pinned on purpose.
@@ -393,6 +400,7 @@ class Command(StrEnum):
     ROLE = "role"
     STATE = "state"
     TESTS = "tests"
+    STATS = "stats"
 
 
 class TestsCommand(StrEnum):
@@ -654,6 +662,7 @@ class WorkflowKey(StrEnum):
     APPROVAL_CHECKLIST = "approval_checklist"
     APPROVAL_ITEMS = "approval_items"
     LOCK_ON_APPROVAL = "lock_on_approval"
+    PIN_DOCS_ON_APPROVAL = "pin_docs_on_approval"
     TIERED_ROLES = "tiered_roles"
     SIZES = "sizes"
     READ_ONLY_ROLES = "read_only_roles"
@@ -678,6 +687,8 @@ class ApprovalItem(StrEnum):
     DRIFT_PROPOSALS = "drift-proposals"
     SPEC_ITEMS = "spec-items"
     LOCKED_FILES = "locked-files"
+    REVIEW_REQUIREMENTS = "review-requirements"
+    CHANGED_DOCS = "changed-docs"
 
 
 class GateKind(StrEnum):
@@ -690,6 +701,7 @@ class GateKind(StrEnum):
     TEST_SPEC_VALID = "test-spec-valid"
     TESTS_PASS = "tests-pass"
     LOCKED_FILES_INTACT = "locked-files-intact"
+    REQUIREMENTS_REVIEWED = "requirements-reviewed"
 
 
 class PlanCommand(StrEnum):

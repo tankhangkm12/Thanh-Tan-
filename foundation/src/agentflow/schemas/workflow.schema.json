@@ -89,6 +89,7 @@
         "role": { "$ref": "#/$defs/identifier" },
         "requires_approval": { "type": "boolean", "default": false },
         "lock_on_approval": { "type": "boolean", "default": false, "description": "When a person approves this step, lock the files of its report (see lockfiles.py)." },
+        "pin_docs_on_approval": { "type": "boolean", "default": false, "description": "When a person approves this step, keep the sha256 of the documents its report lists under '## Tài liệu' (see docpin.py)." },
         "on_fail": { "$ref": "#/$defs/identifier" },
         "approval_checklist": {
           "type": "array",
@@ -97,12 +98,12 @@
         "approval_items": {
           "type": "array",
           "uniqueItems": true,
-          "items": { "enum": ["plan-items", "review-conventions", "drift-proposals", "spec-items", "locked-files"] }
+          "items": { "enum": ["plan-items", "review-conventions", "drift-proposals", "spec-items", "locked-files", "review-requirements", "changed-docs"] }
         },
         "gates": {
           "type": "array",
           "uniqueItems": true,
-          "items": { "enum": ["plan-valid", "scans-clean", "conventions-reviewed", "drift-reviewed", "test-spec-valid", "tests-pass", "locked-files-intact"] }
+          "items": { "enum": ["plan-valid", "scans-clean", "conventions-reviewed", "drift-reviewed", "test-spec-valid", "tests-pass", "locked-files-intact", "requirements-reviewed"] }
         }
       }
     }

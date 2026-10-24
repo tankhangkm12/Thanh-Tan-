@@ -34,11 +34,15 @@ steps:
     name: Xác nhận task
     role: orchestrator
     requires_approval: true
+    # When a person approves, agentflow keeps the sha256 of the documents under `## Tài liệu` (docs-pinned.json); a document
+    # that changed since shows up in the review checklist (`changed-docs`) and in `agentflow status`.
+    pin_docs_on_approval: true
     approval_checklist:
       - Phần "Mục tiêu" được nhắc lại đúng ý bạn.
       - Phạm vi và ngoài phạm vi khớp những gì bạn viết, không thêm, không bớt.
       - Tiêu chí "Xong khi" kiểm được bằng lệnh hoặc quan sát cụ thể.
       - Mọi câu hỏi mở đã được bạn trả lời, không để agent đoán.
+      - Mục `## Tài liệu` liệt kê đúng các tài liệu task làm theo (đường dẫn trong dự án hoặc link), hoặc `không có`.
 
   - id: plan
     name: Vào workspace và lập kế hoạch
@@ -92,7 +96,7 @@ steps:
     name: Review
     role: reviewer
     requires_approval: true
-    gates: [locked-files-intact, conventions-reviewed, drift-reviewed]
+    gates: [locked-files-intact, conventions-reviewed, requirements-reviewed, drift-reviewed]
     on_fail: implement
     approval_checklist:
       - Mục "must fix" đã xử lý hoặc có lý do rõ ràng.
@@ -100,4 +104,4 @@ steps:
       - Thay đổi đúng kế hoạch đã duyệt, không có việc ngoài phạm vi.
       - "`summary.md` và kết quả scan (`.agentflow/tasks/<task>/scans/`) không còn phát hiện chặn nào chưa giải thích."
       - '"Bài học đề xuất" đáng giữ thì đưa về kho: `agentflow knowledge push .agentflow/tasks/<task>/lessons/L1.md`.'
-    approval_items: [review-conventions, drift-proposals]
+    approval_items: [review-requirements, review-conventions, changed-docs, drift-proposals]

@@ -31,6 +31,10 @@ class LockPolicy:
         text = os.fspath(target)
         if not text:
             return False
+        if os.sep == "/":
+            # A model may write a Windows path (``.\tests\x.py``) on any platform: read a backslash as a separator,
+            # as ``WorkspaceWritePolicy`` does, so the lock is not missed.
+            text = text.replace("\\", "/")
         if not os.path.isabs(text):
             text = os.path.join(cwd, text)
         resolved = os.path.realpath(text)

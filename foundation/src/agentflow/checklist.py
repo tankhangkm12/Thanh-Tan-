@@ -27,8 +27,9 @@ import re
 from dataclasses import dataclass
 from pathlib import Path
 
-from agentflow import audit
+from agentflow import audit, docpin
 from agentflow.constants import (
+    CHECKLIST_DOCS_PREFIX,
     CHECKLIST_DRIFT_PREFIX,
     CHECKLIST_FIXED_PREFIX,
     CHECKLIST_LOCK_PREFIX,
@@ -53,7 +54,7 @@ from agentflow.convention_sources import load_effective_conventions
 from agentflow.drift import drift_section
 from agentflow.errors import AgentflowError
 from agentflow.fsutil import write_text_atomic
-from agentflow.gates import plan_report_path
+from agentflow.gates import plan_report_path, requirement_texts_of
 from agentflow.integrity import ACCEPT_HINT, Integrity, sha256_hex
 from agentflow.models import Step, Task, Workflow
 from agentflow import lockfiles, testspec
@@ -220,6 +221,30 @@ def _locked_files(workspace_dir: Path, task: Task, step: Step) -> list[Item]:
     return found
 
 
+def _review_requirements(workspace_dir: Path, workflow: Workflow, task: Task) -> list[Item]:
+    """One line per requirement of the confirm report: the person checks the work meets it (the review gives a verdict)."""
+    texts = requirement_texts_of(workspace_dir, task.id, workflow.steps[0].id)
+    return [Item(code, f"{text} (the review says `{code}: đạt` and where)") for code, text in texts.items()]
+
+
+_DOC_CHANGE_TEXT = {
+    docpin.CHANGED: "changed",
+    docpin.MISSING: "is gone",
+    docpin.APPEARED: "did not exist then and does now",
+}
+
+
+def _changed_docs(workspace_dir: Path, task: Task) -> list[Item]:
+    """One line per pinned document that is not as it was when a person approved the step that named it."""
+    return [
+        Item(
+            f"{CHECKLIST_DOCS_PREFIX}{number}",
+            f"{change.path} {_DOC_CHANGE_TEXT[change.kind]} since you approved the task: the work follows the version you want",
+        )
+        for number, change in enumerate(docpin.changes(workspace_dir, workspace_dir.parent, task.id), 1)
+    ]
+
+
 def build_items(workspace_dir: Path, workflow: Workflow, task: Task, step: Step) -> list[Item]:
     items = _fixed(step)
     for source in step.approval_items:
@@ -234,6 +259,10 @@ def build_items(workspace_dir: Path, workflow: Workflow, task: Task, step: Step)
                 items += _spec_items(workspace_dir, workflow, task, step)
             case ApprovalItem.LOCKED_FILES:
                 items += _locked_files(workspace_dir, task, step)
+            case ApprovalItem.REVIEW_REQUIREMENTS:
+                items += _review_requirements(workspace_dir, workflow, task)
+            case ApprovalItem.CHANGED_DOCS:
+                items += _changed_docs(workspace_dir, task)
     if task.roadmap and workflow.steps[-1].id == step.id:
         items.append(Item(CHECKLIST_ROADMAP_CODE, f"Mục {task.roadmap} đã hoàn thành?", optional=True))
     return items
