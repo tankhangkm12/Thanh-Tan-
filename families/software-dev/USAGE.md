@@ -74,7 +74,26 @@ Dự án phải là repo git có nhánh `main` và `develop`, cây làm việc s
 
 ## Khuôn yêu cầu task
 
-Khuôn này là đầu vào của bước `confirm`. Gõ `/dev-core:start` (Antigravity: nhờ agent dùng skill `start`), rồi dán khuôn đã điền:
+**Khi đã có docs và roadmap (cách nên dùng):** chỉ cần gõ
+
+```
+/dev-core:start làm R2
+```
+
+(hoặc `/dev-core:start làm tiếp` để lấy mục gợi ý tiếp theo; Antigravity: "dùng skill start, làm R2"). Skill lấy tiêu đề từ mục roadmap; orchestrator chạy `agentflow roadmap show R2`, đọc `goal` và **mọi** tài liệu ở dòng `docs` của mục, rồi tự viết mục tiêu, phạm vi, ngoài phạm vi và các yêu cầu. Nó chỉ hỏi bạn khi tài liệu mâu thuẫn hoặc để ngỏ một quyết định.
+
+**Mỗi yêu cầu phải có nguồn.** Mỗi dòng `- Y1: ...` của báo cáo `confirm` kết thúc bằng `(nguồn: <tài liệu>:<dòng>)` (hoặc `:<dòng>-<dòng>`, `#<mục>`, nhiều nguồn cách nhau bằng `;`), hoặc `(nguồn: người dùng)` khi đó là lời bạn mà tài liệu không có. Cổng `requirements-sourced` (bước `confirm`) kiểm từng nguồn: phải là tài liệu ở mục `## Tài liệu` của báo cáo (hay file trong thư mục được liệt kê, hay link được liệt kê), file phải có thật và dòng phải nằm trong file. Thiếu hay sai thì bước không qua. Cổng không biết yêu cầu có đúng ý tài liệu không: phần đó bạn kiểm ở checklist (đối chiếu từng `Y` với chỗ nó ghi, và các `nguồn: người dùng`).
+
+Ví dụ mục `## Yêu cầu`, với mục `## Tài liệu` liệt kê `docs/spec/inventory.md` và `openapi.yaml`:
+
+```
+- Y1: Giữ hàng trừ số lượng khả dụng (nguồn: docs/spec/inventory.md:42)
+- Y2: Không cho tồn kho âm khi hai đơn giữ cùng lúc (nguồn: docs/spec/inventory.md:47)
+- Y3: POST /reservations trả 409 khi hết hàng (nguồn: openapi.yaml)
+- Y4: Ghi log mỗi lần giữ hàng thất bại (nguồn: người dùng)
+```
+
+**Khi không có roadmap hay docs:** gõ `/dev-core:start` (Antigravity: nhờ agent dùng skill `start`), rồi dán khuôn đã điền (mọi yêu cầu khi đó có nguồn `người dùng`):
 
 ```
 Loại: feature | bugfix | hotfix | refactor | chore        Cỡ: normal | small
@@ -174,6 +193,7 @@ Ba chỗ cần bạn duyệt: `confirm`, `plan`, `review`. Duyệt bằng `/dev-
 - [ ] Tiêu chí "Xong khi" kiểm được bằng lệnh hoặc quan sát cụ thể.
 - [ ] Mọi câu hỏi mở đã được bạn trả lời, không để agent đoán.
 - [ ] Mục `## Tài liệu` liệt kê đúng các tài liệu task làm theo (đường dẫn trong dự án hoặc link), hoặc `không có`.
+- [ ] Mỗi yêu cầu `Y` lấy đúng ý của chỗ nó ghi ở `(nguồn: ...)`, và yêu cầu ghi `nguồn: người dùng` đúng là lời bạn; không có yêu cầu nào agent tự thêm.
 
 **Plan — Vào workspace và lập kế hoạch** (`plan`)
 - [ ] Mỗi mục có `done-when` là lệnh hoặc sự kiện kiểm được, không phải lời mô tả mơ hồ.

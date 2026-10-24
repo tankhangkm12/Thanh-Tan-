@@ -445,6 +445,7 @@ class ProjectCommand(StrEnum):
 
 class RoadmapCommand(StrEnum):
     LIST = "list"
+    SHOW = "show"
     SET = "set"
 
 
@@ -732,6 +733,7 @@ class GateKind(StrEnum):
     TESTS_PASS = "tests-pass"
     LOCKED_FILES_INTACT = "locked-files-intact"
     REQUIREMENTS_REVIEWED = "requirements-reviewed"
+    REQUIREMENTS_SOURCED = "requirements-sourced"
 
 
 class PlanCommand(StrEnum):

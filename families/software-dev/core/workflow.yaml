@@ -42,12 +42,15 @@ steps:
     # When a person approves, agentflow keeps the sha256 of the documents under `## Tài liệu` (docs-pinned.json); a document
     # that changed since shows up in the review checklist (`changed-docs`) and in `agentflow status`.
     pin_docs_on_approval: true
+    # Every requirement ends with `(nguồn: <document>:<line>)` (a document of `## Tài liệu`) or `(nguồn: người dùng)`.
+    gates: [requirements-sourced]
     approval_checklist:
       - Phần "Mục tiêu" được nhắc lại đúng ý bạn.
       - Phạm vi và ngoài phạm vi khớp những gì bạn viết, không thêm, không bớt.
       - Tiêu chí "Xong khi" kiểm được bằng lệnh hoặc quan sát cụ thể.
       - Mọi câu hỏi mở đã được bạn trả lời, không để agent đoán.
       - Mục `## Tài liệu` liệt kê đúng các tài liệu task làm theo (đường dẫn trong dự án hoặc link), hoặc `không có`.
+      - "Mỗi yêu cầu `Y` lấy đúng ý của chỗ nó ghi ở `(nguồn: ...)`, và yêu cầu ghi `nguồn: người dùng` đúng là lời bạn; không có yêu cầu nào agent tự thêm."
 
   - id: plan
     name: Vào workspace và lập kế hoạch

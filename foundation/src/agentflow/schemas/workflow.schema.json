@@ -115,7 +115,7 @@
         "gates": {
           "type": "array",
           "uniqueItems": true,
-          "items": { "enum": ["plan-valid", "scans-clean", "conventions-reviewed", "drift-reviewed", "test-spec-valid", "tests-pass", "locked-files-intact", "requirements-reviewed"] }
+          "items": { "enum": ["plan-valid", "scans-clean", "conventions-reviewed", "drift-reviewed", "test-spec-valid", "tests-pass", "locked-files-intact", "requirements-reviewed", "requirements-sourced"] }
         }
       }
     }
