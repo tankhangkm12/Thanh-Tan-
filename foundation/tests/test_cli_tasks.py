@@ -51,7 +51,7 @@ def test_task_new_defaults_to_feature_and_refuses_dirty_tree(ws, capsys):
 
 def test_task_new_rejects_unknown_type(ws):
     with pytest.raises(SystemExit) as exc:
-        main(["task", "new", "x", "--type", "chore"])
+        main(["task", "new", "x", "--type", "spike"])
     assert exc.value.code == ExitCode.USAGE
 
 
