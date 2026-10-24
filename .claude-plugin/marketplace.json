@@ -11,11 +11,6 @@
       "category": "software-dev"
     },
     {
-      "name": "dev-design",
-      "source": "./families/software-dev/design",
-      "category": "software-dev"
-    },
-    {
       "name": "dev-backend",
       "source": "./families/software-dev/backend",
       "category": "software-dev"

@@ -66,6 +66,10 @@ Repo chứa nhiều thành phần có số phiên bản riêng: `agentflow` (fou
 - `families/software-dev/README.md`: mục gate bằng tool mô tả Semgrep, Trivy, Gitleaks, Squawk, Schemathesis và các gate của plan/review.
 - `docs/architecture.md`: thêm lệnh `agentflow hook`, danh sách lệnh chỉ người được chạy trong guard đầy đủ.
 
+### Removed
+
+- Plugin `dev-design` (khung rỗng của nhóm software-dev): thiết kế giao diện và hệ thống đã thành nhóm riêng design-system (`design-core`, `design-architecture`). Máy đã cài thì gỡ bằng `claude plugin uninstall dev-design@thanh-tan-plugins`.
+
 ## Các mốc trước khi có bản phát hành
 
 Các mục dưới đây tóm tắt lịch sử `git log`, theo thứ tự mốc.
