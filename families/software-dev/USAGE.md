@@ -17,7 +17,7 @@ Cài đặt `agentflow` và plugin: xem [README gốc](../../README.md#cài-đ�
 | Web | `dev-core` + `dev-frontend` | Khi plugin có nội dung. Hiện còn là khung |
 | Hạ tầng | `dev-core` + `dev-infra` | Khi plugin có nội dung. Hiện còn là khung |
 
-`dev-design` (thiết kế giao diện và hệ thống) cũng còn là khung.
+Thiết kế giao diện và hệ thống không nằm trong nhóm này: dùng nhóm [design-system](../design-system/README.md) (`design-core`, `design-architecture`).
 
 ## Chuẩn bị một lần cho mỗi dự án
 

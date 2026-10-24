@@ -1,5 +1,0 @@
-{
-  "$schema": "https://antigravity.google/schemas/v1/plugin.json",
-  "name": "dev-design",
-  "description": "Design for the software-dev family: UI design (UI briefs, design tokens, component specs) and system design (ADRs, C4 diagrams, OpenAPI contracts, data models)"
-}

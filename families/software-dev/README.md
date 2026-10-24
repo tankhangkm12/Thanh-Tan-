@@ -4,12 +4,11 @@
 
 Cách dùng nhóm (chọn plugin, chuẩn bị dự án, khuôn yêu cầu task, checklist duyệt): [USAGE.md](USAGE.md).
 
-Nhóm plugin phục vụ phát triển phần mềm. `dev-core` giữ chuẩn chung của nhóm; các plugin con (`dev-design`, `dev-backend`, `dev-frontend`, `dev-infra`) phụ thuộc vào `dev-core` và chỉ thêm phần nghiệp vụ riêng.
+Nhóm plugin phục vụ phát triển phần mềm. `dev-core` giữ chuẩn chung của nhóm; các plugin con (`dev-backend`, `dev-frontend`, `dev-infra`) phụ thuộc vào `dev-core` và chỉ thêm phần nghiệp vụ riêng. Thiết kế giao diện và hệ thống nằm ở nhóm riêng [design-system](../design-system/README.md).
 
 | Plugin | Phạm vi |
 |---|---|
 | `dev-core` | Quy trình, gitflow, gate, hook an toàn, server MCP, quy ước, 5 skill và 7 role dùng chung |
-| `dev-design` | Thiết kế giao diện (UI brief, design token, component spec) và thiết kế hệ thống (ADR, sơ đồ C4, contract API OpenAPI, data model) |
 | `dev-backend` | Service, API, dữ liệu: role `db-engineer`, 6 skill, Squawk và Schemathesis qua extension (xem [README](backend/README.md)) |
 | `dev-frontend` | Giao diện, state phía client |
 | `dev-infra` | CI/CD, container, triển khai |

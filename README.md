@@ -1,6 +1,6 @@
 # Thanh-Tan-
 
-> **MVP.** Dùng được: plugin `dev-core` (quy trình task, hook an toàn, scan bảo mật, tool MCP, quy ước và kho kiến thức, 7 skill, 8 role) và `dev-backend` (role `db-engineer`, 6 skill, Squawk, Schemathesis) cho Claude Code và Antigravity CLI, chạy trên động cơ `agentflow`. Các plugin `dev-design`, `dev-frontend`, `dev-infra` vẫn là khung.
+> **MVP.** Dùng được: plugin `dev-core` (quy trình task, hook an toàn, scan bảo mật, tool MCP, quy ước và kho kiến thức, 7 skill, 8 role) và `dev-backend` (role `db-engineer`, 6 skill, Squawk, Schemathesis) cho Claude Code và Antigravity CLI, chạy trên động cơ `agentflow`. Các plugin `dev-frontend`, `dev-infra` vẫn là khung. Thiết kế (giao diện và hệ thống) nằm ở nhóm riêng design-system (`design-core`, `design-architecture`).
 
 Trung tâm của nhiều **nhóm plugin** cho Claude Code và Antigravity CLI. Mỗi nhóm có core và chuẩn riêng; mọi nhóm dùng chung một động cơ là `foundation/` (package Python `agentflow`).
 
@@ -8,7 +8,7 @@ Trung tâm của nhiều **nhóm plugin** cho Claude Code và Antigravity CLI. M
 
 | Nhóm | Trạng thái | Plugin |
 |---|---|---|
-| [software-dev](families/software-dev/README.md) ([hướng dẫn sử dụng](families/software-dev/USAGE.md)) | MVP (`dev-core` dùng được) | `dev-core`, `dev-design`, `dev-backend`, `dev-frontend`, `dev-infra` |
+| [software-dev](families/software-dev/README.md) ([hướng dẫn sử dụng](families/software-dev/USAGE.md)) | MVP (`dev-core` dùng được) | `dev-core`, `dev-backend`, `dev-frontend`, `dev-infra` |
 | [design-system](families/design-system/README.md) ([hướng dẫn sử dụng](families/design-system/core/USAGE.md)) | Dùng thử được (đã chạy thử G0–G2 trên dự án thật) | `design-core`, `design-architecture` |
 | [marketing](families/marketing/README.md) | Dự kiến, chưa xây | — |
 
