@@ -95,7 +95,7 @@ def new_task(
     title = title.strip()
     if not title:
         raise AgentflowError("the task title is empty", ExitCode.INVALID_INPUT)
-    size = resolve_size(workflow, size)
+    size = resolve_size(workflow, size, task_type)
     state = store.load()
     in_flight = [task for task in state.tasks if task.status in IN_FLIGHT_TASK_STATUSES]
     if in_flight:
@@ -125,13 +125,14 @@ def new_task(
     return task
 
 
-def resolve_size(workflow: Workflow, size: str | None) -> str | None:
-    """The size a new task gets: the one asked for, else the workflow's default; ``None`` when the workflow has no sizes."""
+def resolve_size(workflow: Workflow, size: str | None, task_type: str | None = None) -> str | None:
+    """The size a new task gets: the one asked for, else its type's, else the workflow's default; ``None`` when the
+    workflow has no sizes."""
     if not workflow.sizes:
         if size is not None:
             raise AgentflowError(f"this workflow has no task sizes, so --size {size} cannot be used", ExitCode.INVALID_INPUT)
         return None
-    chosen = size or workflow.default_size
+    chosen = size or workflow.type_sizes.get(task_type or "") or workflow.default_size
     if workflow.size_profile(chosen) is None:
         known = ", ".join(profile.id for profile in workflow.sizes)
         raise AgentflowError(f"unknown size '{chosen}' (this workflow has: {known})", ExitCode.INVALID_INPUT)

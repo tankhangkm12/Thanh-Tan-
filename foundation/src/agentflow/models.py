@@ -85,6 +85,8 @@ class Workflow:
     agent_dirs: Mapping[str, str] = field(default_factory=dict)
     # Task type -> what its test-spec step proves; a type not listed proves red.
     test_spec_modes: Mapping[str, TestSpecMode] = field(default_factory=dict)
+    # Task type -> the size a task of that type gets when none is asked for; a type not listed gets ``default_size``.
+    type_sizes: Mapping[str, str] = field(default_factory=dict)
 
     def test_spec_mode(self, task: "Task | None") -> TestSpecMode:
         task_type = task.type if task is not None else None
@@ -118,8 +120,12 @@ def workflow_from_dict(data: Mapping[str, Any]) -> Workflow:
         read_only_roles=tuple(data.get(WorkflowKey.READ_ONLY_ROLES, ())),
         agent_dirs=dict(data.get(WorkflowKey.AGENT_DIRS, {})),
         test_spec_modes={
-            name: TestSpecMode(profile.get(TypeKey.TEST_SPEC, TestSpecMode.RED))
+            name: TestSpecMode(profile[TypeKey.TEST_SPEC])
             for name, profile in data.get(WorkflowKey.TYPES, {}).items()
+            if TypeKey.TEST_SPEC in profile
+        },
+        type_sizes={
+            name: profile[TypeKey.SIZE] for name, profile in data.get(WorkflowKey.TYPES, {}).items() if TypeKey.SIZE in profile
         },
     )
 

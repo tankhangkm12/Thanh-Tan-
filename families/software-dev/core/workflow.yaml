@@ -22,9 +22,12 @@ agent_dirs:
 # Gitleaks and Semgrep only (also Semgrep with the project's own convention rules).
 # Task types that keep the behaviour (refactor, chore): at `test-spec` the tests must PASS on the code as it is, are locked
 # at the approval, and must still pass at `test`. Other types prove red (the tests fail before the code exists).
+# A hotfix gets the size `hotfix` unless `--size` names another: no approval of the plan and at most 3 plan items, like
+# small, but every scan runs, since the change goes straight to main. Confirm, test-spec and review still need a person.
 types:
   refactor: {test_spec: green}
   chore: {test_spec: green}
+  hotfix: {size: hotfix}
 sizes:
   default: normal
   profiles:
@@ -34,6 +37,9 @@ sizes:
       max_plan_items: 3
       scans:
         security: [gitleaks, semgrep, semgrep-conventions]
+    hotfix:
+      skip_approval: [plan]
+      max_plan_items: 3
 steps:
   - id: confirm
     name: Xác nhận task

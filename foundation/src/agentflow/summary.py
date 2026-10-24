@@ -2,7 +2,15 @@
 
 from collections.abc import Sequence
 
-from agentflow.constants import LESSONS_DIR, LESSONS_HEADING, MARKDOWN_SUFFIX, TASKS_DIR
+from agentflow.constants import (
+    DEVELOP_BRANCH,
+    LESSONS_DIR,
+    LESSONS_HEADING,
+    MAIN_BRANCH,
+    MARKDOWN_SUFFIX,
+    TASKS_DIR,
+    TaskType,
+)
 from agentflow.lessons import Lesson
 from agentflow.models import CommitInfo, Task
 from agentflow.plan import PlanItem
@@ -11,6 +19,11 @@ SHORT_SHA = 9
 REPLAN_SUMMARY_LABEL = "Replan"
 NO_ITEM_GROUP = "other commits"
 NONE_LINE = "- none"
+HOTFIX_MERGE_HEADING = "Merge the hotfix"
+HOTFIX_MERGE_NOTE = (
+    f"These are for a person to run; agentflow and its agents never merge into {MAIN_BRANCH} or {DEVELOP_BRANCH}. "
+    "Pick the next version for the tag."
+)
 
 
 def build_summary(
@@ -64,7 +77,20 @@ def build_summary(
         lines += ["", "Proposals only. A person decides what goes into the personal store: `agentflow knowledge push <file>`."]
     else:
         lines.append(NONE_LINE)
+    if task.type == TaskType.HOTFIX and task.branch:
+        lines += ["", f"## {HOTFIX_MERGE_HEADING}", "", HOTFIX_MERGE_NOTE, "", "```", *hotfix_merge_commands(task.branch), "```"]
     return "\n".join(lines) + "\n"
+
+
+def hotfix_merge_commands(branch: str) -> list[str]:
+    """What a person runs to bring a finished hotfix into main (with a version tag) and back into develop."""
+    return [
+        f"git switch {MAIN_BRANCH}",
+        f"git merge --no-ff {branch}",
+        'git tag -a v<version> -m "<version>"',
+        f"git switch {DEVELOP_BRANCH}",
+        f"git merge --no-ff {branch}",
+    ]
 
 
 def lesson_path_text(task_id: str, code: str) -> str:
