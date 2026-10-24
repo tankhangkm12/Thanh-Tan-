@@ -1,6 +1,6 @@
 # Thanh-Tan-
 
-> **MVP.** Dùng được: plugin `dev-core` (quy trình task, hook an toàn, scan bảo mật, tool MCP, quy ước và kho kiến thức, 5 skill, 7 role) và `dev-backend` (role `db-engineer`, 6 skill, Squawk, Schemathesis) cho Claude Code và Antigravity CLI, chạy trên động cơ `agentflow`. Các plugin `dev-design`, `dev-frontend`, `dev-infra` vẫn là khung.
+> **MVP.** Dùng được: plugin `dev-core` (quy trình task, hook an toàn, scan bảo mật, tool MCP, quy ước và kho kiến thức, 7 skill, 8 role) và `dev-backend` (role `db-engineer`, 6 skill, Squawk, Schemathesis) cho Claude Code và Antigravity CLI, chạy trên động cơ `agentflow`. Các plugin `dev-design`, `dev-frontend`, `dev-infra` vẫn là khung.
 
 Trung tâm của nhiều **nhóm plugin** cho Claude Code và Antigravity CLI. Mỗi nhóm có core và chuẩn riêng; mọi nhóm dùng chung một động cơ là `foundation/` (package Python `agentflow`).
 
@@ -71,7 +71,7 @@ claude plugin marketplace add "<repo>"
 claude plugin install dev-core@thanh-tan-plugins
 ```
 
-Kiểm tra: `claude plugin list` phải thấy `dev-core@thanh-tan-plugins` ở trạng thái enabled. Mở lại Claude Code, gõ `/dev-core:` sẽ thấy `setup`, `start`, `continue`, `status`, `approve`. 8 agent (7 role, riêng implementer có hai biến thể) hiện dưới tên `dev-core:orchestrator`, `dev-core:planner`, `dev-core:implementer-fast`, `dev-core:implementer-deep`, `dev-core:tester`, `dev-core:security`, `dev-core:reviewer`, `dev-core:scout`. (Lệnh `claude plugin details` hiện báo `Agents (0)` do cách đếm của nó; agent vẫn được nạp.) Cập nhật: `claude plugin update dev-core@thanh-tan-plugins`.
+Kiểm tra: `claude plugin list` phải thấy `dev-core@thanh-tan-plugins` ở trạng thái enabled. Mở lại Claude Code, gõ `/dev-core:` sẽ thấy `setup`, `start`, `continue`, `status`, `approve`, `replan`, `debug`. 9 agent (8 role, riêng implementer có hai biến thể) hiện dưới tên `dev-core:orchestrator`, `dev-core:planner`, `dev-core:implementer-fast`, `dev-core:implementer-deep`, `dev-core:tester`, `dev-core:security`, `dev-core:reviewer`, `dev-core:scout`, `dev-core:debugger`. (Lệnh `claude plugin details` hiện báo `Agents (0)` do cách đếm của nó; agent vẫn được nạp.) Cập nhật: `claude plugin update dev-core@thanh-tan-plugins`.
 
 ### Bước 2b: cài vào Antigravity CLI
 
@@ -83,7 +83,7 @@ agy plugin list
 agy agents
 ```
 
-`agy plugin list` phải có `dev-core` với `skills`, `agents`, `hooks`; `agy agents` liệt kê các agent của dev-core (7 role, `implementer` thành `implementer-fast` và `implementer-deep`) (thêm `db-engineer` khi cài dev-backend). `agy plugin install` chép một bản vào máy, nên sau mỗi lần `git pull` hãy chạy lại lệnh cài. Cách cài thẳng từ GitHub cho repo nhiều plugin chưa được xác nhận.
+`agy plugin list` phải có `dev-core` với `skills`, `agents`, `hooks`; `agy agents` liệt kê các agent của dev-core (8 role, `implementer` thành `implementer-fast` và `implementer-deep`) (thêm `db-engineer` khi cài dev-backend). `agy plugin install` chép một bản vào máy, nên sau mỗi lần `git pull` hãy chạy lại lệnh cài. Cách cài thẳng từ GitHub cho repo nhiều plugin chưa được xác nhận.
 
 ### Cài thêm dev-backend
 
@@ -109,6 +109,7 @@ Cần cả hai. Cách dùng, chạy không tương tác và bản Antigravity: [
 - **Khóa test đã duyệt** (agentflow 0.6.0, dev-core 0.5.0, dev-backend 0.3.0): sau khi bạn duyệt `test-spec`, file test, file hạ tầng test tester khai (mục `## Hạ tầng test`) và cấu hình test của dự án (`conftest.py`, `pytest.ini`, `tox.ini`, `jest.config.*`, `vitest.config.*`; riêng `pyproject.toml`, `setup.cfg`, `package.json` chỉ khóa phần cấu hình test) bị khóa bằng hash: hook, `agentflow commit` và cổng `locked-files-intact` chặn hoặc phát hiện mọi cách sửa. Đổi test đã duyệt chỉ qua lệnh của bạn `agentflow tests amend <file> --reason "..."`; test sửa xong mà xanh trên mã cũ bị chặn, trừ khi bạn thêm `--accept-green`. Đây là lưới an toàn, không phải sandbox: xem mục "Khóa test đã duyệt" của [USAGE](families/software-dev/USAGE.md) và [docs/architecture.md](docs/architecture.md).
 - **Review chỉ phần đã đổi, bản đồ review và truy vết yêu cầu** (agentflow 0.7.0, dev-core 0.6.0): khi task quay lại sửa, `reviewer` và `security` đọc `agentflow scope` và chỉ xem phần đổi từ vòng trước; `review-map.md` cho bạn biết mỗi mục kế hoạch đã đổi file nào; `confirm` liệt kê yêu cầu `Y1..` và `plan check` đòi mỗi yêu cầu có mục `covers`; mục kế hoạch tối đa 10 file. Xem mục "Review khi task quay lại sửa" của [USAGE](families/software-dev/USAGE.md).
 - **Đo chi phí, ghim tài liệu, review từng yêu cầu** (chưa phát hành, trên `develop`): `agentflow stats` cho biết mỗi task tốn bao lâu, bao nhiêu vòng, cổng nào chặn; duyệt `confirm` ghim sha256 các tài liệu ở mục `## Tài liệu`, tài liệu đổi sau đó hiện ở `agentflow status` và thành ô phải tick khi duyệt `review`; cổng mới `requirements-reviewed` đòi review ghi `Y1: đạt ...` hoặc `Y1: chưa đạt ...` cho từng yêu cầu. Cần `uv tool install --force --reinstall ./foundation` và `agentflow workflow sync`. Xem mục "Tài liệu của task" và "Tiết kiệm token" của [USAGE](families/software-dev/USAGE.md).
+- **Task giữ hành vi và debug** (chưa phát hành, trên `develop`): loại task mới `refactor` và `chore` (nhánh từ `develop`): ở `test-spec` test phải **xanh trên code hiện tại** (`- green: pass`), được khóa khi bạn duyệt và phải vẫn xanh ở bước `test`. Role mới `debugger` (chỉ đọc, chạy lệnh) và skill `/dev-core:debug`: tái hiện lỗi, tìm nguyên nhân gốc, lưu chẩn đoán (`agentflow diagnosis list|show`); skill `continue` tự gọi debugger khi task quay lại `implement` từ vòng 2. Khối permissions thêm `agentflow diagnosis` và tool MCP `diagnosis_write`. Cần cài lại `agentflow`, cập nhật plugin và `agentflow workflow sync`. Xem mục "Task giữ hành vi" và "Debug" của [USAGE](families/software-dev/USAGE.md).
 - **Nâng cấp lên bản này**: `git pull` ở bản clone (nhánh `develop`, nhánh mặc định của repo), rồi `uv tool install --force --reinstall ./foundation` (hook cũ không biết khóa), `claude plugin update dev-core@thanh-tan-plugins` (và `dev-backend@thanh-tan-plugins`) hoặc chạy lại `agy plugin install` cho Antigravity, rồi ở mỗi dự án đang dùng `agentflow workflow sync`. Task mở trước khi nâng cấp không có khóa.
 - Hook chặn mọi tool ghi file vào `.agentflow/` (Claude Code: `Write`, `Edit`, `NotebookEdit`; Antigravity: `write_to_file`, `replace_file_content`, `multi_replace_file_content`) và các lệnh shell phổ biến ghi vào đó (mức cố gắng tốt nhất, không phải sandbox: `python -c`, script, alias vẫn qua được).
 - Server MCP `agentflow mcp serve` (tool `status`, `next_step`, `plan_check`, `report_write`, `project_write`, `scan_summary`, `conventions`, `knowledge_search`, `knowledge_read`) khai báo sẵn trong dev-core; báo cáo không còn cần heredoc. `report_write` chỉ ghi báo cáo của bước hiện tại và không ghi đè báo cáo của bước đã qua.
@@ -158,6 +159,7 @@ Dán vào `.claude/settings.json` của dự án (hoặc `~/.claude/settings.jso
       "Bash(agentflow commit *)",
       "Bash(agentflow scan *)",
       "Bash(agentflow stats *)",
+      "Bash(agentflow diagnosis *)",
       "Bash(agentflow config get *)",
       "Bash(agentflow config check *)",
       "Bash(agentflow ext list *)",
@@ -171,6 +173,7 @@ Dán vào `.claude/settings.json` của dự án (hoặc `~/.claude/settings.jso
       "mcp__plugin_dev-core_agentflow__conventions",
       "mcp__plugin_dev-core_agentflow__knowledge_search",
       "mcp__plugin_dev-core_agentflow__knowledge_read",
+      "mcp__plugin_dev-core_agentflow__diagnosis_write",
       "PowerShell(agentflow status *)",
       "PowerShell(agentflow next *)",
       "PowerShell(agentflow task new *)",
@@ -179,7 +182,8 @@ Dán vào `.claude/settings.json` của dự án (hoặc `~/.claude/settings.jso
       "PowerShell(agentflow report *)",
       "PowerShell(agentflow commit *)",
       "PowerShell(agentflow scan *)",
-      "PowerShell(agentflow stats *)"
+      "PowerShell(agentflow stats *)",
+      "PowerShell(agentflow diagnosis *)"
     ],
     "ask": [
       "Bash(agentflow task approve *)",
@@ -285,7 +289,7 @@ agentflow role sync                                       # sinh lại sau khi c
 
 Tên tool là tên MCP đầy đủ như Claude Code đặt: `mcp__<server>__<tool>` (server của plugin là `mcp__plugin_<plugin>_<server>__<tool>`); `mcp__<server>` hoặc `mcp__<server>__*` là cả server.
 
-**Role chỉ đọc** (`orchestrator`, `planner`, `security`, `reviewer`, `scout`, khai báo ở `read_only_roles` trong `workflow.yaml`) chỉ được cấp **tool đọc, đúng tên**: không dùng `*` hay tên server, và tên tool phải bắt đầu bằng `get`, `list`, `read`, `search`, `query`, `find`, `describe`, `view` hoặc `status`; tên khác (`write_…`, `create_…`, `update_…`, `getaway`…) bị từ chối. Đây là kiểm tra **theo tên**: agentflow không hỏi được server MCP khác xem tool làm gì, nên hãy tự xem tool đọc trước khi cấp.
+**Role chỉ đọc** (`orchestrator`, `planner`, `security`, `reviewer`, `scout`, `debugger`, khai báo ở `read_only_roles` trong `workflow.yaml`) chỉ được cấp **tool đọc, đúng tên**: không dùng `*` hay tên server, và tên tool phải bắt đầu bằng `get`, `list`, `read`, `search`, `query`, `find`, `describe`, `view` hoặc `status`; tên khác (`write_…`, `create_…`, `update_…`, `getaway`…) bị từ chối. Đây là kiểm tra **theo tên**: agentflow không hỏi được server MCP khác xem tool làm gì, nên hãy tự xem tool đọc trước khi cấp.
 
 **Claude Code.** Tài liệu cho thấy `tools` của agent plugin cố định, `mcpServers` bị bỏ qua với agent plugin, và agent trong `.claude/agents/` của dự án được đọc thêm. Vì vậy `role grant` ghi vào `.agentflow/config.yaml` rồi sinh, cho từng agent của role, một bản sao cấp dự án `.claude/agents/project-<agent>.md` (ví dụ `project-implementer-fast.md`): cùng prompt, cùng model, `tools` được nối thêm tool đã cấp, kèm dòng ghi sha256 của file nguồn. Các file này chỉ ở local: `.claude/agents/project-*.md` được thêm vào `.git/info/exclude` (không sửa `.gitignore`), và hook chặn agent ghi vào chúng. Skill `continue` chạy `agentflow plan assign --cli claude`, lệnh này trả tên `project-…` khi role có grant. Sau khi cập nhật plugin, `agentflow role list` báo `stale` và `agentflow role sync` sinh lại. Muốn bỏ hẳn: `role revoke` (hết grant thì các file bị xóa; chỉ file do agentflow sinh mới bị xóa).
 

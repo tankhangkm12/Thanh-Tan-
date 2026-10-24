@@ -75,5 +75,5 @@ def test_the_agent_builder_names_exactly_the_tools_the_server_offers():
     spec = importlib.util.spec_from_file_location("plugin_build", CORE.parents[2] / "tools" / "build.py")
     module = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(module)
-    assert {name for name in module.WORKSPACE_TOOL_NAMES + module.PROJECT_TOOL_NAMES} == {str(name) for name in ToolName}
+    assert {name for name in module.WORKSPACE_TOOL_NAMES + module.PROJECT_TOOL_NAMES + module.DIAGNOSE_TOOL_NAMES} == {str(name) for name in ToolName}
     assert module.MCP_SERVER_PREFIX == f"mcp__plugin_dev-core_{MCP_SERVER_NAME}__"

@@ -120,7 +120,7 @@ def new_task(
         raise AgentflowError(f"branch '{branch}' already exists", ExitCode.BRANCH_PROBLEM)
 
     git.create_branch(branch, base)
-    task = start_task(workflow, task_id, title, branch, clock(), size, roadmap)
+    task = start_task(workflow, task_id, title, branch, clock(), size, roadmap, str(task_type))
     store.save(replace(state, active_task_id=task.id, tasks=(*state.tasks, task)))
     return task
 

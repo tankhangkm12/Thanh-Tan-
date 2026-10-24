@@ -60,6 +60,7 @@ Mỗi nhóm khai báo quy trình của mình trong một file `workflow.yaml` đ
 | `tiered_roles` | Role có một agent cho mỗi tier của mục kế hoạch (`<role>-fast`, `<role>-deep`); role khác chỉ có một agent. Tùy chọn; mỗi role phải là role của một bước |
 | `sizes` | Cỡ task, tùy chọn: `default` và `profiles.<tên>`. Mỗi profile có thể có `skip_approval` (các bước không cần duyệt với cỡ này; phải là bước vốn cần duyệt), `max_plan_items` (số mục tối đa của kế hoạch) và `scans` (bước → id các tool scan được chạy; bước không liệt kê chạy hết). Foundation chỉ đọc các tham số này, không biết cỡ nào ứng với nghiệp vụ gì |
 | `read_only_roles` | Role chỉ đọc: `role grant` chỉ cấp cho chúng tool đọc, đúng tên. Tùy chọn |
+| `types` | Loại task → khác biệt: `test_spec: green` cho task giữ hành vi (dev-core: `refactor`, `chore`), bước `test-spec` đòi lệnh xanh trên code hiện tại (`- green: pass`), khóa như thường, `tests-pass` đòi vẫn xanh; `tests amend` đòi test sửa vẫn xanh trên code cũ. Loại không ghi thì `red`. Loại task được ghi ở trường `type` của task trong `state.json`. Tùy chọn |
 | `agent_dirs` | CLI → thư mục (tính từ file workflow) chứa file agent đã sinh, để `role grant` chép sang dự án. Tùy chọn |
 | `max_rounds` | Số lần một task được quay lại làm lại (cả workflow) |
 | `steps[].on_fail` | Bước đứng trước mà task quay về khi bước này fail |

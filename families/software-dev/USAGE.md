@@ -77,7 +77,7 @@ Dự án phải là repo git có nhánh `main` và `develop`, cây làm việc s
 Khuôn này là đầu vào của bước `confirm`. Gõ `/dev-core:start` (Antigravity: nhờ agent dùng skill `start`), rồi dán khuôn đã điền:
 
 ```
-Loại: feature | bugfix | hotfix        Cỡ: normal | small
+Loại: feature | bugfix | hotfix | refactor | chore        Cỡ: normal | small
 Mục tiêu: <làm gì, cho ai, 1–2 câu>
 Xong khi: <tiêu chí kiểm được>
 Trong phạm vi: <phần được đụng>
@@ -187,7 +187,7 @@ Ba chỗ cần bạn duyệt: `confirm`, `plan`, `review`. Duyệt bằng `/dev-
 **Test-spec — Viết test trước** (`test-spec`)
 - [ ] Mỗi mục kế hoạch có test, hoặc `không có — <cách kiểm>` mà bạn chấp nhận (không ép viết test cho việc không test tự động được).
 - [ ] Các test đo đúng `done-when` của mục, không phải thứ dễ qua hơn.
-- [ ] Mỗi test đỏ vì đúng lý do: tính năng chưa có, không phải lỗi cú pháp, thiếu import hay môi trường (đọc `reason` và `output` trong báo cáo).
+- [ ] Task feature, bugfix, hotfix: mỗi test đỏ vì đúng lý do (tính năng chưa có, không phải lỗi cú pháp, thiếu import hay môi trường). Task refactor, chore: mỗi test xanh trên code hiện tại và chốt đúng hành vi phải giữ. Đọc `reason` và `output` trong báo cáo.
 - [ ] Lệnh của mỗi mục chạy đúng các test đã khai, không phải lệnh chạy cho có (như `false`); agentflow đã tự chạy lại và ghi `exit` ở dòng dưới.
 - [ ] Các dòng L (danh sách file sẽ khóa) là đủ: file test, file hạ tầng test (conftest.py, cấu hình pytest/jest/vitest, script chạy test) và phần cấu hình test của pyproject.toml, setup.cfg, package.json. Sau khi bạn duyệt, không agent nào sửa được chúng; muốn đổi phải chạy `agentflow tests amend <file> --reason "..."`.
 - Thêm tự động: một ô `C<n>` cho mỗi mục kế hoạch, kèm test, lệnh và kết quả agentflow tự chạy lại (`spec-items`).
@@ -313,6 +313,32 @@ Vòng làm việc: `setup` (một lần) → mission + roadmap → `task new --r
 4. Không muốn replan task này: `agentflow replan skip <task> --reason "..."` (ghi vào `decisions/`). Đề xuất về quy trình trong `replan.md` là để bạn xem xét; không có gì tự áp vào workflow.
 
 `agentflow replan status` (chỉ đọc) in `replan: <trạng thái>`: `pending` (chưa có replan), `proposed` (scout đã ghi, chờ bạn), `done`, `skipped`, `task-open` (đang có task mở hoặc `blocked`), `not-sealed` (task xong chưa có tag: `agentflow task seal <id>`), `no-finished-task`. `agentflow task new` cảnh báo (không chặn) khi trạng thái là `pending` hoặc `proposed`.
+
+## Task giữ hành vi (refactor, chore)
+
+Dùng `refactor` khi đổi cấu trúc code mà không đổi việc code làm, `chore` cho việc bảo trì giữ nguyên hành vi (nâng dependency, đổi cấu hình build). Cả hai tạo nhánh từ `develop` (`refactor/T-00x-...`, `chore/T-00x-...`). Loại task được ghi vào `state.json` và hiện ở `agentflow status` (`type: refactor (keeps the behaviour...)`), `STATE.md`, `summary.md`, `agentflow stats`.
+
+Bước `test-spec` làm ngược với task feature:
+
+- tester chọn test đang có cho phần code sắp đổi, và viết thêm test chốt hành vi (characterization) cho chỗ chưa có test, ghi lại đúng việc code đang làm, kể cả chỗ trông lạ;
+- mỗi khối ghi `- green: pass` thay cho `- red: fail`; `reason` nói test chốt hành vi gì;
+- agentflow **tự chạy** từng lệnh trên code hiện tại và đòi **mã 0** (`verify-red.json` ghi `"mode": "green"`); lệnh đỏ thì bị từ chối;
+- bạn duyệt thì các test đó bị **khóa** như mọi test đã duyệt;
+- ở bước `test`, cổng `tests-pass` chạy lại đúng các lệnh đó: phải vẫn xanh, cộng lệnh test của dự án.
+
+Đổi một test đã khóa (`agentflow tests amend`) trong task loại này: test sửa xong phải **vẫn xanh trên code cũ**; đỏ trên code cũ nghĩa là hành vi đổi, `agentflow commit` từ chối và bảo bạn làm việc đó bằng task `feature` hoặc `bugfix`. Planner chỉ lập mục đổi cấu trúc hay bảo trì, mỗi mục nhỏ và giữ test xanh; reviewer coi mọi thay đổi hành vi hay tính năng mới trộn vào là must-fix. Workflow khai việc này ở mục `types` (`refactor: {test_spec: green}`).
+
+## Debug
+
+Khi có lỗi mà **chưa rõ nguyên nhân**, đừng mở task bugfix ngay:
+
+1. Gõ `/dev-core:debug` (Antigravity: nhờ agent dùng skill `debug`) và tả triệu chứng: làm gì, ra gì, mong gì, lỗi hay test nào.
+2. Agent `debugger` (chỉ đọc và chạy lệnh, không sửa file) tái hiện lỗi, thu hẹp tới nguyên nhân gốc, và lưu một **chẩn đoán** với các mục `## Tái hiện`, `## Nguyên nhân` (kèm `file:dòng`), `## Phạm vi`, `## Hướng sửa`, `## Test tái hiện`. Ngoài task nó thành `D-001`, `D-002`...: xem bằng `agentflow diagnosis list` và `agentflow diagnosis show D-001`.
+3. Skill đề nghị mở task `bugfix` từ chẩn đoán: orchestrator lấy nguyên nhân làm yêu cầu, tester viết đúng test tái hiện trước (đỏ), rồi mới sửa.
+
+**Trong task.** Khi task bị `test`, `security` hoặc `review` trả về `implement` **từ vòng thứ 2** (`rework rounds: 2/3` trong `agentflow status`), skill `continue` gọi `debugger` đọc báo cáo fail gần nhất trước, lưu chẩn đoán vào `tasks/<task>/diagnoses/round-<n>.md`, rồi giao implementer sửa đúng nguyên nhân thay vì đoán tiếp. Vòng 1 bỏ qua debugger vì báo cáo fail thường đã đủ. Chẩn đoán không bao giờ đổi trạng thái task.
+
+Lỗi nhỏ đã rõ nguyên nhân thì không cần debug: mở `bugfix --size small`, hoặc sửa thẳng ngoài workflow.
 
 ## Lệnh của người
 

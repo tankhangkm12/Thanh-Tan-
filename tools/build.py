@@ -41,6 +41,8 @@ class Capability(StrEnum):
     # The agentflow MCP tools: the ones every role uses, and the one that writes project documents.
     WORKSPACE = "workspace"
     PROJECT = "project"
+    # The tool that keeps a diagnosis (the debugger).
+    DIAGNOSE = "diagnose"
 
 
 class ManifestKey(StrEnum):
@@ -98,14 +100,17 @@ WORKSPACE_TOOL_NAMES = (
     "status", "next_step", "plan_check", "report_write", "scan_summary", "conventions", "knowledge_search", "knowledge_read",
 )  # fmt: skip
 PROJECT_TOOL_NAMES = ("project_write", "replan_write")
+DIAGNOSE_TOOL_NAMES = ("diagnosis_write",)
 WORKSPACE_TOOLS = tuple(MCP_SERVER_PREFIX + name for name in WORKSPACE_TOOL_NAMES)
 PROJECT_TOOLS = tuple(MCP_SERVER_PREFIX + name for name in PROJECT_TOOL_NAMES)
+DIAGNOSE_TOOLS = tuple(MCP_SERVER_PREFIX + name for name in DIAGNOSE_TOOL_NAMES)
 CLAUDE_TOOLS = {
     Capability.READ: ("Read", "Glob", "Grep"),
     Capability.EDIT: ("Edit", "Write"),
     Capability.RUN: ("Bash", "PowerShell"),
     Capability.WORKSPACE: WORKSPACE_TOOLS,
     Capability.PROJECT: PROJECT_TOOLS,
+    Capability.DIAGNOSE: DIAGNOSE_TOOLS,
 }
 # Antigravity's `tools:` takes built-in tools only, and MCP tools reach every agent whatever it lists, so these
 # capabilities add nothing there.
@@ -115,6 +120,7 @@ ANTIGRAVITY_TOOLS = {
     Capability.RUN: ("run_command",),
     Capability.WORKSPACE: (),
     Capability.PROJECT: (),
+    Capability.DIAGNOSE: (),
 }
 # Everything a tool list is allowed to contain. Edit tools are the ones a read-only role must never get;
 # Bash, PowerShell and run_command can change files too, which is why those roles also write through agentflow.
@@ -122,6 +128,7 @@ CLAUDE_ALLOWED = frozenset(
     {"Agent", "Bash", "Edit", "Glob", "Grep", "LSP", "NotebookEdit", "PowerShell", "Read", "Skill", "TodoWrite", "WebFetch", "WebSearch", "Write"}
     | set(WORKSPACE_TOOLS)
     | set(PROJECT_TOOLS)
+    | set(DIAGNOSE_TOOLS)
 )
 CLAUDE_EDIT_TOOLS = frozenset({"Edit", "Write", "NotebookEdit"})
 ANTIGRAVITY_ALLOWED = frozenset(
@@ -138,7 +145,7 @@ ANTIGRAVITY_ALLOWED = frozenset(
 )
 ANTIGRAVITY_EDIT_TOOLS = frozenset({"write_to_file", "replace_file_content", "multi_replace_file_content"})
 # Roles that must never get an edit tool. Tester may (it writes tests); implementer is the code writer.
-READ_ONLY_ROLES = frozenset({"orchestrator", "planner", "security", "reviewer", "scout"})
+READ_ONLY_ROLES = frozenset({"orchestrator", "planner", "security", "reviewer", "scout", "debugger"})
 # The only role that writes project documents (with the `project` capability).
 PROJECT_WRITERS = frozenset({"scout"})
 

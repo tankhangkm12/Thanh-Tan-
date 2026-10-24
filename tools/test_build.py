@@ -132,7 +132,7 @@ def test_main_exit_codes(plugin, capsys):
 
 def test_real_roles_follow_the_edit_rules():
     roles = {role.name: role for role in build.load_roles(REAL_PLUGIN)}
-    assert set(roles) == {"orchestrator", "planner", "implementer", "tester", "security", "reviewer", "scout"}
+    assert set(roles) == {"orchestrator", "planner", "implementer", "tester", "security", "reviewer", "scout", "debugger"}
     editors = {name for name, role in roles.items() if build.Capability.EDIT in role.capabilities}
     assert editors == {"implementer", "tester"}
 
@@ -145,13 +145,13 @@ def test_real_generated_agents_are_all_declared_in_the_manifest():
     manifest = json.loads((REAL_PLUGIN / build.CLAUDE_MANIFEST).read_text(encoding="utf-8"))
     declared = {Path(item).name for item in manifest["agents"]}
     on_disk = {path.name for path in (REAL_PLUGIN / build.CLAUDE_AGENTS_DIR).glob("*.md")}
-    assert declared == on_disk and len(declared) == 8  # implementer has a fast and a deep variant
+    assert declared == on_disk and len(declared) == 9  # implementer has a fast and a deep variant
     assert all(item.startswith("./") for item in manifest["agents"])
 
 
 def test_real_skills_use_only_portable_frontmatter():
     skills = {path.parent.name: path for path in (REAL_PLUGIN / "skills").glob("*/SKILL.md")}
-    assert set(skills) == {"start", "continue", "status", "approve", "setup", "replan"}
+    assert set(skills) == {"start", "continue", "status", "approve", "setup", "replan", "debug"}
     for name, path in skills.items():
         data = frontmatter(path)
         assert set(data) == {"name", "description"} and data["name"] == name
@@ -242,7 +242,7 @@ def test_readme_permission_rules_follow_the_documented_syntax():
 
 def test_readme_allows_exactly_the_mcp_tools_agents_use():
     allowed = {rule for rule in readme_permissions()["allow"] if rule.startswith(MCP_PREFIX)}
-    assert allowed == {MCP_PREFIX + name for name in [*WORKSPACE_TOOL_NAMES, "project_write"]}
+    assert allowed == {MCP_PREFIX + name for name in [*WORKSPACE_TOOL_NAMES, "project_write", "diagnosis_write"]}
 
 
 def test_readme_asks_for_the_commands_that_carry_a_persons_authority():
@@ -287,8 +287,9 @@ def test_other_roles_may_not_write_project_documents(plugin, role):
 def test_every_real_agent_can_use_the_workspace_tools(plugin_dir):
     for path in sorted((plugin_dir / "claude" / "agents").glob("*.md")):
         tools = frontmatter(path)["tools"].split(", ")
-        assert [MCP_PREFIX + name for name in WORKSPACE_TOOL_NAMES] == [t for t in tools if t.startswith(MCP_PREFIX) and not t.endswith(("project_write", "replan_write"))], path
+        assert [MCP_PREFIX + name for name in WORKSPACE_TOOL_NAMES] == [t for t in tools if t.startswith(MCP_PREFIX) and not t.endswith(("project_write", "replan_write", "diagnosis_write"))], path
         assert (MCP_PREFIX + "project_write" in tools) is (path.stem == "scout"), path
+        assert (MCP_PREFIX + "diagnosis_write" in tools) is (path.stem == "debugger"), path
 
 
 @pytest.mark.parametrize("role", ["implementer", "orchestrator", "planner", "reviewer", "security", "tester"])

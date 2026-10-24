@@ -9,7 +9,7 @@ from dataclasses import dataclass, replace
 from importlib.metadata import version
 from pathlib import Path
 
-from agentflow import amend, docpin, lockfiles, lockflow, stats
+from agentflow import amend, diagnosis, docpin, lockfiles, lockflow, stats
 from agentflow.assign import ProjectAgentNames, WorkflowAgentNames, assignment_lines
 from agentflow.convention_sources import load_effective_conventions
 from agentflow.services import WorkspaceServices
@@ -17,10 +17,10 @@ from agentflow.testspec import TESTS_PASS_FILE, require_active_spec_step, task_f
 from agentflow.checklist import ChecklistWriter, check_approval, finish_approval
 from agentflow.integrity import NOTHING_TO_ACCEPT, Integrity
 from agentflow.checklist import checklist_path
-from agentflow.constants import ConfirmState, StateCommand, TestsCommand, KnowledgeCommand, KnowledgePlace, McpCommand, ProjectCommand, ReplanCommand, ReplanState, RoadmapCommand, RoadmapStatus, RoleCommand
+from agentflow.constants import ConfirmState, DiagnosisCommand, StateCommand, TestsCommand, KnowledgeCommand, KnowledgePlace, McpCommand, ProjectCommand, ReplanCommand, ReplanState, RoadmapCommand, RoadmapStatus, RoleCommand
 from agentflow.interfaces import AgentNames
 from agentflow.roles import RoleGrants
-from agentflow.constants import ANSWER_OPTION, DECISION_SCOPE_PROJECT, CheckKind
+from agentflow.constants import ANSWER_OPTION, DECISION_SCOPE_PROJECT, CheckKind, TestSpecMode
 from agentflow.convention_sources import next_code, write_answer
 from agentflow.knowledge import add_personal_convention, init_store, pull_files, push_file
 from agentflow.project import load_conventions
@@ -252,6 +252,13 @@ def build_parser() -> argparse.ArgumentParser:
     accept = state_commands.add_parser(StateCommand.ACCEPT, help="record why and trust state.json again (and clear what the audit log shows)")
     accept.add_argument("--reason", required=True, help="why you accept it")
 
+    diagnosis_parser = commands.add_parser(Command.DIAGNOSIS, help="diagnoses of failures: kept for the open task, or as D-001... for a later bugfix task")
+    diagnosis_commands = diagnosis_parser.add_subparsers(dest="diagnosis_command", metavar="<diagnosis command>", required=True)
+    diagnosis_commands.add_parser(DiagnosisCommand.WRITE, help="keep a diagnosis read from stdin (needs '## Tái hiện' and '## Nguyên nhân')")
+    diagnosis_commands.add_parser(DiagnosisCommand.LIST, help="the diagnoses of the open task, or the ones kept outside a task (read-only)")
+    diagnosis_show = diagnosis_commands.add_parser(DiagnosisCommand.SHOW, help="print a diagnosis kept outside a task (read-only)")
+    diagnosis_show.add_argument("code", help="D-001, D-002, ...")
+
     stats_parser = commands.add_parser(Command.STATS, help="what the tasks cost: rounds, approvals, time by step, gates that refused a pass (read-only)")
     stats_parser.add_argument("--task", default=None, help="only this task (T-001)")
     stats_parser.add_argument("--json", action="store_true", help="print JSON instead of text")
@@ -379,6 +386,9 @@ def cmd_status(args: argparse.Namespace) -> ExitCode:
         print(f"task status: {task.status}; rework rounds: {rounds}; branch: {task.branch or NONE_TEXT}")
         if task.size:
             print(f"size: {task.size}")
+        if task.type:
+            keeps = " (keeps the behaviour: its tests must pass before and after the change)" if workflow.test_spec_mode(task) is TestSpecMode.GREEN else ""
+            print(f"type: {task.type}{keeps}")
         if task.roadmap:
             item = find_item(items_of(opened.paths.dir), task.roadmap)
             print(f"roadmap: {item.label if item else task.roadmap}")
@@ -746,6 +756,23 @@ def cmd_scope(args: argparse.Namespace) -> ExitCode:
     return ExitCode.OK
 
 
+def cmd_diagnosis(args: argparse.Namespace) -> ExitCode:
+    opened = _open_workspace()
+    match args.diagnosis_command:
+        case DiagnosisCommand.WRITE:
+            info = WorkspaceServices(opened.paths).write_diagnosis(sys.stdin.read())
+            print(f"diagnosis saved: {info.path}")
+        case DiagnosisCommand.LIST:
+            found = diagnosis.listing(opened.paths.dir, opened.state)
+            if not found:
+                print("no diagnoses yet")
+            for item in found:
+                print(f"{item.name}: {item.path}")
+        case DiagnosisCommand.SHOW:
+            print(diagnosis.read(opened.paths.dir, args.code), end="")
+    return ExitCode.OK
+
+
 def cmd_stats(args: argparse.Namespace) -> ExitCode:
     opened = _open_workspace()
     if args.task is not None and all(task.id != args.task for task in opened.state.tasks):
@@ -1094,6 +1121,7 @@ HANDLERS: dict[str, Handler] = {
     Command.STATE: cmd_state,
     Command.TESTS: cmd_tests,
     Command.STATS: cmd_stats,
+    Command.DIAGNOSIS: cmd_diagnosis,
     Command.REPLAN: cmd_replan,
     Command.CONVENTIONS: cmd_conventions,
     Command.KNOWLEDGE: cmd_knowledge,
