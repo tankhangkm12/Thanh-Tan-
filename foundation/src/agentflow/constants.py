@@ -309,6 +309,7 @@ class TypeKey(StrEnum):
     """Keys of a task type's profile in the ``types`` section of a workflow."""
 
     TEST_SPEC = "test_spec"
+    SIZE = "size"
 
 
 class TaskEvent(StrEnum):

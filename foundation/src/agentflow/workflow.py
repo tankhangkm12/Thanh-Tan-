@@ -66,10 +66,14 @@ def reference_problems(workflow: Workflow) -> list[str]:
 
 
 def _size_problems(workflow: Workflow) -> list[str]:
-    if not workflow.sizes:
-        return []
-    problems: list[str] = []
     ids = {profile.id for profile in workflow.sizes}
+    problems = [
+        f"types: '{task_type}' names size '{size}', which is not one of the profiles ({', '.join(sorted(ids)) or 'none'})"
+        for task_type, size in workflow.type_sizes.items()
+        if size not in ids
+    ]
+    if not workflow.sizes:
+        return problems
     if workflow.default_size not in ids:
         problems.append(f"sizes: default '{workflow.default_size}' is not one of the profiles ({', '.join(sorted(ids))})")
     approval = {step.id for step in workflow.steps if step.requires_approval}

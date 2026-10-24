@@ -79,6 +79,7 @@ from agentflow.scan_store import ScanStore, suppressed_ids, write_suppression
 from agentflow.scan_tools import VAR_RANGE
 from agentflow.scan_types import ScanContext
 from agentflow.seal import NOT_SCANNED, TaskSealer, base_branch
+from agentflow.summary import HOTFIX_MERGE_NOTE, hotfix_merge_commands
 from agentflow.fsutil import write_text_atomic
 from agentflow import reviewmarks
 from agentflow.reviewmap import REVIEW_MAP_FILE, build_review_map, collect_commits
@@ -511,6 +512,7 @@ def cmd_task(args: argparse.Namespace) -> ExitCode:
             ending = opened.state.active_task()
             task = advance_task(store, opened.workflow, args.result, utc_now, _gates(opened), _sealer(opened), ChecklistWriter(opened.paths.dir))
             print(f"{task.id}: step '{task.current_step}' is now {task.step_status} (task {task.status})")
+            _print_hotfix_merge(task)
             _warn_skipped_tests(opened, args.result)
             _mark_review_round(opened, ending)
             if task.step_status is StepStatus.AWAITING_APPROVAL and task.status is TaskStatus.OPEN and (step := opened.workflow.get_step(task.current_step)) and step.has_checklist:
@@ -537,6 +539,7 @@ def cmd_task(args: argparse.Namespace) -> ExitCode:
             print(f"{task.id}: step '{task.current_step}' is now {task.step_status} (task {task.status})")
             if result.decision_file is not None:
                 print(f"decision recorded: {result.decision_file}")
+            _print_hotfix_merge(task)
         case TaskCommand.CANCEL:
             task = cancel_task(store, opened.workflow, utc_now)
             _release_roadmap_item(opened.paths.dir, store.load(), task)
@@ -563,6 +566,15 @@ def _warn_skipped_tests(opened: _Opened, result: TaskEvent) -> None:
         _err(f"{WARNING_PREFIX}no test command is set, so no project tests ran; the plan has only 'kind: other' items. Set one with `agentflow config set test_command \"<command>\"` to run tests anyway")
 
 
+def _print_hotfix_merge(task: Task) -> None:
+    """A finished hotfix: the commands a person runs to merge it into main and back into develop."""
+    if task.status is not TaskStatus.DONE or task.type != TaskType.HOTFIX or not task.branch:
+        return
+    print(f"hotfix {task.id} is done. {HOTFIX_MERGE_NOTE}")
+    for command in hotfix_merge_commands(task.branch):
+        print(f"  {command}")
+
+
 def _warn_project_documents(workspace_dir: Path, task: Task) -> None:
     """Warnings (never errors) about the mission and roadmap a new task rests on."""
     confirmations = Confirmations.load(workspace_dir)
@@ -576,7 +588,7 @@ def _warn_project_documents(workspace_dir: Path, task: Task) -> None:
         _err(f"{WARNING_PREFIX}the project has no roadmap (roadmap missing): the scout proposes one (setup skill), then a person confirms its items")
     elif unconfirmed:
         _err(f"{WARNING_PREFIX}the roadmap has unconfirmed items: {', '.join(unconfirmed)} (a person confirms them with `agentflow project confirm {unconfirmed[0]} ...`)")
-    if task.roadmap is None:
+    if task.roadmap is None and task.type != TaskType.HOTFIX:  # a hotfix is unplanned work
         _err(f"{WARNING_PREFIX}this task is not tied to a roadmap item: start it with `{ROADMAP_OPTION} Rn` (see `agentflow roadmap list`)")
     elif task.roadmap in unconfirmed:
         _err(f"{WARNING_PREFIX}the roadmap item {task.roadmap} you linked is unconfirmed: a person confirms it with `agentflow project confirm {task.roadmap}`")

@@ -334,6 +334,17 @@ Vòng làm việc: `setup` (một lần) → mission + roadmap → `task new --r
 
 `agentflow replan status` (chỉ đọc) in `replan: <trạng thái>`: `pending` (chưa có replan), `proposed` (scout đã ghi, chờ bạn), `done`, `skipped`, `task-open` (đang có task mở hoặc `blocked`), `not-sealed` (task xong chưa có tag: `agentflow task seal <id>`), `no-finished-task`. `agentflow task new` cảnh báo (không chặn) khi trạng thái là `pending` hoặc `proposed`.
 
+## Hotfix nhanh
+
+Dùng `hotfix` khi phải sửa gấp bản đang chạy. Nhánh tách từ `main` (`hotfix/T-00x-...`) và task tự nhận cỡ `hotfix` (`--size` vẫn thắng nếu bạn truyền):
+
+- bỏ duyệt ở bước `plan` (`agentflow plan check` vẫn chạy và chặn), tối đa 3 mục kế hoạch;
+- vẫn cần bạn duyệt ở `confirm`, `test-spec` (test tái hiện lỗi được khóa lúc duyệt) và `review`;
+- bước `security` chạy **đủ** các bản quét, khác task `small`, vì thay đổi đi thẳng vào `main`;
+- `agentflow task new` không cảnh báo thiếu `--roadmap`: hotfix là việc ngoài kế hoạch.
+
+Khi bạn duyệt `review`, agentflow in và ghi vào mục `## Merge the hotfix` của `summary.md` các lệnh để **bạn** chạy: `git switch main`, `git merge --no-ff hotfix/...`, `git tag -a v<phiên bản>`, `git switch develop`, `git merge --no-ff hotfix/...`. Agent không merge vào `main` hay `develop` (hook chặn). Workflow khai việc này ở mục `types` (`hotfix: {size: hotfix}`) và profile `hotfix` của mục `sizes`.
+
 ## Task giữ hành vi (refactor, chore)
 
 Dùng `refactor` khi đổi cấu trúc code mà không đổi việc code làm, `chore` cho việc bảo trì giữ nguyên hành vi (nâng dependency, đổi cấu hình build). Cả hai tạo nhánh từ `develop` (`refactor/T-00x-...`, `chore/T-00x-...`). Loại task được ghi vào `state.json` và hiện ở `agentflow status` (`type: refactor (keeps the behaviour...)`), `STATE.md`, `summary.md`, `agentflow stats`.
