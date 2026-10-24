@@ -124,3 +124,66 @@ def changes(workspace_dir: Path, root: Path, task_id: str) -> list[DocChange]:
             continue
         found.append(DocChange(entry, MISSING if now is None else APPEARED if pinned is None else CHANGED))
     return found
+
+
+# ------------------------------------------------------------------ where each requirement comes from
+
+# ``- Y1: <text> (nguồn: docs/spec.md:42)``; several sources are separated by ``;``.
+_SOURCE = re.compile(r"\((?:nguồn|nguon|source)\s*:\s*(?P<refs>[^()]+?)\s*\)\s*$", re.IGNORECASE)
+_PERSON_SOURCES = frozenset({"người dùng", "nguoi dung", "user"})
+_LOCATION = re.compile(r"^(?P<path>.+?)(?::(?P<line>\d+)(?:-(?P<end>\d+))?)?(?:#.*)?$")
+
+
+def _normal(entry: str) -> str:
+    text = entry.strip().strip("`").strip().replace("\\", "/")
+    while text.startswith("./"):
+        text = text[2:]
+    return text.rstrip("/")
+
+
+def _source_problem(code: str, ref: str, root: Path, paths: list[str], links: list[str]) -> str | None:
+    ref = ref.strip().strip("`").strip()
+    if ref.lower() in _PERSON_SOURCES:
+        return None
+    if _SCHEME.match(ref):
+        if any(ref.startswith(link.split("#", 1)[0]) for link in links):
+            return None
+        return f"{code}: the source {ref} is not a link listed under '## {DOCS_HEADING}'"
+    found = _LOCATION.match(ref)
+    path = _normal(found["path"]) if found else _normal(ref)
+    listed = [_normal(entry) for entry in paths]
+    if not any(path == entry or path.startswith(entry + "/") for entry in listed):
+        return f"{code}: the source {ref} is not one of the documents listed under '## {DOCS_HEADING}' (nor in a folder listed there)"
+    target = _resolve(root, path)
+    if not target.exists():
+        return f"{code}: the source {ref} does not exist in the project"
+    line = found["line"] if found else None
+    if line is not None:
+        if not target.is_file():
+            return f"{code}: the source {ref} names a line of a folder"
+        count = len(target.read_text(encoding=ENCODING, errors="replace").splitlines())
+        last = int(found["end"] or line)
+        if int(line) < 1 or last > count or last < int(line):
+            return f"{code}: the source {ref} names a line the document does not have (it has {count})"
+    return None
+
+
+def requirement_source_problems(text: str, root: Path, requirements: dict[str, str]) -> list[str]:
+    """Each requirement must end with ``(nguồn: <where>)``: a document of the ``## Tài liệu`` section (a listed path, with an
+    optional ``:line`` or ``#part``, or a file in a listed folder, or a listed link), or ``người dùng`` for what the person
+    asked themselves. A path must exist, and a line must be in the file."""
+    paths, links = parse_docs(text)
+    problems: list[str] = []
+    for code, body in requirements.items():
+        found = _SOURCE.search(body)
+        if found is None:
+            problems.append(
+                f"{code} has no source: end the line with `(nguồn: <document>:<line>)`, a document listed under "
+                f"'## {DOCS_HEADING}', or `(nguồn: người dùng)` for what the person asked"
+            )
+            continue
+        for ref in re.split(r"\s*;\s*", found["refs"]):
+            problem = _source_problem(code, ref, root, paths, links) if ref else None
+            if problem:
+                problems.append(problem)
+    return problems

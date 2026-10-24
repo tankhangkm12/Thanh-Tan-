@@ -7,7 +7,7 @@ from pathlib import Path
 
 from agentflow.constants import DRIFT_HEADING, ENCODING, MARKDOWN_SUFFIX, REPORTS_DIR, TASKS_DIR, CheckKind, GateKind
 from agentflow.convention_sources import answered_questions, load_effective_conventions
-from agentflow import lockfiles, stats, testspec
+from agentflow import docpin, lockfiles, stats, testspec
 from agentflow.drift import drift_problems
 from agentflow.scan import scan_problems, tools_for_step
 from agentflow.scan_store import ScanStore
@@ -128,6 +128,15 @@ def _requirements_reviewed(context: GateContext, task: Task, step: Step) -> list
     return requirement_problems(path.read_text(encoding=ENCODING), wanted)
 
 
+def _requirements_sourced(context: GateContext, task: Task, step: Step) -> list[str]:
+    """Each requirement of this step's report says where it comes from: a document the report lists, or the person."""
+    path = plan_report_path(context.workspace_dir, task.id, step.id)
+    if not path.is_file():
+        return []
+    text = path.read_text(encoding=ENCODING)
+    return docpin.requirement_source_problems(text, context.workspace_dir.parent, parse_requirement_texts(text))
+
+
 def _drift_reviewed(context: GateContext, task: Task, step: Step) -> list[str]:
     """The review report must say, in its `## Đề xuất cập nhật hồ sơ` section, whether the project documents need to change."""
     path = plan_report_path(context.workspace_dir, task.id, step.id)
@@ -166,6 +175,7 @@ CHECKS: dict[GateKind, GateCheck] = {
     GateKind.CONVENTIONS_REVIEWED: _conventions_reviewed,
     GateKind.DRIFT_REVIEWED: _drift_reviewed,
     GateKind.REQUIREMENTS_REVIEWED: _requirements_reviewed,
+    GateKind.REQUIREMENTS_SOURCED: _requirements_sourced,
 }
 
 

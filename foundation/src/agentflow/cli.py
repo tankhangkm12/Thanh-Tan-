@@ -243,6 +243,8 @@ def build_parser() -> argparse.ArgumentParser:
     roadmap = commands.add_parser(Command.ROADMAP, help="the project's roadmap (.agentflow/project/roadmap.md)")
     roadmap_commands = roadmap.add_subparsers(dest="roadmap_command", metavar="<roadmap command>", required=True)
     roadmap_commands.add_parser(RoadmapCommand.LIST, help="the items with their status")
+    roadmap_show = roadmap_commands.add_parser(RoadmapCommand.SHOW, help="one item with its goal and its documents (read-only)")
+    roadmap_show.add_argument("code", help="roadmap item, e.g. R3")
     roadmap_set = roadmap_commands.add_parser(RoadmapCommand.SET, help="for a person: move an item to todo, doing, done or dropped")
     roadmap_set.add_argument("code", help="roadmap item, e.g. R3")
     roadmap_set.add_argument("status", choices=[str(status) for status in RoadmapStatus])
@@ -1047,6 +1049,15 @@ def cmd_roadmap(args: argparse.Namespace) -> ExitCode:
         return ExitCode.OK
     if not is_code(args.code):
         raise AgentflowError(f"'{args.code}' is not a roadmap item code (R and digits, for example R3)", ExitCode.INVALID_INPUT)
+    if args.roadmap_command == RoadmapCommand.SHOW:
+        item = find_item(items_of(paths.dir), args.code)
+        if item is None:
+            raise AgentflowError(f"the roadmap has no item {args.code} (see `agentflow roadmap list`)", ExitCode.INVALID_INPUT)
+        note = "" if Confirmations.load(paths.dir).is_confirmed(item.code, item.content) else " (unconfirmed)"
+        print(f"{item.code} [{item.status}] {item.title}{note}")
+        print(f"goal: {item.goal or NONE_TEXT}")
+        print(f"docs: {item.docs or NONE_TEXT}")
+        return ExitCode.OK
     before = set_status(paths.dir, args.code, RoadmapStatus(args.status))
     print(f"{args.code}: {before} -> {args.status}")
     return ExitCode.OK
