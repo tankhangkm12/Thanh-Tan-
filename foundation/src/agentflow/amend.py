@@ -14,7 +14,7 @@ from pathlib import Path
 from typing import Any
 
 from agentflow import lockfiles, reverify, testspec
-from agentflow.constants import DECISIONS_DIR, ENCODING, GIT_EXECUTABLE, MARKDOWN_SUFFIX, ExitCode
+from agentflow.constants import DECISIONS_DIR, ENCODING, GIT_EXECUTABLE, MARKDOWN_SUFFIX, ExitCode, TestSpecMode
 from agentflow.errors import AgentflowError
 from agentflow.fsutil import write_text_atomic
 from agentflow.integrity import Integrity
@@ -175,6 +175,16 @@ class LockCommit:
         overlay = {path: (None if status == "D" else lockfiles.index_blob(self.root, path)) for status, path in self._windowed}
         self._results = reverify.old_code_results(self.root, head, overlay, jobs, timeout, self.at)
         problems = []
+        if self.workflow.test_spec_mode(self.task) is TestSpecMode.GREEN:
+            # A task that keeps the behaviour: the changed test must still pass on the code as it was before the change.
+            for code, result in self._results.items():
+                if result["status"] == reverify.RED:
+                    files = ", ".join(result["files"])
+                    problems.append(
+                        f"{code}: its command fails on the old code with {files} as you changed it, so the test no longer describes "
+                        "the behaviour this task must keep. If the behaviour is meant to change, do it in a feature or bugfix task"
+                    )
+            return problems
         for code, result in self._results.items():
             if result["status"] != reverify.GREEN:
                 continue

@@ -24,8 +24,10 @@ from agentflow.constants import (
     StateKey,
     StepStatus,
     TaskStatus,
+    TestSpecMode,
     Tool,
     ToolStatus,
+    TypeKey,
     WorkflowKey,
 )
 
@@ -81,6 +83,12 @@ class Workflow:
     read_only_roles: tuple[str, ...] = ()
     # CLI -> folder (relative to the workflow file) holding that CLI's generated agent files.
     agent_dirs: Mapping[str, str] = field(default_factory=dict)
+    # Task type -> what its test-spec step proves; a type not listed proves red.
+    test_spec_modes: Mapping[str, TestSpecMode] = field(default_factory=dict)
+
+    def test_spec_mode(self, task: "Task | None") -> TestSpecMode:
+        task_type = task.type if task is not None else None
+        return self.test_spec_modes.get(task_type or "", TestSpecMode.RED)
 
     def size_profile(self, size: str | None) -> SizeProfile | None:
         return next((profile for profile in self.sizes if profile.id == size), None) if size else None
@@ -109,6 +117,10 @@ def workflow_from_dict(data: Mapping[str, Any]) -> Workflow:
         default_size=data.get(WorkflowKey.SIZES, {}).get(SizeKey.DEFAULT),
         read_only_roles=tuple(data.get(WorkflowKey.READ_ONLY_ROLES, ())),
         agent_dirs=dict(data.get(WorkflowKey.AGENT_DIRS, {})),
+        test_spec_modes={
+            name: TestSpecMode(profile.get(TypeKey.TEST_SPEC, TestSpecMode.RED))
+            for name, profile in data.get(WorkflowKey.TYPES, {}).items()
+        },
     )
 
 
@@ -160,6 +172,8 @@ class Task:
     size: str | None = None
     # The roadmap item (R3) the task serves; ``None`` when it is not tied to one.
     roadmap: str | None = None
+    # feature, bugfix, ...; ``None`` for a task recorded before the type was kept (it was then read from the branch).
+    type: str | None = None
     # When a person confirmed the replan of this finished task (``agentflow replan done``); ``None`` until then.
     replanned_at: str | None = None
 
@@ -209,6 +223,7 @@ def _task_from_dict(data: Mapping[str, Any]) -> Task:
         branch=data[StateKey.BRANCH],
         size=data.get(StateKey.SIZE),
         roadmap=data.get(StateKey.ROADMAP),
+        type=data.get(StateKey.TYPE),
         replanned_at=data.get(StateKey.REPLANNED_AT),
         history=tuple(
             HistoryEntry(
@@ -248,6 +263,8 @@ def _task_to_dict(task: Task) -> dict[str, Any]:
         data[StateKey.SIZE] = task.size
     if task.roadmap is not None:
         data[StateKey.ROADMAP] = task.roadmap
+    if task.type is not None:
+        data[StateKey.TYPE] = task.type
     if task.replanned_at is not None:
         data[StateKey.REPLANNED_AT] = task.replanned_at
     return data

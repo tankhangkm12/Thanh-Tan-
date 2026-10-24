@@ -45,6 +45,18 @@
         }
       }
     },
+    "types": {
+      "type": "object",
+      "description": "Task type (feature, bugfix, hotfix, refactor, chore) -> how tasks of that type differ. `test_spec: green` makes the test-spec step prove the tests pass on the code as it is (a change that keeps the behaviour) instead of failing first.",
+      "propertyNames": { "enum": ["feature", "bugfix", "hotfix", "refactor", "chore"] },
+      "additionalProperties": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "test_spec": { "enum": ["red", "green"] }
+        }
+      }
+    },
     "steps": {
       "type": "array",
       "minItems": 1,

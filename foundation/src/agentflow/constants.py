@@ -172,6 +172,7 @@ class ToolName(StrEnum):
     KNOWLEDGE_SEARCH = "knowledge_search"
     KNOWLEDGE_READ = "knowledge_read"
     REPLAN_WRITE = "replan_write"
+    DIAGNOSIS_WRITE = "diagnosis_write"
 
 
 MCP_SERVER_NAME = "agentflow"
@@ -280,13 +281,34 @@ class TaskType(StrEnum):
     FEATURE = "feature"
     BUGFIX = "bugfix"
     HOTFIX = "hotfix"
+    # A change that keeps the behaviour: restructuring code, or upkeep such as a dependency upgrade.
+    REFACTOR = "refactor"
+    CHORE = "chore"
 
 
 TASK_BASE_BRANCH = {
     TaskType.FEATURE: DEVELOP_BRANCH,
     TaskType.BUGFIX: DEVELOP_BRANCH,
     TaskType.HOTFIX: MAIN_BRANCH,
+    TaskType.REFACTOR: DEVELOP_BRANCH,
+    TaskType.CHORE: DEVELOP_BRANCH,
 }
+
+
+class TestSpecMode(StrEnum):
+    """What the test-spec step proves: the tests fail before the code exists (``red``), or they pass on the code as it is
+    and must keep passing (``green``, for a change that keeps the behaviour)."""
+
+    __test__ = False  # not a pytest class
+
+    RED = "red"
+    GREEN = "green"
+
+
+class TypeKey(StrEnum):
+    """Keys of a task type's profile in the ``types`` section of a workflow."""
+
+    TEST_SPEC = "test_spec"
 
 
 class TaskEvent(StrEnum):
@@ -401,6 +423,7 @@ class Command(StrEnum):
     STATE = "state"
     TESTS = "tests"
     STATS = "stats"
+    DIAGNOSIS = "diagnosis"
 
 
 class TestsCommand(StrEnum):
@@ -423,6 +446,12 @@ class ProjectCommand(StrEnum):
 class RoadmapCommand(StrEnum):
     LIST = "list"
     SET = "set"
+
+
+class DiagnosisCommand(StrEnum):
+    WRITE = "write"
+    LIST = "list"
+    SHOW = "show"
 
 
 class ReplanCommand(StrEnum):
@@ -665,6 +694,7 @@ class WorkflowKey(StrEnum):
     PIN_DOCS_ON_APPROVAL = "pin_docs_on_approval"
     TIERED_ROLES = "tiered_roles"
     SIZES = "sizes"
+    TYPES = "types"
     READ_ONLY_ROLES = "read_only_roles"
     AGENT_DIRS = "agent_dirs"
 
@@ -767,6 +797,7 @@ class StateKey(StrEnum):
     LOOP_ROUND = "loop_round"
     BRANCH = "branch"
     SIZE = "size"
+    TYPE = "type"
     ROADMAP = "roadmap"
     REPLANNED_AT = "replanned_at"
     HISTORY = "history"

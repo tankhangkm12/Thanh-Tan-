@@ -63,6 +63,9 @@ class CurrentProjectServices:
     def write_replan(self, content):
         return self._service().write_replan(content)
 
+    def write_diagnosis(self, content):
+        return self._service().write_diagnosis(content)
+
     def scan_summary(self):
         return self._service().scan_summary()
 
@@ -117,6 +120,9 @@ def build_server(service: WorkspaceService) -> MCPServer:
     def replan_write(content: str) -> dict[str, Any]:
         return service.write_replan(content)
 
+    def diagnosis_write(content: str) -> dict[str, Any]:
+        return service.write_diagnosis(content)
+
     def scan_summary() -> dict[str, Any]:
         return service.scan_summary()
 
@@ -152,6 +158,12 @@ def build_server(service: WorkspaceService) -> MCPServer:
         "Propose the replan of the latest finished task (Markdown with the sections 'Mục roadmap đã hoàn thành' and "
         "'Đề xuất cải tiến quy trình'). It only proposes: a person reads it and says it is done. Refused while a task is open.",
         replan_write,
+    )
+    register(
+        ToolName.DIAGNOSIS_WRITE,
+        "Keep a diagnosis of a failure (Markdown with at least '## Tái hiện' and '## Nguyên nhân'). With a task open it is "
+        "kept for that task's rework round; with none it becomes D-001, D-002, ... for a bugfix task. Never changes a task.",
+        diagnosis_write,
     )
     register(ToolName.SCAN_SUMMARY, "Results of the scans run for the active task and the blocking findings left.", scan_summary)
     register(

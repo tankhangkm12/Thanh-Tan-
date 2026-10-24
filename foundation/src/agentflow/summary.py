@@ -30,6 +30,7 @@ def build_summary(
         "",
         f"- Branch: {task.branch}",
         *([f"- Size: {task.size}"] if task.size else []),
+        *([f"- Type: {task.type}"] if task.type else []),
         *([f"- Roadmap: {roadmap}"] if roadmap else []),
         *([f"- Spec delta: {spec_delta}"] if spec_delta else []),
         *([f"- {REPLAN_SUMMARY_LABEL}: {replan}"] if replan else []),

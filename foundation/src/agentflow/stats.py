@@ -26,6 +26,7 @@ class TaskStats:
     title: str
     status: str
     size: str | None
+    type: str | None
     started: str | None
     ended: str | None
     seconds: int
@@ -48,6 +49,7 @@ class TaskStats:
             "title": self.title,
             "status": self.status,
             "size": self.size,
+            "type": self.type,
             "started": self.started,
             "ended": self.ended,
             "seconds": self.seconds,
@@ -130,6 +132,7 @@ def task_stats(task: Task, refusals: Counter[str] | None = None) -> TaskStats:
         title=task.title,
         status=str(task.status),
         size=task.size,
+        type=task.type,
         started=started,
         ended=ended,
         seconds=_between(started, ended) if started and ended else 0,
@@ -165,7 +168,8 @@ def render(found: list[TaskStats]) -> list[str]:
     lines = []
     for item in found:
         size = f", size {item.size}" if item.size else ""
-        lines.append(f"{item.id} {item.title} ({item.status}{size})")
+        kind = f", {item.type}" if item.type else ""
+        lines.append(f"{item.id} {item.title} ({item.status}{kind}{size})")
         lines.append(
             f"  time {duration(item.seconds)} (waiting for a person {duration(item.waiting_seconds)}); "
             f"approvals {item.approvals}; rounds {item.rounds}; blocked {item.blocked}"

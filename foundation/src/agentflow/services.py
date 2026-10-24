@@ -21,6 +21,7 @@ from agentflow.constants import (
     GateKind,
     ProjectSection,
 )
+from agentflow import diagnosis
 from agentflow.conventions import Convention, ConventionDoc, parse_conventions, render_conventions, validate_conventions
 from agentflow.confirmations import Confirmations
 from agentflow.engine import next_action
@@ -126,6 +127,12 @@ class WorkspaceServices:
         """Propose the replan of the latest finished task. Only a person (`agentflow replan done`) makes it done."""
         _, state = self._open()
         path = write_replan(self.paths.dir, state, SubprocessGit(self.paths.root), content)
+        return ReportInfo(str(path), path.stat().st_size)
+
+    def write_diagnosis(self, content: str) -> ReportInfo:
+        """Keep a diagnosis: in the open task (``diagnoses/round-<n>.md``), or with none open as ``diagnoses/D-<n>.md``."""
+        _, state = self._open()
+        path = diagnosis.write(self.paths.dir, state, content).path
         return ReportInfo(str(path), path.stat().st_size)
 
     # ------------------------------------------------------ project documents

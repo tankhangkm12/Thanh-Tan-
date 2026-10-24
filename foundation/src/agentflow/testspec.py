@@ -14,6 +14,11 @@ Report block (one per plan item)::
     - reason: why they fail now
     - output: |
         the tail of the output
+
+A task whose type keeps the behaviour (the workflow's ``types`` give it ``test_spec: green``, dev-core: ``refactor`` and
+``chore``) proves the opposite: each block says ``- green: pass`` instead of ``- red: fail``, its ``reason`` says what
+behaviour the tests pin down, and agentflow runs every command on the code as it is and wants exit 0. The approval locks
+those tests the same way, and ``tests-pass`` wants them to pass again after the change.
 """
 
 import json
@@ -35,6 +40,7 @@ from agentflow.constants import (
     GateKind,
     PlanItemKind,
     ProjectSection,
+    TestSpecMode,
 )
 from agentflow.errors import AgentflowError
 from agentflow.fsutil import write_text_atomic
@@ -52,7 +58,7 @@ TIMESTAMP_FORMAT = "%Y-%m-%dT%H:%M:%SZ"
 RED, GREEN, TIMEOUT, NOT_FOUND, NONE = "red", "green", "timeout", "not-found", "none"
 
 _BLOCK = re.compile(r"^###\s+(?P<code>C\d+)\b.*$")
-_FIELD = re.compile(r"^-\s+(?P<key>tests|command|red|reason|output):\s*(?P<value>.*?)\s*$")
+_FIELD = re.compile(r"^-\s+(?P<key>tests|command|red|green|reason|output):\s*(?P<value>.*?)\s*$")
 _NO_TEST = re.compile(rf"^{NONE_WORD}\s*(?:[—–-]+\s*(?P<how>.*))?$", re.IGNORECASE)
 _PROFILE_LINE = re.compile(rf"^\s*[-*]\s+{PROFILE_COMMAND_KEY}:\s*(?P<command>.+?)\s*$")
 _DRIVE = re.compile(r"^[A-Za-z]:")
@@ -169,7 +175,7 @@ def spec_step(workflow: Workflow) -> Step | None:
 # ------------------------------------------------------------------ checking the report
 
 
-def report_problems(blocks: list[Block], items: tuple[PlanItem, ...], root: Path) -> list[str]:
+def report_problems(blocks: list[Block], items: tuple[PlanItem, ...], root: Path, mode: TestSpecMode = TestSpecMode.RED) -> list[str]:
     problems: list[str] = []
     wanted = [item.code for item in items]
     by_code = {block.code: block for block in blocks}
@@ -178,11 +184,11 @@ def report_problems(blocks: list[Block], items: tuple[PlanItem, ...], root: Path
     problems += [f"{block.code} appears more than once in the report" for block in blocks if block.count > 1]
     for block in blocks:
         if block.code in wanted:
-            problems += _block_problems(block, root)
+            problems += _block_problems(block, root, mode)
     return problems
 
 
-def _block_problems(block: Block, root: Path) -> list[str]:
+def _block_problems(block: Block, root: Path, mode: TestSpecMode = TestSpecMode.RED) -> list[str]:
     code = block.code
     tests = block.fields.get("tests", "").strip()
     if not tests:
@@ -193,10 +199,20 @@ def _block_problems(block: Block, root: Path) -> list[str]:
     command = block.command
     if not command:
         problems.append(f"{code}: missing field 'command'")
-    if block.fields.get("red", "").strip().lower() != "fail":
-        problems.append(f"{code}: field 'red' must be 'fail' (a test that does not fail first proves nothing)")
-    if not block.fields.get("reason", "").strip():
-        problems.append(f"{code}: field 'reason' is empty (say why the tests fail now)")
+    if mode is TestSpecMode.GREEN:
+        if block.fields.get("green", "").strip().lower() != "pass":
+            problems.append(
+                f"{code}: field 'green' must be 'pass': this task keeps the behaviour, so its tests must pass on the code as it is"
+            )
+        if "red" in block.fields:
+            problems.append(f"{code}: field 'red' does not belong to a task that keeps the behaviour (write '- green: pass')")
+        if not block.fields.get("reason", "").strip():
+            problems.append(f"{code}: field 'reason' is empty (say what behaviour the tests pin down)")
+    else:
+        if block.fields.get("red", "").strip().lower() != "fail":
+            problems.append(f"{code}: field 'red' must be 'fail' (a test that does not fail first proves nothing)")
+        if not block.fields.get("reason", "").strip():
+            problems.append(f"{code}: field 'reason' is empty (say why the tests fail now)")
     if not block.fields.get("output", "").strip():
         problems.append(f"{code}: field 'output' is empty (paste the tail of the output)")
     files = block.files
@@ -263,7 +279,8 @@ def verify_red(workspace_dir: Path, workflow: Workflow, task: Task, root: Path, 
         return [f"no report for step '{step.id}' yet (save it with `agentflow report --step {step.id}`)"], None
     text = path.read_text(encoding=ENCODING)
     blocks = parse_report(text)
-    problems = report_problems(blocks, plan_items(workspace_dir, workflow, task), root)
+    mode = workflow.test_spec_mode(task)
+    problems = report_problems(blocks, plan_items(workspace_dir, workflow, task), root, mode)
     to_lock = lockfiles.build_plan(root, [file for block in blocks for file in block.files], lockfiles.declared_infra(text))
     problems += to_lock.problems
     try:
@@ -280,9 +297,9 @@ def verify_red(workspace_dir: Path, workflow: Workflow, task: Task, root: Path, 
             continue
         entry = result_entry(block.command, runs[block.command], True)
         results[block.code] = entry
-        problems += _red_problems(block.code, entry, timeout)
-    # `files`: what the red proof was made on. The approval locks these bytes, or refuses when they are not these any more.
-    record = {"head": head, "at": now(), "files": to_lock.digests(), "results": results}
+        problems += _green_problems(block.code, entry, timeout) if mode is TestSpecMode.GREEN else _red_problems(block.code, entry, timeout)
+    # `files`: what the proof was made on. The approval locks these bytes, or refuses when they are not these any more.
+    record = {"head": head, "at": now(), "mode": str(mode), "files": to_lock.digests(), "results": results}
     save_record(task_file(workspace_dir, task.id, VERIFY_RED_FILE), record)
     return problems, record
 
@@ -296,6 +313,25 @@ def _red_problems(code: str, entry: dict[str, Any], timeout: float) -> list[str]
     if status == TIMEOUT:
         return [f"{code}: the command timed out after {timeout / 60:g} minutes"]
     return [f"{code}: the command cannot run (command not found?):\n{_indent(entry['output'])}"]
+
+
+def _green_problems(code: str, entry: dict[str, Any], timeout: float) -> list[str]:
+    status = entry["status"]
+    if status == GREEN:
+        return []
+    if status == RED:
+        return [
+            f"{code}: the command fails on the code as it is (exit {entry['exit_code']}); a task that keeps the behaviour needs "
+            f"tests that pass before the change:\n{_indent(entry['output'])}"
+        ]
+    if status == TIMEOUT:
+        return [f"{code}: the command timed out after {timeout / 60:g} minutes"]
+    return [f"{code}: the command cannot run (command not found?):\n{_indent(entry['output'])}"]
+
+
+def expected_status(workflow: Workflow, task: Task) -> str:
+    """What ``verify-red.json`` must say each command did at the test-spec step: red, or green for a behaviour-keeping task."""
+    return GREEN if workflow.test_spec_mode(task) is TestSpecMode.GREEN else RED
 
 
 def _indent(text: str) -> str:
@@ -348,6 +384,7 @@ def spec_commands(workspace_dir: Path, workflow: Workflow, task: Task) -> tuple[
     if not path.is_file():
         return [], [f"the approved report of step '{step.id}' is missing, so the {VERIFY_RED_FILE} cannot be checked"]
     blocks = parse_report(path.read_text(encoding=ENCODING))
+    expected = expected_status(workflow, task)
     record_path = task_file(workspace_dir, task.id, VERIFY_RED_FILE)
     try:
         results = json.loads(record_path.read_text(encoding=ENCODING))["results"]
@@ -360,8 +397,8 @@ def spec_commands(workspace_dir: Path, workflow: Workflow, task: Task) -> tuple[
             problems.append(f"{VERIFY_RED_FILE} does not match the approved test-spec report: {block.code} is missing from it")
         elif block.is_none:
             continue
-        elif entry.get("command") != block.command or entry.get("status") != RED:
-            problems.append(f"{VERIFY_RED_FILE} does not match the approved test-spec report: {block.code} was not recorded as red with the command of the report")
+        elif entry.get("command") != block.command or entry.get("status") != expected:
+            problems.append(f"{VERIFY_RED_FILE} does not match the approved test-spec report: {block.code} was not recorded as {expected} with the command of the report")
     problems += [
         f"{VERIFY_RED_FILE} does not match the approved test-spec report: {code} is not in the report"
         for code in results

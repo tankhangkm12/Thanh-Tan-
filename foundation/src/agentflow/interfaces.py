@@ -268,6 +268,8 @@ class WorkspaceService(Protocol):
 
     def write_replan(self, content: str) -> ReportInfo: ...
 
+    def write_diagnosis(self, content: str) -> ReportInfo: ...
+
 
 @runtime_checkable
 class WriteTargetPolicy(Protocol):
