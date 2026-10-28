@@ -1,0 +1,21 @@
+databases:
+  order-db:
+    engine: postgresql
+    major: 16
+    price_item: db-storage
+    tables:
+      orders:
+        id: TBL-orders
+        rows_per_day: A-orders-per-day
+        initial_rows: 0
+        retention_days: 1095
+        columns:
+          - {name: id, type: integer, counter: true, reason: "khóa chính; 20,000 dòng/ngày thì integer (tối đa 2,147,483,647) đủ hàng trăm năm"}
+          - {name: user_id, type: uuid, reason: "khóa ngoại sang user-db, định danh phân tán"}
+          - {name: status, type: smallint, reason: "vài trạng thái cố định, 2 byte đủ"}
+          - {name: total_cents, type: bigint, reason: "tiền tính bằng xu, tránh số thực"}
+          - {name: created_at, type: timestamptz, reason: "mốc tạo, có múi giờ"}
+          - {name: note, type: text, nullable: true, avg_bytes: A-note-bytes, reason: "ghi chú tự do của khách, có thể rỗng"}
+        indexes:
+          - {name: orders_pkey, columns: [id]}
+          - {name: orders_user_created_idx, columns: [user_id, created_at]}

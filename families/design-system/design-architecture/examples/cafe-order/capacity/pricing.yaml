@@ -1,0 +1,17 @@
+currency: USD
+gb_bytes:
+  value: 1073741824
+  source: https://example.com/pricing/storage#units
+items:
+  compute-instance:
+    description: VM 2 vCPU, 4 GB RAM
+    unit: instance-month
+    unit_price: 40
+    source: https://example.com/pricing/compute
+    looked_up: 2026-10-12
+  db-storage:
+    description: Ổ đĩa cho database
+    unit: GB-month
+    unit_price: 0.115
+    source: https://example.com/pricing/block-storage
+    looked_up: 2026-10-12

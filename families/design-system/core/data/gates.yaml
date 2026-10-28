@@ -1,0 +1,59 @@
+# Data for checkreport.py and promote_drafts.py: which scripts must have left a clean, fresh report in checks/ before the drafts of
+# a gate are copied to architecture/. Edit here, not in the scripts. `gates` follows the "Script" line of each gate in
+# workflow/stages.md (a test keeps them equal); scripts that leave no report to judge (non_report_scripts) are not listed.
+version: 1
+
+gates:
+  G0: [check_workspace]
+  G1: [calc_capacity, check_links, check_numbers, check_profile, check_workspace]
+  G2: [check_links, check_numbers, check_profile, check_workspace]
+  G3: [tally_votes, check_links, check_numbers, check_profile, check_workspace]
+  G4: [tally_votes, check_links, check_numbers, check_versions, check_profile, check_workspace]
+  G5: [calc_capacity, check_links, check_numbers, check_versions, check_profile, check_workspace]
+  G6: [check_trace, check_links, check_numbers, check_versions, check_profile, check_workspace]
+  G7: [calc_capacity, tally_votes, check_trace, check_links, check_numbers, check_versions, check_profile, check_workspace]
+  G8: [check_trace, check_links, check_numbers, check_versions, check_profile, check_workspace]
+  G9: [check_trace, check_links, check_numbers, check_versions, check_profile, check_workspace]
+  G10: [calc_capacity, tally_votes, check_trace, check_links, check_numbers, check_versions, check_profile, check_workspace]
+
+# One entry per script that writes a report. `prefix`: the report is checks/<prefix>-<YYYY-MM-DD>.md. `gated`: the script is run
+# for one gate (--gate Gn) and the report must say that gate (a report of a run over every gate, "tất cả", counts for any gate).
+# `scope`: globs relative to the workspace; every file matching them now must be in the report with the hash it had then, so a
+# file added after the check makes the report stale (empty: only the files the report lists are compared). `modes`: the
+# `Chế độ` values a report may carry for the gate (`default` for the others); omitted: the script has no mode.
+reports:
+  check_links:
+    prefix: links
+    scope: ["drafts/**/*.md"]
+  check_numbers:
+    prefix: numbers
+    scope: ["drafts/**/*.md", "capacity/**/*"]
+  check_versions:
+    prefix: versions
+    scope: ["drafts/02-tech-stack/README.md", "drafts/02-tech-stack/versions-features.md"]
+  check_profile:
+    prefix: profile
+    gated: true
+    scope: ["drafts/**/*.md"]
+    modes:
+      default: [templates]          # --no-templates leaves the required-section check undone: not enough to promote
+  check_trace:
+    prefix: trace
+    gated: true
+    scope: ["drafts/**/*.md", "decisions/decision-log.md", "questions.md", "inputs/ui-design/**/*"]
+  check_workspace:
+    prefix: workspace
+    gated: true
+    scope: ["state.md", "plan/plan.md", "plan/tasks/T-*.md", "decisions/**/*", "risks/*.md", "models.md", "drafts/11-risks/risk-register.md", "stack/layers/*/spikes/*.md"]
+  tally_votes:
+    prefix: tally
+    gated: true
+    scope: []
+  calc_capacity:
+    prefix: capacity
+    scope: ["capacity/**/*"]
+    modes:
+      default: [write, check]
+      G1: [assumptions-only, write, check]
+
+non_report_scripts: [init_workspace, detect_models, run_spike, call_council_cli, promote_drafts, archive_release]

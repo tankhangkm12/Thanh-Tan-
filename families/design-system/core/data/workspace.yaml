@@ -1,0 +1,36 @@
+# Data for check_workspace.py: the words and thresholds of the workspace files (state.md, plan/tasks, decision-log.md, the risk register).
+# Edit here, not in the script. Statuses are matched ignoring case and markup.
+version: 1
+
+tasks:
+  dir: plan/tasks               # T-xxx-<name>.md, template task.md (lines "Gate:" and "Trạng thái:")
+  statuses: [mở, đang làm, chờ soát, đóng]
+  closed: đóng
+
+decisions:
+  log: decisions/decision-log.md          # table: ID | Câu hỏi | Gate | Hội đồng | Trạng thái | Người dùng nói (nguyên văn) | Ngày
+  dir: decisions                          # D-xxx-<name>/ with brief.md and decision.md (a "BEGIN:user" block)
+  statuses: [brief, chờ phiếu, chờ người dùng, đã quyết, làm lại]
+  resolved: đã quyết                      # only this means the user decided ("làm lại" = the brief must be redone: still open)
+  choose_word: chọn                       # the user says `D-007: chọn B` (rule 2 of permissions.md)
+
+risks:
+  register: drafts/11-risks/risk-register.md   # table with ID, "Khả năng × Tác động", "Trạng thái"
+  acceptance: risks/acceptance.md              # table: ID | Điểm | Người dùng nói (nguyên văn) | Ngày
+  statuses: [đang theo dõi, đang giảm thiểu, đã chấp nhận, đã đóng]
+  handled: [đã chấp nhận, đã đóng]             # a risk at or above the threshold is "handled" only with one of these
+  accepted: đã chấp nhận
+  threshold: 15                                # 15-25 points: mitigate, or the user accepts it explicitly (PLAN.md, "Quản lý rủi ro")
+  block_from_gate: 9                           # an unhandled risk at or above the threshold is a warning before this gate, an error from it
+  accept_word: chấp nhận                       # the user says `R-04: chấp nhận`
+  scale: 5                                     # likelihood and impact are 1..scale
+
+spikes:
+  from_gate: 4                                 # G4 on, and only for this level, every required layer needs a passing spike
+  level: XL
+  plan_file: plan/plan.md
+  plan_heading: Lớp cần spike                  # the Planner's extra layers (bullets "- <layer>: <why>"), approved at G0
+
+models:
+  file: models.md                              # the "Gán model" table: Task | Agent | Model | Ngày
+  assign_heading: Gán model

@@ -1,8 +1,19 @@
 {
   "name": "dev-core",
-  "version": "0.1.0",
+  "version": "0.7.0",
   "description": "Core of the software-dev family: shared workflow, standards and gates for all dev-* plugins",
   "author": {
     "name": "tankhangkm12"
-  }
+  },
+  "agents": [
+    "./claude/agents/debugger.md",
+    "./claude/agents/implementer-deep.md",
+    "./claude/agents/implementer-fast.md",
+    "./claude/agents/orchestrator.md",
+    "./claude/agents/planner.md",
+    "./claude/agents/reviewer.md",
+    "./claude/agents/scout.md",
+    "./claude/agents/security.md",
+    "./claude/agents/tester.md"
+  ]
 }

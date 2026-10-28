@@ -1,0 +1,77 @@
+# SAMPLE for the tests of calc_capacity.py. A real project copies ~/knowledge/stacks/postgresql/constants-16.yaml here
+# (capacity/db-constants/postgresql-16.yaml) at G4, after the Researcher has checked every link.
+# Links into the source tree name the release tag REL_16_4, not the moving branch REL_16_STABLE.
+# MAXALIGN is not here: it depends on the platform and is an assumption (database_assumptions.<db>.maxalign).
+db: postgresql
+major: 16
+model: postgresql-heap
+looked_up: 2026-10-12
+
+constants:
+  page_size_bytes:
+    value: 8192
+    source: https://www.postgresql.org/docs/16/storage-page-layout.html
+    note: '"Every table and index is stored as an array of pages of a fixed size (usually 8 kB ...)"'
+  page_header_bytes:
+    value: 24
+    source: https://www.postgresql.org/docs/16/storage-page-layout.html
+    note: '"The first 24 bytes of each page consists of a page header (PageHeaderData)."'
+  item_pointer_bytes:
+    value: 4
+    source: https://www.postgresql.org/docs/16/storage-page-layout.html
+    note: '"item identifiers (ItemIdData), each requiring four bytes"'
+  tuple_header_bytes:
+    value: 23
+    source: https://www.postgresql.org/docs/16/storage-page-layout.html
+    note: '"a fixed-size header (occupying 23 bytes on most machines)"'
+  null_bitmap_bits_per_column:
+    value: 1
+    source: https://www.postgresql.org/docs/16/storage-page-layout.html
+    note: '"occupies enough bytes to have one bit per data column"; present only when a row has a null'
+  heap_fillfactor:
+    value: 1.0
+    source: https://www.postgresql.org/docs/16/sql-createtable.html
+    note: '"100 (complete packing) is the default"'
+  varlena_short_header_bytes:
+    value: 1
+    source: https://www.postgresql.org/docs/16/datatype-character.html
+    note: '"a short string (up to 126 bytes) is 1 byte plus the actual string"'
+  varlena_long_header_bytes:
+    value: 4
+    source: https://www.postgresql.org/docs/16/datatype-character.html
+    note: '"Longer strings have 4 bytes of overhead instead of 1."'
+  varlena_short_max_bytes:
+    value: 126
+    source: https://www.postgresql.org/docs/16/datatype-character.html
+  index_tuple_header_bytes:
+    value: 8
+    source: https://github.com/postgres/postgres/blob/REL_16_4/src/include/access/itup.h
+    note: 'IndexTupleData = t_tid (ItemPointerData, 6 bytes: pg_type.dat tid typlen 6) + t_info (unsigned short, 2 bytes); key data follows at a MAXALIGN boundary'
+  btree_leaf_fillfactor:
+    value: 0.9
+    source: https://www.postgresql.org/docs/16/sql-createindex.html
+    note: '"B-trees use a default fillfactor of 90"'
+  btree_page_special_bytes:
+    value: 16
+    source: https://github.com/postgres/postgres/blob/REL_16_4/src/include/access/nbtree.h
+    note: 'BTPageOpaqueData = btpo_prev 4 + btpo_next 4 + btpo_level 4 + btpo_flags 2 + btpo_cycleid 2'
+
+types:
+  smallint:
+    {bytes: 2, align: 2, max: 32767, family: integer, source: "https://www.postgresql.org/docs/16/datatype-numeric.html", align_source: "https://github.com/postgres/postgres/blob/REL_16_4/src/include/catalog/pg_type.dat"}
+  integer:
+    {bytes: 4, align: 4, max: 2147483647, family: integer, source: "https://www.postgresql.org/docs/16/datatype-numeric.html", align_source: "https://github.com/postgres/postgres/blob/REL_16_4/src/include/catalog/pg_type.dat"}
+  bigint:
+    {bytes: 8, align: 8, max: 9223372036854775807, family: integer, source: "https://www.postgresql.org/docs/16/datatype-numeric.html", align_source: "https://github.com/postgres/postgres/blob/REL_16_4/src/include/catalog/pg_type.dat"}
+  boolean:
+    {bytes: 1, align: 1, source: "https://www.postgresql.org/docs/16/datatype-boolean.html", align_source: "https://github.com/postgres/postgres/blob/REL_16_4/src/include/catalog/pg_type.dat"}
+  uuid:
+    {bytes: 16, align: 1, source: "https://github.com/postgres/postgres/blob/REL_16_4/src/include/catalog/pg_type.dat", align_source: "https://github.com/postgres/postgres/blob/REL_16_4/src/include/catalog/pg_type.dat"}
+  date:
+    {bytes: 4, align: 4, source: "https://www.postgresql.org/docs/16/datatype-datetime.html", align_source: "https://github.com/postgres/postgres/blob/REL_16_4/src/include/catalog/pg_type.dat"}
+  timestamptz:
+    {bytes: 8, align: 8, source: "https://www.postgresql.org/docs/16/datatype-datetime.html", align_source: "https://github.com/postgres/postgres/blob/REL_16_4/src/include/catalog/pg_type.dat"}
+  text:
+    {variable: true, align: 4, source: "https://www.postgresql.org/docs/16/datatype-character.html", align_source: "https://github.com/postgres/postgres/blob/REL_16_4/src/include/catalog/pg_type.dat"}
+  numeric:
+    {variable: true, align: 4, source: "https://www.postgresql.org/docs/16/datatype-numeric.html", align_source: "https://github.com/postgres/postgres/blob/REL_16_4/src/include/catalog/pg_type.dat"}

@@ -1,0 +1,32 @@
+# Data for check_trace.py: where the parts of the design live and from which gate each check runs. Edit here, not in the script.
+# Paths are relative to the root that is scanned (the drafts of the workspace, laid out like architecture/). The ID prefixes come
+# from data/ids.yaml.
+version: 1
+
+# A requirement is traced when a single-flow file mentions it. flow-index.md (an index) and other files of the folder do not count.
+requirement_kind: FR
+flows_dir: 04-flows
+flow_files: "FL-*.md"
+
+# What the frontend calls (by `API-xx`) must be defined by the backend; what the flows mention (`TBL-`, `BKT-`, `EVT-`) must be
+# defined by the data part. No frontend folder (the project profile dropped 05-frontend) skips the API check; 07-data is part of every level.
+frontend_dir: 05-frontend
+backend_dir: 06-backend
+api_kind: API
+data_dir: 07-data
+data_kinds: [TBL, BKT, EVT]
+
+# First gate (a number) from which each check runs. At G6 the flows are approved before the backend and data are designed (G7), so
+# their IDs cannot be defined yet and the checks that need them start at G7.
+requirement_from_gate: 6
+cross_from_gate: 7          # API of the frontend, TBL/BKT/EVT of the flows
+# Mentions of an ID that is defined nowhere: from which gate, per prefix; the others use `default`. SVC, API, EVT, TBL and BKT are
+# defined by the detailed design of G7.
+undefined_from_gate: {default: 6, SVC: 7, API: 7, EVT: 7, TBL: 7, BKT: 7}
+
+# IDs defined outside the drafts: a mention of one of `kinds` in these files (any text file; a folder means every file inside,
+# relative to the workspace) counts as its definition. SCR comes from the UI designer's list in inputs/.
+sources:
+  - {path: decisions/decision-log.md, kinds: [D]}
+  - {path: questions.md, kinds: [CH]}
+  - {path: inputs/ui-design, kinds: [SCR]}

@@ -1,0 +1,34 @@
+databases:
+  order-db:
+    engine: postgresql
+    major: 16
+    price_item: db-storage
+    tables:
+      orders:
+        id: TBL-orders
+        rows_per_day: A-orders-per-day
+        initial_rows: 0
+        retention_days: 1095
+        columns:
+          - {name: id, type: integer, counter: true, reason: "khóa chính; 5.000 đơn mỗi ngày ở mốc 3y thì integer (tối đa 2.147.483.647) đủ hơn 400 năm"}
+          - {name: status, type: smallint, reason: "bốn trạng thái cố định, 2 byte đủ"}
+          - {name: total_cents, type: integer, reason: "tiền tính bằng xu; một đơn không vượt 21 triệu USD"}
+          - {name: created_at, type: timestamptz, reason: "mốc tạo đơn, có múi giờ"}
+          - {name: note, type: text, nullable: true, avg_bytes: A-note-bytes, reason: "ghi chú tự do của khách, có thể rỗng"}
+        indexes:
+          - {name: orders_pkey, columns: [id]}
+          - {name: orders_created_idx, columns: [created_at]}
+      order_items:
+        id: TBL-order-items
+        rows_per_day: A-order-items-per-day
+        initial_rows: 0
+        retention_days: 1095
+        columns:
+          - {name: id, type: integer, counter: true, reason: "khóa chính; 15.000 dòng mỗi ngày ở mốc 3y thì integer đủ hơn 140 năm"}
+          - {name: order_id, type: integer, reason: "khóa ngoại sang orders.id, cùng kiểu với khóa chính"}
+          - {name: product_id, type: smallint, reason: "thực đơn dưới 32.000 món"}
+          - {name: quantity, type: smallint, reason: "số lượng mỗi dòng không vượt 32.000"}
+          - {name: unit_cents, type: integer, reason: "đơn giá tính bằng xu"}
+        indexes:
+          - {name: order_items_pkey, columns: [id]}
+          - {name: order_items_order_idx, columns: [order_id]}

@@ -1,0 +1,160 @@
+# Data for check_numbers.py. Edit here, not in the script. Phase 4 runs the check on a sample draft to tune how sensitive it is.
+version: 1
+
+# A word or phrase with no number next to it is a blocking error (PLAN.md, "Quy tắc số liệu và sizing"):
+# "nhanh", "lớn", "đủ dùng", "scale tốt" stand for a figure that must be written down. Matched whole-word, case-insensitive.
+# The number may be anywhere in the same table row, list item, heading or sentence.
+vague_words:
+  - nhanh
+  - chậm
+  - lớn
+  - nhỏ
+  - nhiều
+  - ít
+  - đủ dùng
+  - đủ nhanh
+  - đủ lớn
+  - scale tốt
+  - hiệu năng cao
+  - hiệu năng tốt
+  - mượt
+  # the same in English (a draft may be written in either language). Not "tối ưu" / "optimal" / "optimize": "Tối ưu" is a required section.
+  - fast
+  - slow
+  - large
+  - small
+  - big
+  - huge
+  - quick
+  - quickly
+  - scalable
+  - scales well
+  - scale well
+  - high performance
+  - good performance
+  - enough
+  - sufficient
+  - adequate
+  - many
+  - few
+  - smooth
+
+# A number that stands before one of these is a "number with a unit" and needs a formula, an assumption (A-xx declared in
+# capacity/assumptions.yaml) or a source (link, URL, inputs/ path) in the same sentence (paragraph), list item, heading or table row.
+units:
+  - byte
+  - bytes
+  - B
+  - KB
+  - MB
+  - GB
+  - TB
+  - KiB
+  - MiB
+  - GiB
+  - TiB
+  - ms
+  - s
+  - giây
+  - phút
+  - giờ
+  - ngày
+  - tuần
+  - tháng
+  - năm
+  - "%"
+  - req/s
+  - rps
+  - qps
+  - tps
+  - request
+  - requests
+  - req
+  - người dùng
+  - user
+  - users
+  - DAU
+  - MAU
+  - session
+  - sessions
+  - kết nối
+  - connection
+  - connections
+  - instance
+  - instances
+  - node
+  - nodes
+  - pod
+  - pods
+  - vCPU
+  - core
+  - cores
+  - dòng
+  - bản ghi
+  - record
+  - records
+  - file
+  - tệp
+  - đơn
+  - lượt
+  - lần
+  - triệu
+  - tỷ
+  - nghìn
+  - ngàn
+  - USD
+  - VND
+  - đồng
+
+# A currency sign or code in front of the number: "$100", "USD 100".
+unit_prefixes:
+  - "$"
+  - USD
+  - VND
+  - "₫"
+
+# A table column whose header contains one of these words is an evidence column: a number in a row where that cell is filled
+# (not empty, "-", "—", "n/a", "chưa có") passes.
+evidence_columns:
+  - nguồn
+  - giả định
+  - công thức
+  - source
+  - assumption
+  - formula
+
+# Text that counts as a source when it appears in the same context (besides links and URLs).
+source_markers:
+  - inputs/
+
+# Cell values that count as empty in an evidence column.
+empty_cells:
+  - ""
+  - "-"
+  - "—"
+  - "–"
+  - n/a
+  - na
+  - tbd
+  - chưa có
+  - không có
+
+# Exact phrases that contain a vague word: "ít nhất một" (at least one), "nhỏ nhất" (the smallest) say a precise thing. They are
+# removed before the vague words are looked for. The bare word ("ít", "lớn") stays vague.
+exempt_phrases:
+  - ít nhất
+  - nhiều nhất
+  - lớn nhất
+  - nhỏ nhất
+
+# An ID of these kinds, defined in the drafts (heading or first table cell), in the same sentence, list item or table row is evidence for
+# a number: the definition of an NFR or a constraint (quality-attributes.md, constraints.md) carries its own source column.
+evidence_id_kinds: [NFR, C]
+
+# A table column whose header contains one of these words is a basis ("cơ sở") column. It is NOT a free-text evidence column: a filled
+# cell counts only if it holds a link or an ID of basis_id_kinds. An A-xx must be declared in assumptions.yaml; an NFR, C, TC or R must
+# be defined in the drafts; a D-xx is defined in decisions/decision-log.md, so only its shape is checked here (check_trace.py reports
+# a D-xx defined nowhere). A cell with words only ("kinh nghiệm team") is still an error. This covers "Cơ sở" and "Cơ sở ước tính".
+basis_columns:
+  - cơ sở
+basis_id_kinds: [NFR, C, A, D, R, TC]

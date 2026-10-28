@@ -1,0 +1,31 @@
+version: 1
+milestones: [launch, 1y, 3y]
+assumptions:
+  - {id: A-dau, description: Người dùng hoạt động mỗi ngày, unit: người dùng, by_milestone: {launch: 500, 1y: 3000, 3y: 10000}, source: inputs/ba/prd.md mục 4.1}
+  - {id: A-requests-per-user, description: Request mỗi người dùng mỗi ngày, unit: request/người/ngày, value: 30, source: inputs/ba/prd.md mục 4.2}
+  - {id: A-peak-factor, description: Hệ số đỉnh so với trung bình, unit: lần, value: 6, source: người dùng duyệt ở G1}
+  - {id: A-safety-margin, description: Biên an toàn cộng lên tải đỉnh, unit: tỉ lệ, value: 0.3, source: người dùng duyệt ở G1}
+  - {id: A-orders-per-day, description: Đơn mới mỗi ngày (trung bình trong giai đoạn kết thúc ở mốc), unit: dòng/ngày, by_milestone: {launch: 0, 1y: 1500, 3y: 5000}, source: inputs/ba/prd.md mục 4.3}
+  - {id: A-order-items-per-day, description: Dòng món trong đơn mới mỗi ngày (trung bình trong giai đoạn kết thúc ở mốc), unit: dòng/ngày, by_milestone: {launch: 0, 1y: 4500, 3y: 15000}, source: "ước lượng của BA: 3 món mỗi đơn, inputs/ba/prd.md mục 4.3"}
+  - {id: A-note-bytes, description: Độ dài trung bình ghi chú đơn, unit: byte, value: 30, source: ước lượng của BA, inputs/ba/prd.md mục 4.4}
+  - {id: A-maxalign, description: MAXALIGN của PostgreSQL trên máy chủ triển khai, unit: byte, value: 8, platform: x86_64, source: "đo bằng pg_controldata trên máy đích, https://www.postgresql.org/docs/16/app-pgcontroldata.html"}
+  - {id: A-heap-bloat, description: Hệ số phình heap, unit: lần, value: 1.2, source: "ước lượng mẫu, vacuum tự động bình thường"}
+  - {id: A-index-bloat, description: Hệ số phình index, unit: lần, value: 1.3, source: ước lượng mẫu}
+  - {id: A-wal-bytes, description: Dung lượng WAL giữ lại, unit: byte, value: 1073741824, source: ước lượng mẫu (1 GiB)}
+  - {id: A-replicas, description: Số bản sao, unit: bản, value: 1, source: "ước lượng mẫu, một bản sao cho sẵn sàng cao"}
+  - {id: A-backups, description: Số bản backup giữ lại, unit: bản, value: 2, source: "ước lượng mẫu, hai bản gần nhất"}
+  - {id: A-toast-ratio, description: Tỉ lệ cột độ dài thay đổi vượt ngưỡng TOAST, unit: tỉ lệ, value: 0, source: ước lượng mẫu, reason: "ghi chú đơn chỉ vài chục byte, không cột nào tới ngưỡng TOAST"}
+workload:
+  dau: A-dau
+  requests_per_user_per_day: A-requests-per-user
+  peak_factor: A-peak-factor
+  safety_margin: A-safety-margin
+database_assumptions:
+  order-db:
+    maxalign: A-maxalign
+    heap_bloat_factor: A-heap-bloat
+    index_bloat_factor: A-index-bloat
+    wal_bytes: A-wal-bytes
+    replicas: A-replicas
+    backups: A-backups
+    toast_column_ratio: A-toast-ratio

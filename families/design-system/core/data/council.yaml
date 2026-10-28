@@ -1,0 +1,28 @@
+# Data for tally_votes.py (and call_council_cli.py): who sits on the council, the limits of a vote. Edit here, not in the script.
+# PLAN.md, "Hội đồng bỏ phiếu quá bán". test_tally_votes.py keeps `perspectives` equal to the files of claude/agents/council/.
+version: 1
+
+# Perspective ids (the `perspective` key of a vote and the part of the vote file name after `r<round>-`).
+# 3 members: the first three ("Luôn có"); 5 members: all five.
+sizes:
+  3: [fit, cost-ops, numbers-nfr]
+  5: [fit, cost-ops, numbers-nfr, evolution, risk-data]
+
+# Decisions that go to the council happen only at these gates (stages.md).
+gates: [G3, G4, G7]
+
+# Raw score of a criterion is an integer 0..score_max (the formula divides by score_max x sum of weights).
+score_max: 5
+
+# Overreach ("làm quá tay") points per option per vote: an integer 0..max_overreach. More than that and the vote is rejected.
+max_overreach: 20
+
+# Two options whose totals (unrounded) differ by less than this are tied: the vote needs a tie_reason.
+tie_threshold: "0.01"
+
+# `via` of a vote: a Claude Code subagent, or an outside CLI called by call_council_cli.py.
+vias: [subagent, cli]
+
+# ID prefixes a vote may cite in `cites` and in its reasons: TC, NFR, a constraint C-xx, an assumption A-xx, a risk R-xx
+# (each must be a prefix of data/ids.yaml).
+cite_kinds: [TC, NFR, C, A, R]

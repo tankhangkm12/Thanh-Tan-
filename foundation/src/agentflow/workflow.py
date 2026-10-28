@@ -6,7 +6,7 @@ from typing import Any
 
 import yaml
 
-from agentflow.constants import ENCODING, WORKFLOW_SCHEMA_FILE, ExitCode, StepKind
+from agentflow.constants import ENCODING, WORKFLOW_SCHEMA_FILE, ExitCode
 from agentflow.errors import AgentflowError
 from agentflow.fsutil import file_sha256
 from agentflow.models import Workflow, workflow_from_dict
@@ -39,33 +39,52 @@ def parse_workflow(data: Any, origin: str) -> Workflow:
 
 
 def reference_problems(workflow: Workflow) -> list[str]:
-    """Rules JSON Schema cannot express: unique ids and valid step references."""
+    """Rules JSON Schema cannot express: unique ids, and on_fail pointing at an earlier step."""
     problems: list[str] = []
     counts = Counter(step.id for step in workflow.steps)
     problems += [f"duplicate step id '{step_id}'" for step_id, n in counts.items() if n > 1]
-    if not workflow.main_steps():
-        problems.append(f"workflow needs at least one step of kind '{StepKind.STEP}'")
+
+    step_roles = {step.role for step in workflow.steps}
+    problems += [f"tiered role '{role}' is not the role of any step" for role in workflow.tiered_roles if role not in step_roles]
+
+    problems += _size_problems(workflow)
+    problems += [
+        f"step '{step.id}': an approval checklist needs requires_approval"
+        for step in workflow.steps
+        if step.has_checklist and not step.requires_approval
+    ]
 
     position = {step.id: index for index, step in enumerate(workflow.steps)}
     for index, step in enumerate(workflow.steps):
-        if step.on_fail is not None:
-            target = workflow.get_step(step.on_fail)
-            if target is None:
-                problems.append(f"step '{step.id}': on_fail '{step.on_fail}' does not exist")
-            elif target.kind is not StepKind.LOOP:
-                problems.append(
-                    f"step '{step.id}': on_fail '{step.on_fail}' must be a step of kind '{StepKind.LOOP}'"
-                )
-        if step.loop is not None:
-            target = workflow.get_step(step.loop.back_to)
-            if target is None:
-                problems.append(f"step '{step.id}': back_to '{step.loop.back_to}' does not exist")
-            elif target.kind is not StepKind.STEP:
-                problems.append(
-                    f"step '{step.id}': back_to '{step.loop.back_to}' must be a step of kind '{StepKind.STEP}'"
-                )
-            elif position[target.id] > index:
-                problems.append(f"step '{step.id}': back_to '{step.loop.back_to}' must come before it")
+        if step.on_fail is None:
+            continue
+        if step.on_fail not in position:
+            problems.append(f"step '{step.id}': on_fail '{step.on_fail}' does not exist")
+        elif position[step.on_fail] >= index:
+            problems.append(f"step '{step.id}': on_fail '{step.on_fail}' must be an earlier step")
+    return problems
+
+
+def _size_problems(workflow: Workflow) -> list[str]:
+    ids = {profile.id for profile in workflow.sizes}
+    problems = [
+        f"types: '{task_type}' names size '{size}', which is not one of the profiles ({', '.join(sorted(ids)) or 'none'})"
+        for task_type, size in workflow.type_sizes.items()
+        if size not in ids
+    ]
+    if not workflow.sizes:
+        return problems
+    if workflow.default_size not in ids:
+        problems.append(f"sizes: default '{workflow.default_size}' is not one of the profiles ({', '.join(sorted(ids))})")
+    approval = {step.id for step in workflow.steps if step.requires_approval}
+    steps = {step.id for step in workflow.steps}
+    for profile in workflow.sizes:
+        for step_id in profile.skip_approval:
+            if step_id not in approval:
+                problems.append(f"size '{profile.id}': skip_approval '{step_id}' is not a step that needs approval")
+        for step_id in profile.scans:
+            if step_id not in steps:
+                problems.append(f"size '{profile.id}': scans names step '{step_id}', which does not exist")
     return problems
 
 

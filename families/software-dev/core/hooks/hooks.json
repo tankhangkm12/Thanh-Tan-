@@ -1,0 +1,42 @@
+{
+  "description": "agentflow hooks: block risky git commands and writes into .ThanhTan/, load the task summary at session start, remind about task state on stop. They do nothing in projects without .ThanhTan/.",
+  "hooks": {
+    "SessionStart": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "agentflow",
+            "args": ["hook", "session-start", "--cli", "claude"],
+            "timeout": 30
+          }
+        ]
+      }
+    ],
+    "PreToolUse": [
+      {
+        "matcher": "Bash|PowerShell|Write|Edit|MultiEdit|NotebookEdit",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "agentflow",
+            "args": ["hook", "pre-tool", "--cli", "claude"],
+            "timeout": 30
+          }
+        ]
+      }
+    ],
+    "Stop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "agentflow",
+            "args": ["hook", "stop", "--cli", "claude"],
+            "timeout": 30
+          }
+        ]
+      }
+    ]
+  }
+}

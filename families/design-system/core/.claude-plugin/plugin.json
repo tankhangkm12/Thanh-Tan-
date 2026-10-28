@@ -1,0 +1,20 @@
+{
+  "name": "design-core",
+  "version": "0.1.0",
+  "description": "Core of the design-system family: shared workflow, quality criteria, agents, templates and scripts for all design-* plugins",
+  "author": {
+    "name": "tankhangkm12"
+  },
+  "agents": [
+    "./claude/agents/council/cost-ops.md",
+    "./claude/agents/council/evolution.md",
+    "./claude/agents/council/fit.md",
+    "./claude/agents/council/numbers-nfr.md",
+    "./claude/agents/council/risk-data.md",
+    "./claude/agents/designer.md",
+    "./claude/agents/orchestrator.md",
+    "./claude/agents/planner.md",
+    "./claude/agents/researcher.md",
+    "./claude/agents/reviewer.md"
+  ]
+}

@@ -1,0 +1,10 @@
+services:
+  order-service:
+    id: SVC-order-service
+    traffic_share: 1
+    requests_per_second_per_instance:
+      value: 100
+      source: https://example.com/benchmarks/order-service-with-postgresql-2026-10
+    target_utilization: 0.7
+    min_instances: 2
+    price_item: compute-instance

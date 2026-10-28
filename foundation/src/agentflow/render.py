@@ -1,19 +1,18 @@
-"""Human-readable text for steps and next actions, shared by STATE.md and the CLI."""
+"""Human-readable text for steps and next actions, shared by STATE.md, the CLI and hooks."""
 
 from agentflow.constants import ActionKind
 from agentflow.models import NextAction, Step
 
 NONE_TEXT = "none"
 APPROVAL_NOTE = ", needs approval"
+ROUND_TEXT = ", rework round {round}/{max_rounds}"
 
 _ACTION_TEXT = {
     ActionKind.START_TASK: "start a new task at {step}",
-    ActionKind.CONTINUE: "continue {step}",
+    ActionKind.CONTINUE: "work on {step}{rounds}",
     ActionKind.AWAIT_APPROVAL: "wait for a person to approve {step}",
-    ActionKind.ADVANCE: "move on to {step}",
-    ActionKind.LOOP: "fix the failure in {step}, round {round}/{max_rounds}",
-    ActionKind.BLOCKED: "blocked at {step}: a person has to decide how to continue",
-    ActionKind.DONE: "all steps passed: the task can be closed",
+    ActionKind.BLOCKED: "blocked at {step} after {round}/{max_rounds} rework rounds: "
+    "a person has to approve to resume, or cancel the task",
 }
 
 
@@ -23,9 +22,10 @@ def describe_step(step: Step) -> str:
 
 
 def describe_action(action: NextAction) -> str:
-    max_rounds = action.step.loop.max_rounds if action.step and action.step.loop else None
+    rounds = ROUND_TEXT.format(round=action.loop_round, max_rounds=action.max_rounds) if action.loop_round else ""
     return _ACTION_TEXT[action.kind].format(
         step=describe_step(action.step) if action.step else NONE_TEXT,
+        rounds=rounds,
         round=action.loop_round,
-        max_rounds=max_rounds,
+        max_rounds=action.max_rounds,
     )

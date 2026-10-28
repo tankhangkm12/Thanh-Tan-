@@ -1,11 +1,14 @@
 {
   "name": "dev-backend",
-  "version": "0.1.0",
+  "version": "0.4.0",
   "description": "Backend development for the software-dev family: services, APIs and data storage",
   "author": {
     "name": "tankhangkm12"
   },
   "dependencies": [
     "dev-core"
+  ],
+  "agents": [
+    "./claude/agents/db-engineer.md"
   ]
 }

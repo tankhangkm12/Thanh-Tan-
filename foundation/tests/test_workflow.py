@@ -18,7 +18,7 @@ def write_yaml(tmp_path, data, name="workflow.yaml"):
 def test_load_valid_workflow(tmp_path, workflow_data):
     workflow = load_workflow(write_yaml(tmp_path, workflow_data))
     assert workflow.family == "sample"
-    assert [step.id for step in workflow.steps] == ["confirm", "build", "check", "fix"]
+    assert [step.id for step in workflow.steps] == ["confirm", "build", "check"]
 
 
 def test_missing_file(tmp_path):
@@ -48,17 +48,8 @@ def test_schema_violation_lists_location(workflow_data):
     [
         (lambda d: d["steps"][1].update(id="confirm"), "duplicate step id 'confirm'"),
         (lambda d: d["steps"][2].update(on_fail="ghost"), "on_fail 'ghost' does not exist"),
-        (lambda d: d["steps"][2].update(on_fail="build"), "on_fail 'build' must be a step of kind 'loop'"),
-        (lambda d: d["steps"][3]["loop"].update(back_to="ghost"), "back_to 'ghost' does not exist"),
-        (lambda d: d["steps"][3]["loop"].update(back_to="fix"), "back_to 'fix' must be a step of kind 'step'"),
-        (
-            lambda d: d["steps"].insert(0, d["steps"].pop(3)),
-            "back_to 'build' must come before it",
-        ),
-        (
-            lambda d: d.update(steps=[d["steps"][3]]),
-            "workflow needs at least one step of kind 'step'",
-        ),
+        (lambda d: d["steps"][2].update(on_fail="check"), "on_fail 'check' must be an earlier step"),
+        (lambda d: d["steps"][1].update(on_fail="check"), "on_fail 'check' must be an earlier step"),
     ],
 )
 def test_reference_problems(workflow_data, mutate, expected):

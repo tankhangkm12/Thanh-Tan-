@@ -1,0 +1,11 @@
+{
+  "name": "design-architecture",
+  "version": "0.1.0",
+  "description": "Solution architecture design for the design-system family: turns BA documents into a complete architecture document set with real figures",
+  "author": {
+    "name": "tankhangkm12"
+  },
+  "dependencies": [
+    "design-core"
+  ]
+}

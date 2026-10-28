@@ -1,0 +1,35 @@
+# Data for check_versions.py: how to find the columns of the two tables and what counts as a pinned version or an end-of-life date.
+# Header cells are matched by "contains" (case-insensitive, markup removed). Edit here, not in the script.
+version: 1
+
+# 02-tech-stack/README.md: tables with one technology per row ("lớp -> công nghệ -> phiên bản -> TC đáp ứng", PLAN.md).
+readme_columns:
+  technology: [công nghệ, technology]
+  version: [phiên bản, version]
+  layer: [lớp, layer]          # decides which version forms are allowed (see third_party_layers)
+
+# 02-tech-stack/versions-features.md: one row per technology (PLAN.md, "Phiên bản và ma trận tính năng").
+versions_columns:
+  technology: [công nghệ, technology]
+  version: [phiên bản chốt, phiên bản, version]
+  lifecycle: [hết hỗ trợ, eol, end of life, end of support, vòng đời, lifecycle]   # release date, end-of-support date and the official lifecycle link
+  risk: [rủi ro, risk]         # must link an R-xx when the end of support is near
+
+# Every layer pins major.minor(.patch). Only the layers named here may ALSO use the forms below (matched by "contains" in the
+# README "Lớp" cell). A technology the README does not list is treated as a strict layer.
+third_party_layers: [third-party, third party, bên thứ ba]
+date_versions: true            # YYYY-MM-DD as the version (third-party layers only)
+saas_phrases: ["saas, không phiên bản"]   # no version at all (third-party layers only); the lifecycle cell must link the changelog or deprecation policy
+
+# A version cell naming one of these is not a pinned version ("latest" moves).
+floating_versions: [latest, mới nhất, newest, nightly, main, master, "x.x"]
+
+# A label in front of an end-of-support date inside the lifecycle cell: "hết hỗ trợ 2029-11-09" is the end date even when it is the only date.
+eol_labels: [hết hỗ trợ, hết hạn hỗ trợ, eol, end of life, end-of-life, end of support, support until, supported until]
+
+# When the vendor announces no end date, the cell may say so (with the official link) instead of giving a date.
+no_eol_phrases: [chưa công bố, không công bố ngày hết hỗ trợ, không có ngày eol, no eol announced, no end date announced]
+
+# A version already out of support (end date <= run date) is an error. One that ends within this many months is a warning, and its row
+# must link an R-xx in the risk column, otherwise it is an error too.
+eol_warning_months: 12

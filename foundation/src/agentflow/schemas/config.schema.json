@@ -1,12 +1,37 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "title": "agentflow workspace config",
-  "description": "Content of .agentflow/config.yaml.",
+  "description": "Content of .ThanhTan/config.yaml.",
   "type": "object",
   "additionalProperties": false,
   "required": ["schema_version", "workflow"],
   "properties": {
     "schema_version": { "const": 1 },
+    "extensions": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["name", "source_path", "sha256"],
+        "properties": {
+          "name": { "type": "string", "pattern": "^[a-z][a-z0-9-]*$" },
+          "source_path": { "type": "string", "minLength": 1 },
+          "sha256": { "type": "string", "pattern": "^[0-9a-f]{64}$" }
+        }
+      }
+    },
+    "settings": { "type": "object" },
+    "role_grants": {
+      "type": "object",
+      "description": "Tools a person granted each role for this project (agentflow role grant): MCP tool names or patterns.",
+      "propertyNames": { "pattern": "^[a-z][a-z0-9-]*$" },
+      "additionalProperties": {
+        "type": "array",
+        "minItems": 1,
+        "uniqueItems": true,
+        "items": { "type": "string", "pattern": "^mcp__" }
+      }
+    },
     "workflow": {
       "type": "object",
       "additionalProperties": false,

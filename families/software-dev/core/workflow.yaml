@@ -1,44 +1,121 @@
 # yaml-language-server: $schema=../../../foundation/src/agentflow/schemas/workflow.schema.json
 #
-# Quy trình 7 bước của nhóm software-dev, đọc bởi agentflow (foundation).
-# Các bước thường chạy theo thứ tự trong danh sách; bước kind: loop chỉ được vào qua on_fail.
+# Quy trình 6 bước của nhóm software-dev, đọc bởi agentflow (foundation).
+# Các bước chạy theo thứ tự trong danh sách. Bước có on_fail mà bị fail thì quay về bước đó;
+# mỗi task được quay lại tối đa max_rounds lần, lần fail tiếp theo làm task bị blocked.
 schema_version: 1
 family: software-dev
+max_rounds: 3
+# Roles with one agent per plan-item tier (`tier: fast|deep`): implementer-fast and implementer-deep.
+tiered_roles: [implementer]
+# Roles that only read: a project can grant them read-only MCP tools (`agentflow role grant`) and nothing else.
+read_only_roles: [orchestrator, planner, security, reviewer, scout, debugger]
+# Where this plugin keeps its generated agent files, for the project-level copies `agentflow role grant` makes.
+agent_dirs:
+  claude: claude/agents
+  antigravity: agents
+# Approval checklists: a step that needs a person lists what they check. `approval_checklist` are the fixed questions
+# (codes K1, K2...); `approval_items` add lines from the step's report (plan items, review conventions, proposals).
+# agentflow writes them to .ThanhTan/tasks/<task>/approve-<step>.md and `task approve` reads the ticks.
+# Task sizes (`agentflow task new "<title>" --size small|normal`). A small task skips the approval of the plan (the plan
+# check still runs, and the plan has at most 3 items; confirm and review still need a person) and its security step runs
+# Gitleaks and Semgrep only (also Semgrep with the project's own convention rules).
+# Task types that keep the behaviour (refactor, chore): at `test-spec` the tests must PASS on the code as it is, are locked
+# at the approval, and must still pass at `test`. Other types prove red (the tests fail before the code exists).
+# A hotfix gets the size `hotfix` unless `--size` names another: no approval of the plan and at most 3 plan items, like
+# small, but every scan runs, since the change goes straight to main. Confirm, test-spec and review still need a person.
+types:
+  refactor: {test_spec: green}
+  chore: {test_spec: green}
+  hotfix: {size: hotfix}
+sizes:
+  default: normal
+  profiles:
+    normal: {}
+    small:
+      skip_approval: [plan]
+      max_plan_items: 3
+      scans:
+        security: [gitleaks, semgrep, semgrep-conventions]
+    hotfix:
+      skip_approval: [plan]
+      max_plan_items: 3
 steps:
   - id: confirm
     name: Xác nhận task
     role: orchestrator
     requires_approval: true
+    # When a person approves, agentflow keeps the sha256 of the documents under `## Tài liệu` (docs-pinned.json); a document
+    # that changed since shows up in the review checklist (`changed-docs`) and in `agentflow status`.
+    pin_docs_on_approval: true
+    # Every requirement ends with `(nguồn: <document>:<line>)` (a document of `## Tài liệu`) or `(nguồn: người dùng)`.
+    gates: [requirements-sourced]
+    approval_checklist:
+      - Phần "Mục tiêu" được nhắc lại đúng ý bạn.
+      - Phạm vi và ngoài phạm vi khớp những gì bạn viết, không thêm, không bớt.
+      - Tiêu chí "Xong khi" kiểm được bằng lệnh hoặc quan sát cụ thể.
+      - Mọi câu hỏi mở đã được bạn trả lời, không để agent đoán.
+      - Mục `## Tài liệu` liệt kê đúng các tài liệu task làm theo (đường dẫn trong dự án hoặc link), hoặc `không có`.
+      - "Mỗi yêu cầu `Y` lấy đúng ý của chỗ nó ghi ở `(nguồn: ...)`, và yêu cầu ghi `nguồn: người dùng` đúng là lời bạn; không có yêu cầu nào agent tự thêm."
 
   - id: plan
     name: Vào workspace và lập kế hoạch
     role: planner
     requires_approval: true
+    gates: [plan-valid]
+    approval_checklist:
+      - Mỗi mục có `done-when` là lệnh hoặc sự kiện kiểm được, không phải lời mô tả mơ hồ.
+      - Các mục đủ nhỏ để kiểm từng mục; không mục nào "làm hết".
+      - "`tier` hợp lý: phần khó và nhạy cảm là `deep`, phần quen thuộc là `fast`."
+      - Mục `docs` có link tài liệu chính thức, hoặc `không có — <lý do>` mà bạn chấp nhận.
+      - Mục `files` không vượt phạm vi đã duyệt ở `confirm`.
+      - Mục `## Chưa có quy ước` (nếu có) đã được bạn trả lời bằng `agentflow decide --answer Q1 ...`.
+    approval_items: [plan-items]
+
+  - id: test-spec
+    name: Viết test trước
+    role: tester
+    requires_approval: true
+    gates: [test-spec-valid]
+    on_fail: plan
+    # When a person approves this step agentflow locks the test files of its report, the test infrastructure the tester
+    # declared (`## Hạ tầng test`) and the test configuration found in the project: see `locked-files-intact` below.
+    lock_on_approval: true
+    approval_checklist:
+      - Mỗi mục kế hoạch có test, hoặc `không có — <cách kiểm>` mà bạn chấp nhận (không ép viết test cho việc không test tự động được).
+      - Các test đo đúng `done-when` của mục, không phải thứ dễ qua hơn.
+      - "Task feature, bugfix, hotfix: mỗi test đỏ vì đúng lý do (tính năng chưa có, không phải lỗi cú pháp, thiếu import hay môi trường). Task refactor, chore: mỗi test xanh trên code hiện tại và chốt đúng hành vi phải giữ. Đọc `reason` và `output` trong báo cáo."
+      - Lệnh của mỗi mục chạy đúng các test đã khai, không phải lệnh chạy cho có (như `false`); agentflow đã tự chạy lại và ghi `exit` ở dòng dưới.
+      - "Các dòng L (danh sách file sẽ khóa) là đủ: file test, file hạ tầng test (conftest.py, cấu hình pytest/jest/vitest, script chạy test) và phần cấu hình test của pyproject.toml, setup.cfg, package.json. Sau khi bạn duyệt, không agent nào sửa được chúng; muốn đổi phải chạy `agentflow tests amend <file> --reason \"...\"`."
+    approval_items: [spec-items, locked-files]
 
   - id: implement
     name: Triển khai
     role: implementer
+    gates: [locked-files-intact]
 
   - id: test
     name: Kiểm thử
     role: tester
-    on_fail: loop
+    gates: [locked-files-intact, tests-pass]
+    on_fail: implement
 
   - id: security
     name: Kiểm tra bảo mật
     role: security
-    on_fail: loop
+    gates: [locked-files-intact, scans-clean]
+    on_fail: implement
 
   - id: review
     name: Review
     role: reviewer
     requires_approval: true
-    on_fail: loop
-
-  - id: loop
-    name: Sửa lỗi
-    role: implementer
-    kind: loop
-    loop:
-      back_to: implement
-      max_rounds: 3
+    gates: [locked-files-intact, conventions-reviewed, requirements-reviewed, drift-reviewed]
+    on_fail: implement
+    approval_checklist:
+      - Mục "must fix" đã xử lý hoặc có lý do rõ ràng.
+      - Mục `## Đề xuất cập nhật hồ sơ` đúng và đủ, hoặc `không có` là đúng. Gate `drift-reviewed` chỉ kiểm hình thức, phần đúng sai do bạn kiểm; reviewer chỉ đề xuất, đề xuất nào bạn đồng ý thì bạn tự cập nhật hồ sơ (hoặc nhờ scout ghi lại rồi xác nhận).
+      - Thay đổi đúng kế hoạch đã duyệt, không có việc ngoài phạm vi.
+      - "`summary.md` và kết quả scan (`.ThanhTan/tasks/<task>/scans/`) không còn phát hiện chặn nào chưa giải thích."
+      - '"Bài học đề xuất" đáng giữ thì đưa về kho: `agentflow knowledge push .ThanhTan/tasks/<task>/lessons/L1.md`.'
+    approval_items: [review-requirements, review-conventions, changed-docs, drift-proposals]

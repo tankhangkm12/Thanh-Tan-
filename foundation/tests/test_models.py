@@ -1,6 +1,6 @@
 import json
 
-from agentflow.constants import StepKind, StepStatus, TaskStatus, Tool, ToolStatus
+from agentflow.constants import StepStatus, TaskStatus, Tool, ToolStatus
 from agentflow.models import (
     State,
     ToolCheck,
@@ -14,19 +14,17 @@ from agentflow.models import (
 
 def test_workflow_from_dict_applies_defaults(workflow_data):
     workflow = workflow_from_dict(workflow_data)
+    assert workflow.max_rounds == 2
     build = workflow.get_step("build")
     assert build is not None
-    assert build.kind is StepKind.STEP
     assert build.requires_approval is False
-    assert build.on_fail is None and build.loop is None
-    fix = workflow.get_step("fix")
-    assert fix is not None and fix.kind is StepKind.LOOP
-    assert fix.loop is not None and fix.loop.back_to == "build" and fix.loop.max_rounds == 2
+    assert build.on_fail is None
+    check = workflow.get_step("check")
+    assert check is not None and check.on_fail == "build"
 
 
-def test_workflow_main_path_skips_loop_steps(workflow_data):
+def test_workflow_steps_run_in_list_order(workflow_data):
     workflow = workflow_from_dict(workflow_data)
-    assert [step.id for step in workflow.main_steps()] == ["confirm", "build", "check"]
     assert workflow.first_step().id == "confirm"
     assert workflow.step_after("confirm").id == "build"
     assert workflow.step_after("check") is None
@@ -38,7 +36,7 @@ def test_state_round_trip(state_data):
     task = state.active_task()
     assert task is not None
     assert task.status is TaskStatus.OPEN
-    assert task.step_status is StepStatus.FAILED
+    assert task.step_status is StepStatus.IN_PROGRESS
     assert task.branch == "feature/thing"
     # Through JSON text, exactly like the file on disk.
     assert json.loads(json.dumps(state_to_dict(state))) == state_data

@@ -1,0 +1,5 @@
+{
+  "$schema": "https://antigravity.google/schemas/v1/plugin.json",
+  "name": "design-architecture",
+  "description": "Solution architecture design for the design-system family: turns BA documents into a complete architecture document set with real figures"
+}

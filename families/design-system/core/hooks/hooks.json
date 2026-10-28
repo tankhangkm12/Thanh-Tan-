@@ -1,0 +1,18 @@
+{
+  "description": "design-core: block an agent from writing outside its zone (workflow/permissions.md). Does nothing for sessions and agents that are not design-core agents.",
+  "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "Write|Edit|Bash|PowerShell",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "uv",
+            "args": ["run", "--quiet", "--no-project", "${CLAUDE_PLUGIN_ROOT}/scripts/guard_write.py"],
+            "timeout": 30
+          }
+        ]
+      }
+    ]
+  }
+}

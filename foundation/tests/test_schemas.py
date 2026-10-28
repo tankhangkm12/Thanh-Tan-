@@ -6,7 +6,6 @@ from agentflow.constants import (
     STATE_SCHEMA_FILE,
     WORKFLOW_SCHEMA_FILE,
     HistoryEvent,
-    StepKind,
     StepStatus,
     TaskStatus,
 )
@@ -28,8 +27,6 @@ def test_samples_are_valid(workflow_data, state_data, config_data):
 
 # Schema enums must match the Python enums exactly.
 def test_schema_enums_match_python_enums():
-    workflow = load_schema(WORKFLOW_SCHEMA_FILE)
-    assert workflow["$defs"]["step"]["properties"]["kind"]["enum"] == [k.value for k in StepKind]
     task = load_schema(STATE_SCHEMA_FILE)["$defs"]["task"]["properties"]
     assert task["status"]["enum"] == [s.value for s in TaskStatus]
     assert task["step_status"]["enum"] == [s.value for s in StepStatus]
@@ -44,11 +41,10 @@ def test_schema_enums_match_python_enums():
         lambda d: d.update(extra=1),
         lambda d: d.update(steps=[]),
         lambda d: d["steps"][0].update(id="Bad Id"),
-        lambda d: d["steps"][0].update(kind="other"),
-        lambda d: d["steps"][3].pop("loop"),  # loop step without loop spec
-        lambda d: d["steps"][3].update(on_fail="fix"),  # loop step with on_fail
-        lambda d: d["steps"][1].update(loop={"back_to": "build", "max_rounds": 1}),  # loop spec on a normal step
-        lambda d: d["steps"][3]["loop"].update(max_rounds=0),
+        lambda d: d["steps"][0].update(kind="loop"),  # step kinds no longer exist
+        lambda d: d.pop("max_rounds"),
+        lambda d: d.update(max_rounds=0),
+        lambda d: d["steps"][2].update(on_fail="Bad Id"),
     ],
 )
 def test_invalid_workflows_are_rejected(workflow_data, mutate):

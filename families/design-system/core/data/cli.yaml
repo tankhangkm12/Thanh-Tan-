@@ -1,0 +1,54 @@
+# Data for call_council_cli.py: how to hand a prompt to an outside CLI (a council member that is not a Claude Code subagent).
+# The executable and the model id come from the "Cách gọi" cell of the model's row in models.md (written by detect_models.py:
+# `agy -p <prompt> --model <id> (...)`); this file says what else the CLI needs for the default way, stdin. The row's own
+# command is the fallback (`--mode argv`): the prompt as an argument. Edit here, not in the script.
+version: 1
+
+clis:
+  # Antigravity CLI (verified with `agy --help` and `agy changelog`, 1.1.15 added stream-json input; the message shape was found
+  # by trying: a plain-text stdin is NOT read, `-p -` sends the two characters "-", `{"event":"user","message":{"content":...}}` works).
+  agy:
+    stdin:
+      # `-p=` (empty, attached) turns print mode on without a prompt argument; the prompt comes as one NDJSON line on stdin.
+      args: ["--model", "{model}", "--input-format", "stream-json", "--output-format", "stream-json", "-p="]
+      message: {event: user, message: {content: "{prompt}"}}
+      # stdout is NDJSON; the last event with this name holds the answer.
+      result: {event: result, key: result, status_key: status, ok: SUCCESS, text_key: response, error_key: error}
+      # No event at all on stdout and a non-zero exit means the CLI rejected the flags: auto mode then falls back to the argument.
+    # Tool lock: ALWAYS applied (a CLI without this block is refused). Found by trying (agy 1.3.x, `gemini-3.8-flash-low`):
+    #   default agent  : `run_command` is auto-denied when not interactive, but `read` of ANY file works (including other votes), the
+    #                    agent inherits the user's own rules, and the tools list has 60 entries;
+    #   `--mode plan`  : does NOT stop `write_to_file` (both test files were created); `--sandbox` only covers terminal commands
+    #                    (same auto-denial as the default); `--dangerously-skip-permissions` is the opposite of what we want;
+    #   custom agent with `excludeDefaultComponents: true`, `inheritMcp: false`, `tools: []` (a markdown agent in
+    #                    `<cwd>/.agents/agents/`, selected with `--agent`): write, run and read all failed ("no such tool"); only
+    #                    `list_resources` / `read_resource` (MCP, answer "server is not allowed in this context") and `manage_task`
+    #                    (its own background tasks) are left.
+    # But `--agent <unknown name>` is accepted silently (exit 0, init.agent echoes the name, the DEFAULT agent runs with every tool),
+    # so call_council_cli.py first asks for the NONCE written in the agent's system prompt and sends the brief only if it comes back.
+    lock:
+      agent: council-member
+      flags: ["--agent", "{agent}"]
+      file: ".agents/agents/{agent}.md"
+      text: |
+        ---
+        name: {agent}
+        description: Thành viên hội đồng bỏ phiếu, không có công cụ
+        mainAgent: true
+        subagent: false
+        inheritMcp: false
+        excludeDefaultComponents: true
+        tools: []
+        ---
+
+        # Thành viên hội đồng
+
+        Bạn chỉ đọc nội dung được đưa trong tin nhắn và trả lời bằng văn bản. Bạn không có công cụ nào và không được dùng công cụ.
+        Mã xác nhận cấu hình của phiên này: {nonce}
+      canary_prompt: "Mã xác nhận cấu hình của phiên này là gì? Trả lời đúng mã đó, không gì khác. Nếu bạn không biết, trả lời UNKNOWN."
+      # A step of one of these types in an answer means a tool was used: the answer is thrown away.
+      forbidden_steps: [tool]
+      # Where the step types are in the NDJSON stream.
+      steps: {event: step_update, key: step_update, type_key: step_type}
+    # Longest command line the fallback may build (characters); over this it is an error, not a cut.
+    argv_limit: {windows: 30000, other: 120000}

@@ -1,0 +1,103 @@
+# yaml-language-server: $schema=../../../foundation/src/agentflow/schemas/extension.schema.json
+#
+# Hợp đồng plugin của dev-backend, đọc bởi agentflow: `agentflow ext add <đường dẫn file này>`.
+# Mọi thông tin kỹ thuật của dự án (loại DB, thư mục migration, lệnh test, ...) nằm trong cấu hình dự án
+# (`agentflow config set backend.<khóa> <giá trị>`), không nằm ở đây.
+schema_version: 1
+name: dev-backend
+family: software-dev
+description: Backend development - migrations owned by db-engineer, Squawk lint for PostgreSQL, Schemathesis contract tests.
+
+settings:
+  key: backend
+  schema:
+    type: object
+    required: [db, migrations_dir, migrations_lint_glob, migrate_up_command, migrate_down_command, test_command]
+    additionalProperties: false
+    properties:
+      db:
+        type: object
+        required: [engine]
+        additionalProperties: false
+        properties:
+          engine:
+            type: string
+            description: Loại DB, ví dụ postgresql. Squawk chỉ chạy khi là postgresql.
+      migrations_dir:
+        type: string
+        description: Thư mục migration của dự án (chỉ db-engineer được đụng vào).
+      migrations_lint_glob:
+        type: string
+        description: Glob các file migration chiều lên mà Squawk lint (chiều xuống thường có DROP nên không lint).
+      migrate_up_command:
+        type: string
+        description: Lệnh chạy migration chiều lên trên DB trong container.
+      migrate_down_command:
+        type: string
+        description: Lệnh chạy migration chiều xuống trên DB trong container.
+      test_command:
+        type: string
+        description: Lệnh chạy bộ test của dự án.
+      openapi:
+        type: object
+        additionalProperties: false
+        properties:
+          spec:
+            type: string
+            description: Đường dẫn file spec OpenAPI, tính từ gốc repo.
+          url:
+            type: string
+            description: URL dịch vụ đang chạy để contract test gọi vào.
+
+roles:
+  - id: db-engineer
+    description: The only role that writes migrations.
+
+path_rules:
+  - id: migrations-db-engineer-only
+    paths: ["${config:backend.migrations_dir}/**"]
+    roles: [db-engineer]
+
+plan_rules:
+  - id: migration-up-and-down
+    when_paths: ["${config:backend.migrations_dir}/**"]
+    done_when_contains:
+      - "${config:backend.migrate_up_command}"
+      - "${config:backend.migrate_down_command}"
+
+scan_tools:
+  - id: squawk
+    step: test
+    when:
+      config_equals: { key: backend.db.engine, value: postgresql }
+    skip_note: Squawk lints PostgreSQL only; this project uses another database, so migrations were not linted.
+    image: ghcr.io/sbdchd/squawk:2.68.0
+    network: none
+    files:
+      scope: changed
+      globs: ["${config:backend.migrations_lint_glob}"]
+    args: ["--reporter", "json", "${files}"]
+    result:
+      kind: json_findings
+      items: ""
+      rule_field: rule_name
+      severity_field: level
+      location_field: file
+      message_field: message
+      blocking_severities: [Warning, Error]
+
+  - id: schemathesis
+    step: test
+    when:
+      config_present: [backend.openapi.spec, backend.openapi.url]
+    skip_note: No OpenAPI spec and running URL are configured (backend.openapi.spec, backend.openapi.url), so no contract test ran.
+    image: schemathesis/schemathesis:4.30.1
+    network: host-gateway
+    args: ["run", "/repo/${config:backend.openapi.spec}", "--url", "${host_url:backend.openapi.url}", "--max-examples", "25"]
+    result:
+      kind: exit_code
+      fail_exit_codes: [1]
+
+gates:
+  - step: test
+    kind: scans-clean

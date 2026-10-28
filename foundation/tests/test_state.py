@@ -70,6 +70,9 @@ def test_load_rejects_schema_violation(store, state_data, tmp_path):
         (lambda d: d["tasks"].append(dict(d["tasks"][0])), "duplicate task id 'T-001'"),
         (lambda d: d.update(active_task_id="T-999"), "matches no task"),
         (lambda d: d["tasks"][0].update(current_step="ghost"), "step 'ghost' is not in workflow"),
+        (lambda d: d["tasks"][0].update(status="done"), "active task T-001 is done"),
+        (lambda d: d["tasks"][0].update(step_status="failed"), "'failed' does not fit task status 'open'"),
+        (lambda d: d["tasks"][0].update(status="blocked"), "'in_progress' does not fit task status 'blocked'"),
     ],
 )
 def test_save_refuses_invalid_state_and_writes_nothing(store, state_data, tmp_path, mutate, expected):
@@ -82,7 +85,7 @@ def test_save_refuses_invalid_state_and_writes_nothing(store, state_data, tmp_pa
 
 
 def test_finished_task_may_sit_on_a_dropped_step(store, state_data):
-    state_data["tasks"][0].update(current_step="gone", status="done")
+    state_data["tasks"][0].update(current_step="gone", status="done", step_status="passed")
     state_data["active_task_id"] = None
     store.save(state_from_dict(state_data))
     assert store.load().tasks[0].current_step == "gone"
@@ -99,8 +102,9 @@ def test_render_active_task(workflow, state_data):
     text = render_state_md(state_from_dict(state_data), workflow)
     assert "- Active task: T-001 Do the thing" in text
     assert "- Branch: feature/thing" in text
-    assert "- Next: fix the failure in step 'fix'" in text and "round 2/2" in text
-    assert "| T-001 | Do the thing | open | check | failed | feature/thing |" in text
+    assert "- Rework rounds: 1/2" in text
+    assert "- Next: work on step 'build' (Build; role builder), rework round 1/2" in text
+    assert "| T-001 | Do the thing | open | build | in_progress | feature/thing |" in text
 
 
 def test_render_escapes_pipes_in_titles(workflow):

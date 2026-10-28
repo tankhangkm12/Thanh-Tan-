@@ -1,0 +1,15 @@
+# Data for archive_release.py: what a release snapshots and where. Edit here, not in the script.
+# Paths are relative to the workspace (.agent-workspace/) unless said otherwise.
+version: 1
+
+gate: 10                          # the gate that must be approved (with every gate before it, rule 2 of permissions.md) to release
+
+archive_dir: archive              # the snapshot of vN goes to <archive_dir>/vN/ (never overwritten)
+snapshot: [state.md, plan, stack, capacity, decisions, reviews, risks, models.md]   # a folder is copied whole, a file alone; one that is missing is only a note
+
+promote_prefix: promote          # checks/promote-<date>.md: the reports of promote_drafts.py, whose last G10 block lists the files architecture/ must still equal
+
+changelog: CHANGELOG.md           # in architecture/ (next to the workspace by default); the newest entry goes first
+previous_design: inputs/previous-design   # upgrade mode: the old architecture/; when it exists the entry lists the files added, changed and removed against architecture/
+
+levels: [S, M, L, XL]             # the values `Mức áp dụng` of state.md may take

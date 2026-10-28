@@ -1,6 +1,10 @@
-"""The per-project workspace: ``<git root>/.agentflow/``, kept out of git via ``.git/info/exclude``."""
+"""The per-project workspace: ``<git root>/.ThanhTan/``, kept out of git via ``.git/info/exclude``.
 
-import subprocess
+Before 0.8.0 it was called ``.agentflow/``. The first command that finds a project with only the old folder moves it to the
+new name (``migrate_legacy_workspace``); a project that has both is refused until a person keeps one.
+"""
+
+import sys
 from dataclasses import dataclass, replace
 from pathlib import Path
 
@@ -12,10 +16,10 @@ from agentflow.constants import (
     ENCODING,
     EXCLUDE_ENTRY,
     GIT_EXCLUDE_PATH,
-    GIT_EXECUTABLE,
     GIT_PATH_ARGS,
     GIT_TOPLEVEL_ARGS,
     GITKEEP_FILE,
+    LEGACY_WORKSPACE_DIR,
     STATE_FILE,
     STATE_MD_FILE,
     WORKFLOW_COPY_FILE,
@@ -25,6 +29,7 @@ from agentflow.constants import (
 )
 from agentflow.errors import AgentflowError
 from agentflow.fsutil import file_sha256, write_bytes_atomic, write_text_atomic
+from agentflow.git import run_git
 from agentflow.models import (
     State,
     Workflow,
@@ -81,17 +86,8 @@ class InitResult:
 # --------------------------------------------------------------------- git
 
 
-def _git(cwd: Path, *args: str) -> subprocess.CompletedProcess[str]:
-    try:
-        return subprocess.run(
-            [GIT_EXECUTABLE, *args], cwd=cwd, capture_output=True, text=True, encoding=ENCODING, check=False
-        )
-    except FileNotFoundError as exc:
-        raise AgentflowError("git is not installed or not on PATH", ExitCode.MISSING_REQUIREMENT) from exc
-
-
 def git_toplevel(cwd: Path) -> Path:
-    result = _git(cwd, *GIT_TOPLEVEL_ARGS)
+    result = run_git(cwd, *GIT_TOPLEVEL_ARGS)
     if result.returncode != 0:
         raise AgentflowError(f"not inside a git repository: {cwd}", ExitCode.NOT_GIT_REPO)
     return Path(result.stdout.strip())
@@ -99,22 +95,23 @@ def git_toplevel(cwd: Path) -> Path:
 
 def git_exclude_file(root: Path) -> Path:
     """The repository's ``info/exclude`` (resolved by git, so worktrees work too)."""
-    result = _git(root, *GIT_PATH_ARGS, GIT_EXCLUDE_PATH)
+    result = run_git(root, *GIT_PATH_ARGS, GIT_EXCLUDE_PATH)
     if result.returncode != 0:
         raise AgentflowError(f"cannot locate git exclude file: {result.stderr.strip()}", ExitCode.NOT_GIT_REPO)
     path = Path(result.stdout.strip())
     return path if path.is_absolute() else root / path
 
 
-def ensure_excluded(exclude_file: Path) -> bool:
-    """Add the workspace entry to the exclude file; return True if it was missing."""
+def ensure_excluded(exclude_file: Path, entry: str = EXCLUDE_ENTRY) -> bool:
+    """Add ``entry`` (by default the workspace) to the exclude file; return True if it was missing."""
+    equivalents = EXCLUDE_EQUIVALENTS if entry == EXCLUDE_ENTRY else frozenset({entry, _SLASH + entry})
     existing = exclude_file.read_bytes().decode(ENCODING, errors="replace") if exclude_file.exists() else ""
-    if any(line.strip() in EXCLUDE_EQUIVALENTS for line in existing.splitlines()):
+    if any(line.strip() in equivalents for line in existing.splitlines()):
         return False
     exclude_file.parent.mkdir(parents=True, exist_ok=True)
     separator = "" if existing == "" or existing.endswith("\n") else "\n"
     with exclude_file.open("ab") as handle:
-        handle.write(f"{separator}{EXCLUDE_ENTRY}\n".encode(ENCODING))
+        handle.write(f"{separator}{entry}\n".encode(ENCODING))
     return True
 
 
@@ -144,13 +141,53 @@ def save_config(paths: WorkspacePaths, config: WorkspaceConfig) -> None:
 # --------------------------------------------------------------- workspace
 
 
+def migrate_legacy_workspace(root: Path) -> bool:
+    """Move ``<root>/.agentflow/`` to ``<root>/.ThanhTan/`` when only the old one is there; True when it was moved."""
+    legacy = root / LEGACY_WORKSPACE_DIR
+    if not (legacy / CONFIG_FILE).is_file():
+        return False
+    target = root / WORKSPACE_DIR
+    if target.exists():
+        raise AgentflowError(
+            f"{root} has both {LEGACY_WORKSPACE_DIR}/ (before 0.8.0) and {WORKSPACE_DIR}/: keep one. Usually you delete or "
+            f"rename the old {LEGACY_WORKSPACE_DIR}/ after checking that {WORKSPACE_DIR}/ holds your tasks",
+            ExitCode.WORKSPACE_CONFLICT,
+        )
+    try:
+        legacy.rename(target)
+    except OSError as exc:
+        raise AgentflowError(
+            f"cannot rename {legacy} to {WORKSPACE_DIR}/ ({exc}). Close the Claude Code and Antigravity sessions that use "
+            f"this project (a running session keeps files open on Windows), then run `agentflow status` again",
+            ExitCode.WORKSPACE_CONFLICT,
+        ) from exc
+    try:
+        ensure_excluded(git_exclude_file(root))
+    except AgentflowError:
+        pass  # init adds it; the move itself is what matters
+    print(f"agentflow: moved {LEGACY_WORKSPACE_DIR}/ to {WORKSPACE_DIR}/ (the workspace's new name)", file=sys.stderr)
+    return True
+
+
 def find_workspace(cwd: Path) -> WorkspacePaths:
     paths = WorkspacePaths(git_toplevel(cwd))
+    migrate_legacy_workspace(paths.root)
     if not paths.config.is_file():
         raise AgentflowError(
             f"no agentflow workspace in {paths.root} (run `agentflow init --workflow <file>`)", ExitCode.NO_WORKSPACE
         )
     return paths
+
+
+class GitWorkspaceLookup:
+    """``WorkspaceLookup`` that asks git for the repository root; unknown or missing directories read as no workspace."""
+
+    def has_workspace(self, directory: Path) -> bool:
+        try:
+            find_workspace(directory)
+        except AgentflowError:
+            return False
+        return True
 
 
 def load_workspace_workflow(paths: WorkspacePaths) -> Workflow:
@@ -167,6 +204,7 @@ def copy_workflow(source: Path, paths: WorkspacePaths) -> str:
 def init_workspace(cwd: Path, workflow_path: Path) -> InitResult:
     """Create or complete the workspace. Never overwrites existing state or the workflow copy."""
     paths = WorkspacePaths(git_toplevel(cwd))
+    migrate_legacy_workspace(paths.root)
     source = workflow_path.resolve()
     workflow = load_workflow(source)  # fail before touching anything
     existing = load_config(paths) if paths.config.is_file() else None

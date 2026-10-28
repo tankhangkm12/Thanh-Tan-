@@ -1,0 +1,19 @@
+services:
+  order-service:
+    id: SVC-order-service
+    traffic_share: 0.6
+    requests_per_second_per_instance:
+      value: 150
+      source: https://example.com/benchmarks/order-service-2026-10
+    target_utilization: 0.7
+    min_instances: 2
+    price_item: compute-instance
+  catalog-service:
+    id: SVC-catalog-service
+    traffic_share: 0.4
+    requests_per_second_per_instance:
+      value: 400
+      source: https://example.com/benchmarks/catalog-service-2026-10
+    target_utilization: 0.7
+    min_instances: 2
+    price_item: compute-instance

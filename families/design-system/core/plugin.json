@@ -1,0 +1,5 @@
+{
+  "$schema": "https://antigravity.google/schemas/v1/plugin.json",
+  "name": "design-core",
+  "description": "Core of the design-system family: shared workflow, quality criteria, agents, templates and scripts for all design-* plugins"
+}

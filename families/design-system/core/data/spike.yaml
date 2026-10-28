@@ -1,0 +1,36 @@
+# Data for run_spike.py (and check_workspace.py: which layers need a passing spike). Edit here, not in the script.
+# Spike = a small trial in a container, written as `stack/layers/<layer>/spikes/S-<n>-<name>.md` (workflow/stages.md, G4).
+version: 1
+
+# The container engine, first one that is installed and answers `info`.
+engines: [docker, podman]
+
+# Spike IDs (`S-12`); the file name starts with it. Approval in state.md must read `<ID>: chạy` (rule 2 of permissions.md).
+id_pattern: 'S-\d+'
+approval:
+  section: "Spike được duyệt chạy"   # heading of the table in state.md
+  phrase: "{id}: chạy"               # what the user must say, with the exact ID (S-2 does not approve S-20)
+
+# What the spec may ask for. The container never gets a host folder, a device, extra capabilities or --privileged.
+networks: [none, bridge]
+default_network: none
+timeout: {default: 300, max: 1800}   # seconds for the run (an image pull has its own limit)
+pull_timeout: 900
+memory: {default: "1g", pattern: '[1-9][0-9]*[mg]', max_megabytes: 8192}
+cpus: {default: 2, max: 8}
+pids_limit: 256
+max_commands: 20
+max_command_chars: 4000
+max_output_chars: 60000              # longer output keeps the head and the tail
+# An image must be pinned (a tag or a digest) and not float.
+forbidden_image_tags: [latest]
+
+# Result file next to the spec: S-<n>-<name>.result.md. Only this script writes it.
+result_suffix: ".result.md"
+states: {ok: "đạt", failed: "không đạt", error: "lỗi"}
+
+# XL projects (G4): every layer listed here that has a folder in stack/layers/ needs at least one spike whose result is "đạt" and was run
+# on the current spec. The Planner may add layers in `plan/plan.md` (heading "Lớp cần spike"); the user approves them at G0.
+# tooling and third-party are never required (check_workspace.py reads this list).
+xl_required_layers: [data, messaging, backend, infrastructure]
+optional_layers: [tooling, third-party]

@@ -1,0 +1,22 @@
+# The ID prefixes of the design documents, shared by check_links.py, check_numbers.py, tally_votes.py and check_trace.py
+# (scripts/idlist.py loads this file; test_idlist.py keeps the scripts and the docs in line with it). Edit here, not in a script.
+# An ID is `<prefix>-<number or name>` (SVC-order, TBL-orders, FR-001 are valid).
+version: 1
+
+# FR functional requirement, NFR non-functional requirement, C constraint, A assumption, TC selection criterion,
+# FL flow, SCR screen (from the UI designer), SVC service, API endpoint, EVT event, TBL table, BKT bucket,
+# R risk, D decision, CH question to the user.
+kinds: [FR, NFR, C, A, TC, FL, SCR, SVC, API, EVT, TBL, BKT, R, D, CH]
+
+# A file that defines one of these IDs must have a "Được dùng bởi" section linking every other file that mentions it.
+backlink_kinds: [SVC, TBL, BKT, EVT, API]
+
+# The name part of an ID that is only a placeholder (`FR-xx`, `SVC-xxx`, as in the file names of the templates): not a real ID, so no
+# script counts it as a mention or a definition.
+placeholder_name: '[xX]+'
+
+# Where an ID must be defined, as a path under architecture/ (the drafts of the workspace have the same layout). An ID of a kind
+# listed here that is defined (heading or first table cell) in any other file is an error. Kinds not listed here may be defined anywhere.
+homes:
+  C: 00-context/constraints.md
+  A: 00-context/assumptions.md

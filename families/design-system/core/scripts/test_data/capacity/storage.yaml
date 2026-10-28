@@ -1,0 +1,9 @@
+buckets:
+  uploads:
+    id: BKT-uploads
+    files_per_day: A-uploads-per-day
+    avg_file_bytes: A-upload-bytes
+    retention_days: 365
+    views_per_day: A-views-per-day
+    storage_price_item: object-storage
+    egress_price_item: egress

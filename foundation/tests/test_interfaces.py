@@ -1,7 +1,25 @@
 from collections.abc import Sequence
+from pathlib import Path
 
-from agentflow.interfaces import StateStore, ToolProbe, WorkflowSource
-from agentflow.models import ProbeResult, State, Workflow, workflow_from_dict
+from agentflow.constants import GuardDecision, GuardRule
+from agentflow.interfaces import (
+    BranchLookup,
+    CommandRunner,
+    GitClient,
+    SecretScanner,
+    StateStore,
+    ToolProbe,
+    WorkflowSource,
+)
+from agentflow.models import (
+    CommandResult,
+    GuardVerdict,
+    ProbeResult,
+    ScanResult,
+    State,
+    Workflow,
+    workflow_from_dict,
+)
 
 
 class FakeWorkflowSource:
@@ -35,16 +53,99 @@ class FakeToolProbe:
         return ProbeResult(returncode=0, stdout="")
 
 
-def test_fakes_satisfy_protocols(workflow_data):
+class FakeCommandRunner:
+    def which(self, name: str) -> str | None:
+        return name
+
+    def run(self, args: Sequence[str], cwd: Path | None, timeout: int) -> CommandResult:
+        return CommandResult(0, "", "")
+
+
+class FakeGit:
+    def __init__(self, root: Path) -> None:
+        self.root = root
+        self.branch: str | None = "develop"
+        self.branches = {"main", "develop"}
+        self.staged = False
+        self.commits: list[str] = []
+        self.tags: set[str] = set()
+
+    def current_branch(self) -> str | None:
+        return self.branch
+
+    def is_clean(self) -> bool:
+        return not self.staged
+
+    def branch_exists(self, name: str) -> bool:
+        return name in self.branches
+
+    def create_branch(self, name: str, base: str) -> None:
+        self.branches.add(name)
+        self.branch = name
+
+    def has_staged_changes(self) -> bool:
+        return self.staged
+
+    def staged_files(self) -> list[str]:
+        return []
+
+    def commit(self, message: str) -> str:
+        self.commits.append(message)
+        self.staged = False
+        return "0" * 40
+
+    def rev_parse(self, ref: str) -> str:
+        return "0" * 40
+
+    def tag_exists(self, name: str) -> bool:
+        return name in self.tags
+
+    def create_tag(self, name: str, target: str, message: str) -> None:
+        self.tags.add(name)
+
+    def commits_between(self, base: str, head: str) -> list:
+        return []
+
+    def changed_files(self, base: str, head: str) -> list[str]:
+        return []
+
+    def identity(self) -> str:
+        return "Test <test@example.invalid>"
+
+
+class FakeScanner:
+    def scan_staged(self, repo: Path) -> ScanResult:
+        return ScanResult(clean=True, output="")
+
+
+class FakeBranchLookup:
+    def current_branch(self, directory: Path) -> str | None:
+        return "develop"
+
+    def branch_exists(self, directory: Path, name: str) -> bool:
+        return True
+
+
+ALL_PROTOCOLS = (WorkflowSource, StateStore, ToolProbe, CommandRunner, GitClient, SecretScanner, BranchLookup)
+
+
+def test_fakes_satisfy_protocols(workflow_data, tmp_path):
     assert isinstance(FakeWorkflowSource(workflow_from_dict(workflow_data)), WorkflowSource)
     assert isinstance(FakeStateStore(), StateStore)
     assert isinstance(FakeToolProbe(), ToolProbe)
+    assert isinstance(FakeCommandRunner(), CommandRunner)
+    assert isinstance(FakeGit(tmp_path), GitClient)
+    assert isinstance(FakeScanner(), SecretScanner)
+    assert isinstance(FakeBranchLookup(), BranchLookup)
 
 
 def test_object_missing_methods_does_not_satisfy_protocols():
-    assert not isinstance(object(), WorkflowSource)
-    assert not isinstance(object(), StateStore)
-    assert not isinstance(object(), ToolProbe)
+    assert not any(isinstance(object(), protocol) for protocol in ALL_PROTOCOLS)
+
+
+def test_guard_verdict_denied():
+    assert GuardVerdict(GuardDecision.DENY, GuardRule.PUSH, "no").denied
+    assert not GuardVerdict(GuardDecision.ALLOW).denied
 
 
 def test_state_store_contract_round_trip():

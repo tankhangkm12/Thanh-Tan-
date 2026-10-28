@@ -6,7 +6,6 @@ from agentflow import constants as c
 
 ENUMS = [
     c.ExitCode,
-    c.StepKind,
     c.TaskStatus,
     c.StepStatus,
     c.HistoryEvent,
@@ -20,6 +19,12 @@ ENUMS = [
     c.WorkflowKey,
     c.StateKey,
     c.ConfigKey,
+    c.TaskType,
+    c.TaskEvent,
+    c.TaskCommand,
+    c.GuardDecision,
+    c.GuardRule,
+    c.GuardKey,
 ]
 
 
@@ -49,6 +54,26 @@ def test_workspace_layout_names():
     assert c.EXCLUDE_ENTRY == c.WORKSPACE_DIR + "/"
     names = [c.STATE_FILE, c.STATE_MD_FILE, c.CONFIG_FILE, c.WORKFLOW_COPY_FILE, *c.WORKSPACE_SUBDIRS]
     assert len(names) == len(set(names))
+
+
+def test_every_task_type_has_a_protected_base_branch():
+    assert set(c.TASK_BASE_BRANCH) == set(c.TaskType)
+    assert set(c.TASK_BASE_BRANCH.values()) == c.PROTECTED_BRANCHES
+    assert c.TASK_BASE_BRANCH[c.TaskType.HOTFIX] == c.MAIN_BRANCH
+
+
+def test_step_results_are_task_events():
+    assert set(c.STEP_RESULTS) <= set(c.TaskEvent)
+    assert c.TaskEvent.APPROVE not in c.STEP_RESULTS
+
+
+def test_gitleaks_image_is_pinned():
+    name, _, tag = c.GITLEAKS_IMAGE.rpartition(":")
+    assert name and tag and tag != "latest"
+
+
+def test_leaks_exit_code_differs_from_success_and_gitleaks_errors():
+    assert c.GITLEAKS_LEAKS_EXIT_CODE not in (0, 1)
 
 
 def test_in_flight_statuses_are_task_statuses():

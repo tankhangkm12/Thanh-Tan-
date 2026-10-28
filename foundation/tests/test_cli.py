@@ -1,3 +1,5 @@
+from importlib.metadata import version
+
 import pytest
 
 from agentflow import cli
@@ -13,7 +15,7 @@ def test_version_prints_name_and_version(capsys):
     with pytest.raises(SystemExit) as exc:
         main(["--version"])
     assert exc.value.code == 0
-    assert capsys.readouterr().out.strip() == "agentflow 0.1.0"
+    assert capsys.readouterr().out.strip() == f"agentflow {version('agentflow')}"
 
 
 def test_no_command_prints_help_and_usage_code(capsys):
@@ -81,8 +83,8 @@ def test_init_creates_workspace(git_repo, workflow_file, monkeypatch, capsys):
     assert main(["init", "--workflow", str(workflow_file)]) == ExitCode.OK
     out = capsys.readouterr().out
     assert "workflow: sample (copied;" in out
-    assert "git exclude: added .agentflow/" in out
-    assert (git_repo / ".agentflow" / "state.json").is_file()
+    assert "git exclude: added .ThanhTan/" in out
+    assert (git_repo / ".ThanhTan" / "state.json").is_file()
 
 
 def test_init_twice_is_safe(git_repo, workflow_file, monkeypatch, capsys):
@@ -116,7 +118,7 @@ def save_tasks(repo, *tasks, active=None):
     JsonStateStore(paths.dir, load_workspace_workflow(paths)).save(State(active_task_id=active, tasks=tasks))
 
 
-def make_task(task_id="T-001", step="check", step_status="failed", status="open", loop_round=0, branch=None):
+def make_task(task_id="T-001", step="check", step_status="in_progress", status="open", loop_round=0, branch=None):
     return Task(task_id, "Do it", TaskStatus(status), step, StepStatus(step_status), loop_round, branch)
 
 
@@ -130,7 +132,7 @@ def test_status_and_next_need_a_workspace(git_repo, monkeypatch, capsys, command
 def test_status_without_tasks(workspace, capsys):
     assert main(["status"]) == ExitCode.OK
     out = capsys.readouterr().out
-    assert "workflow: sample (4 steps)" in out
+    assert "workflow: sample (3 steps)" in out
     assert "active task: none" in out
     assert "next: start a new task at step 'confirm' (Confirm; role lead, needs approval)" in out
 
@@ -145,10 +147,10 @@ def test_status_with_active_task(workspace, capsys):
     assert main(["status"]) == ExitCode.OK
     out = capsys.readouterr().out
     assert "active task: T-001 Do it" in out
-    assert "current step: step 'check' (Check; role checker), failed" in out
-    assert "loop round: 1; branch: feature/x" in out
+    assert "current step: step 'check' (Check; role checker), in_progress" in out
+    assert "rework rounds: 1/2; branch: feature/x" in out
     assert "other open tasks: T-002 (build, open)" in out
-    assert "next: fix the failure in step 'fix'" in out and "round 2/2" in out
+    assert "next: work on step 'check' (Check; role checker), rework round 1/2" in out
 
 
 @pytest.mark.parametrize(
@@ -156,9 +158,8 @@ def test_status_with_active_task(workspace, capsys):
     [
         (None, "start_task: start a new task at step 'confirm'"),
         (make_task(step="confirm", step_status="awaiting_approval"), "await_approval: wait for a person"),
-        (make_task(step="build", step_status="passed"), "advance: move on to step 'check'"),
-        (make_task(loop_round=2), "blocked: blocked at step 'check'"),
-        (make_task(step_status="passed"), "done: all steps passed"),
+        (make_task(step="build"), "continue: work on step 'build'"),
+        (make_task(status="blocked", step_status="failed", loop_round=2), "blocked: blocked at step 'check'"),
     ],
 )
 def test_next(workspace, capsys, task, expected):
@@ -186,7 +187,7 @@ def test_next_uses_copy_when_source_is_gone(workspace, workflow_file, capsys):
 
 
 def test_status_reports_corrupt_state(workspace, capsys):
-    (workspace / ".agentflow" / "state.json").write_text("{}", encoding="utf-8")
+    (workspace / ".ThanhTan" / "state.json").write_text("{}", encoding="utf-8")
     assert main(["status"]) == ExitCode.INVALID_STATE
     assert capsys.readouterr().err.startswith("error:")
 
