@@ -39,7 +39,7 @@ CONVENTIONS = """### PC-01 - No literal status
 
 @pytest.fixture
 def workspace(tmp_path):
-    root = tmp_path / "proj" / ".agentflow"
+    root = tmp_path / "proj" / ".ThanhTan"
     (root / "project").mkdir(parents=True)
     (root / "knowledge" / "semgrep").mkdir(parents=True)
     return root

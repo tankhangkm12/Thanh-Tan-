@@ -1,7 +1,7 @@
 """Chặng E-lock (E2 + E3): approving the tests locks them, and the steps after refuse a changed one.
 
 When a person approves a step that has ``lock_on_approval`` (the real workflow: ``test-spec``), agentflow writes
-``.agentflow/tasks/<task>/locked-files.json``: the test files of the report, the test infrastructure the tester declared
+``.ThanhTan/tasks/<task>/locked-files.json``: the test files of the report, the test infrastructure the tester declared
 under ``## Hạ tầng test``, and the test configuration files already in the project; each with the sha256 of its bytes.
 The gate ``locked-files-intact`` and the gate ``tests-pass`` compare the working tree and HEAD with those hashes before
 anything else; ``agentflow tests check`` does it on request. ``agentflow commit`` refuses a commit that changes a locked

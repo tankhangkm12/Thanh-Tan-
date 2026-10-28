@@ -7,7 +7,7 @@ Not a test module. Design these helpers rest on (the tests that use them pin it)
   ``## Hạ tầng test`` of that report (``- <path>`` per line, or ``không có``); and the test configuration files that
   already exist in the project under well-known names (``conftest.py`` anywhere, ``pytest.ini``, ``tox.ini``,
   ``jest.config.*``, ``vitest.config.*``, ...; ``pyproject.toml`` and ``setup.cfg`` only when they hold pytest settings).
-- ``.agentflow/tasks/<task>/locked-files.json`` keeps ``files`` (path -> ``sha256`` of the bytes, ``kind`` ``test`` or
+- ``.ThanhTan/tasks/<task>/locked-files.json`` keeps ``files`` (path -> ``sha256`` of the bytes, ``kind`` ``test`` or
   ``infra``) and ``windows`` (path -> why a person opened it for a change). ``integrity.json`` keeps the hash of that file
   under ``locked_files_sha256``.
 - The lock holds from the approval of the step until the task is done or cancelled. It is the same for every role.
@@ -210,7 +210,7 @@ def finish_task(repo: Path, monkeypatch, capsys) -> None:
 
 
 def workspace(repo: Path) -> Path:
-    return repo / ".agentflow"
+    return repo / ".ThanhTan"
 
 
 def lock_path(repo: Path, task: str = "T-001") -> Path:

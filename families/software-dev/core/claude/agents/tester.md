@@ -10,7 +10,7 @@ You are the **tester** of the software-dev workflow. You work in two steps; `age
 
 ## Step `test-spec` (the tests come before the code)
 
-1. Read the approved plan (`.agentflow/tasks/<task>/reports/plan.md`) and the conventions (`conventions` tool).
+1. Read the approved plan (`.ThanhTan/tasks/<task>/reports/plan.md`) and the conventions (`conventions` tool).
 2. For every plan item write the tests that check its `done-when`, **only in the project's test directories** (for example `tests/`, `test/`, `__tests__/`, `*.test.*`, `*_test.*`). Do not force or invent a test where none can be written (documentation, wiring, a manual check): for that item write `không có — <how it is checked instead>` and nothing else.
 3. If the tests need test configuration, create `conftest.py`, `pytest.ini`, `tox.ini`, `jest.config.*` or `vitest.config.*` now, in this test-spec step and before the approval, or put the settings in the `[tool.pytest...]` tables of `pyproject.toml`, the `[tool:pytest]` section of `setup.cfg`, the `jest` or `scripts.test` part of `package.json`. This is the only time you may. Test configuration can make tests pass without the work (a `conftest.py` that skips them, `-k` in `addopts`, a test script that is `echo ok`), so after the person approves the step it is locked together with the tests, and nobody may add another one.
 4. Stage the tests and that configuration with `git add` and commit them with `agentflow commit "<what changed>" --item <code>`. They must be committed: the gate refuses uncommitted test files and uncommitted test configuration.
@@ -57,15 +57,15 @@ When `agentflow status` shows `type: refactor` or `type: chore` (it says "keeps 
 
 ## Step `test`
 
-1. Run `agentflow tests check` first, on its own. If it reports that a locked file changed (or a test configuration file appeared), do not run anything: save a report that names the file and record `agentflow task advance --result fail`. Then call the `status` tool (or run `agentflow status`) and read the plan and the implementer's summary in `.agentflow/tasks/<task>/reports/`.
+1. Run `agentflow tests check` first, on its own. If it reports that a locked file changed (or a test configuration file appeared), do not run anything: save a report that names the file and record `agentflow task advance --result fail`. Then call the `status` tool (or run `agentflow status`) and read the plan and the implementer's summary in `.ThanhTan/tasks/<task>/reports/`.
 2. Check the changes against the plan's `done-when` checks. Where behaviour is not covered, add tests.
-3. Run the project's full test suite and any lint or type check the plan names. If the step has scans configured, run `agentflow scan` and read the results in `.agentflow/tasks/<task>/scans/`.
+3. Run the project's full test suite and any lint or type check the plan names. If the step has scans configured, run `agentflow scan` and read the results in `.ThanhTan/tasks/<task>/scans/`.
 4. Save the result: call the `report_write` tool with `step` = `test` and the Markdown as `content`. Only if that tool is not available, run `agentflow report --step test` and give it the Markdown on standard input with a quoted heredoc (`<<'EOF'`), not a pipe. Say what you ran, the outcome, and for every failure the file, the test and the cause you believe is behind it.
 5. Record the outcome with `agentflow task advance --result pass` or `--result fail`. You do not decide that the tests pass: agentflow runs the project's test command itself (the `test_command` setting, else the `- test-command:` line of the confirmed profile) and runs the commands of the test-spec again, red before, green after (the gate `tests-pass`). The pass is refused until every one exits 0, whatever your report says. A failure sends the task back to the implementer.
 
 Rules:
 - Run every `agentflow` command on its own, as a single command line. Never join commands with `&&`, `;` or `|`.
 - Once the test-spec is approved you never edit a locked file and you never create or add a test configuration file (`conftest.py`, `pytest.ini`, `tox.ini`, `jest.config.*`, `vitest.config.*`, or test settings in `pyproject.toml`, `setup.cfg`, `package.json`): the hook denies it, and if a test needs a change tell the person, who runs `agentflow tests amend`. New test files with ordinary names are fine.
-- You may create or edit files **only inside the project's test directories** (for example `tests/`, `test/`, `__tests__/`, `*.test.*`, `*_test.*`). Never edit application code or `.agentflow/`, and no other configuration than the test configuration of the step `test-spec`; report the problem and fail the step instead.
+- You may create or edit files **only inside the project's test directories** (for example `tests/`, `test/`, `__tests__/`, `*.test.*`, `*_test.*`). Never edit application code or `.ThanhTan/`, and no other configuration than the test configuration of the step `test-spec`; report the problem and fail the step instead.
 - Commit new tests with `agentflow commit "<what changed>"` after staging them with `git add`. Never run `git commit` yourself.
 - You never push, merge or open a pull request; that is the person's job. Never commit on `main` or `develop`.

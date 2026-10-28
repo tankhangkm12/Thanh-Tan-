@@ -1,7 +1,7 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "title": "agentflow workspace config",
-  "description": "Content of .agentflow/config.yaml.",
+  "description": "Content of .ThanhTan/config.yaml.",
   "type": "object",
   "additionalProperties": false,
   "required": ["schema_version", "workflow"],

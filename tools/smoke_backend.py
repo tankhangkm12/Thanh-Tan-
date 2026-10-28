@@ -48,7 +48,7 @@ EXTENSION = BACKEND / "extension.yaml"
 README = REPO / "README.md"
 MARKETPLACE = "thanh-tan-plugins"
 CORE_NAME, BACKEND_NAME = "dev-core", "dev-backend"
-CORE_VERSION, BACKEND_VERSION = "0.6.0", "0.3.0"
+CORE_VERSION, BACKEND_VERSION = "0.7.0", "0.4.0"
 TASK_ID = "T-001"
 USAGE_ERROR_CODES = {"plan_invalid": 24, "gate_failed": 25, "scan_blocked": 27}
 MANDATORY_ASK = ("task approve", "task cancel")
@@ -251,15 +251,15 @@ def task_flow(s: Session, project: str, port: int, until: str) -> None:
     s.af("report", "--step", "review", stdin=REVIEW_REPORT.replace("DC-02: đạt\n", "DC-02: đạt\nDC-03: đạt\n").replace("DC-03: đạt\n", ""))
     s.af("task", "advance", "--result", "pass")
     s.approve()
-    expect((repo / ".agentflow" / "tasks" / task_id / "lessons" / "L1.md").is_file(), "the proposed lesson is a file a person can push")
-    s.af("knowledge", "push", str(repo / ".agentflow" / "tasks" / task_id / "lessons" / "L1.md"))
+    expect((repo / ".ThanhTan" / "tasks" / task_id / "lessons" / "L1.md").is_file(), "the proposed lesson is a file a person can push")
+    s.af("knowledge", "push", str(repo / ".ThanhTan" / "tasks" / task_id / "lessons" / "L1.md"))
     expect((store / "lessons" / "L1.md").is_file(), "a person pushed the lesson into their own store")
     tag = f"agentflow/{task_id}/approved"
     expect(s.git("tag", "-l", tag) == tag and s.git("cat-file", "-t", tag) == "tag", "the approval tag exists and is annotated")
     message = s.git("tag", "-l", "--format=%(contents)", tag)
     expect(task_id in message and "List items" in message and "Approved by: Smoke" in message, "the tag message has task, title, approver", message)
     expect(s.git("rev-parse", f"{tag}^{{commit}}") == s.git("rev-parse", s.git("branch", "--show-current")), "the tag is on the branch tip")
-    summary = (repo / ".agentflow" / "tasks" / task_id / "summary.md").read_text(encoding=ENCODING)
+    summary = (repo / ".ThanhTan" / "tasks" / task_id / "summary.md").read_text(encoding=ENCODING)
     for needle in ("### C1 - Create the items table", "### C2 - Expose GET /items", "create the items table", "squawk: clean", "schemathesis: clean", "semgrep:", "trivy:", "gitleaks:", "https://spec.openapis.org"):
         expect(needle in summary, f"summary.md has '{needle}'", summary)
 
@@ -313,7 +313,7 @@ def install_check(repo: Path, with_session: bool = True) -> None:
 
     if with_session:
         print("\n-- Claude Code loads skills, agents and the hook (one short `claude -p` call)")
-        if not (repo / ".agentflow").is_dir():  # the hooks only act in a project that has a workspace
+        if not (repo / ".ThanhTan").is_dir():  # the hooks only act in a project that has a workspace
             Session(repo).af("init", "--workflow", str(WORKFLOW))
         ask_ok = warn_if_ask_rules_missing(repo / ".claude" / "settings.json")
         expect(ask_ok, "the sample project's settings have the mandatory ask rules")
@@ -369,7 +369,7 @@ def main(argv: list[str] | None = None) -> int:
             return 2
     base = Path(tempfile.mkdtemp(prefix="agentflow-backend-smoke-"))
     os.environ["GIT_CEILING_DIRECTORIES"] = str(base)
-    os.environ["AGENTFLOW_HOME"] = str(base / "user-home")  # nothing here may touch the real ~/.agentflow
+    os.environ["AGENTFLOW_HOME"] = str(base / "user-home")  # nothing here may touch the real ~/.ThanhTan
     port, project = free_port(), f"agentflow-smoke-{secrets.token_hex(3)}"
     os.environ["API_PORT"], os.environ["API_URL"] = str(port), f"http://localhost:{port}"
     repo: Path | None = None

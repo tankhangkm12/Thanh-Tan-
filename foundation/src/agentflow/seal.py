@@ -43,7 +43,10 @@ def approval_tag(task_id: str) -> str:
 
 
 def base_branch(task: Task) -> str:
-    """Branch the task started from, read off its branch name (``feature/T-001-x`` -> develop)."""
+    """Branch the task started from: the one kept in the task, or for a task recorded before that, read off its branch name
+    (``feature/T-001-x`` -> develop)."""
+    if task.base:
+        return task.base
     prefix = (task.branch or "").split(BRANCH_SEPARATOR, 1)[0]
     try:
         return TASK_BASE_BRANCH[TaskType(prefix)]
@@ -73,7 +76,9 @@ class TaskSealer:
         workflow: Workflow,
         clock: Callable[[], str],
         scan_lines: ScanLines = lambda task: NOT_SCANNED,
+        develop_branch: str = DEVELOP_BRANCH,
     ) -> None:
+        self.develop_branch = develop_branch
         self.git = git
         self.workspace_dir = workspace_dir
         self.workflow = workflow
@@ -130,7 +135,7 @@ class TaskSealer:
         task_dir = self.workspace_dir / TASKS_DIR / task.id
         text = build_summary(
             task, items, commits, self.scan_lines(task), approver, at, lessons, roadmap,
-            f"{TASKS_DIR}/{task.id}/{SPEC_DELTA_FILE}", str(ReplanState.PENDING),
+            f"{TASKS_DIR}/{task.id}/{SPEC_DELTA_FILE}", str(ReplanState.PENDING), develop_branch=self.develop_branch,
         )  # fmt: skip
         write_lessons(self.workspace_dir, task.id, lessons)
         path = task_dir / SUMMARY_FILE

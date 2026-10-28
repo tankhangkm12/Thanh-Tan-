@@ -67,7 +67,7 @@ def test_an_unanswered_question_blocks_the_plan_until_a_person_answers(ws, monke
     assert "decide --answer Q1" in capsys.readouterr().out
     assert main(["decide", "--answer", "Q1", "--text", "Table names are singular.", "--check", "review"]) == ExitCode.OK
     out = capsys.readouterr().out
-    assert "DC-01" in out and (ws / ".agentflow" / "decisions" / "T-001-answer-Q1.md").is_file()
+    assert "DC-01" in out and (ws / ".ThanhTan" / "decisions" / "T-001-answer-Q1.md").is_file()
     assert main(["plan", "check"]) == ExitCode.OK
     assert main(["task", "advance", "--result", "pass"]) == ExitCode.OK
 
@@ -98,7 +98,7 @@ def test_bad_answers_are_refused(ws, monkeypatch, capsys):
     assert main(["decide", "--answer", "Q1", "--text", "x"]) == ExitCode.INVALID_INPUT  # no check
     assert main(["decide", "--answer", "Q1", "--text", "x", "--check", "semgrep"]) == ExitCode.CONVENTIONS_INVALID  # needs a rule file
     assert main(["decide", "--answer", "Q1", "--text", "x", "--check", "plan", "--rule", "sort"]) == ExitCode.CONVENTIONS_INVALID
-    assert not list((ws / ".agentflow" / "decisions").glob("*answer*"))
+    assert not list((ws / ".ThanhTan" / "decisions").glob("*answer*"))
 
 
 def test_suppress_and_answer_cannot_be_combined_and_one_is_needed(ws, capsys):
@@ -135,13 +135,13 @@ def test_global_without_a_store_changes_nothing(ws, monkeypatch, capsys):
     at_plan_step(monkeypatch, capsys)
     assert main(["decide", "--answer", "Q1", "--text", "x", "--check", "review", "--global"]) == ExitCode.INVALID_INPUT
     assert "knowledge init" in capsys.readouterr().err
-    assert not list((ws / ".agentflow" / "decisions").glob("*answer*"))
+    assert not list((ws / ".ThanhTan" / "decisions").glob("*answer*"))
 
 
 def test_a_setup_question_is_answered_for_the_project(ws, capsys):
-    (ws / ".agentflow" / "project" / "conventions.md").write_text(CONVENTIONS, encoding="utf-8")
+    (ws / ".ThanhTan" / "project" / "conventions.md").write_text(CONVENTIONS, encoding="utf-8")
     assert main(["decide", "--answer", "S1", "--text", "Use pytest.", "--check", "review"]) == ExitCode.OK
-    assert (ws / ".agentflow" / "decisions" / "project-answer-S1.md").is_file()
+    assert (ws / ".ThanhTan" / "decisions" / "project-answer-S1.md").is_file()
     capsys.readouterr()
     main(["conventions"])
     assert "Use pytest." in capsys.readouterr().out

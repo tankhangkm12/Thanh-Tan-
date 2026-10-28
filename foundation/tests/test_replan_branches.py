@@ -97,7 +97,7 @@ def test_skipping_an_older_task_is_refused_and_names_the_latest_one(gitflow_repo
     code, out, err = run(capsys, "replan", "skip", "T-001", "--reason", "too old to matter")
     assert code == ExitCode.INVALID_INPUT
     assert "T-001" in err and "T-002" in err
-    assert not list((repo / ".agentflow" / "decisions").glob("*replan-skip*"))
+    assert not list((repo / ".ThanhTan" / "decisions").glob("*replan-skip*"))
     assert "- Replan: pending" in summary(repo, "T-001")
 
 
@@ -107,8 +107,8 @@ def test_the_latest_task_can_be_skipped_while_the_older_one_is_left_alone(gitflo
     run_task(repo, monkeypatch, "second", review=review_report())
     capsys.readouterr()
     assert run(capsys, "replan", "skip", "T-002", "--reason", "only a typo fix")[0] == ExitCode.OK
-    assert list((repo / ".agentflow" / "decisions").glob("T-002-replan-skip*"))
-    assert not list((repo / ".agentflow" / "decisions").glob("T-001-replan-skip*"))
+    assert list((repo / ".ThanhTan" / "decisions").glob("T-002-replan-skip*"))
+    assert not list((repo / ".ThanhTan" / "decisions").glob("T-001-replan-skip*"))
 
 
 # ---------------------------------------------------------- changed_entries, copy status

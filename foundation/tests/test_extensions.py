@@ -197,7 +197,7 @@ def test_ext_add_list_and_sync(ws, ext_file, capsys):
     out = capsys.readouterr().out
     assert "registered extension 'sample-ext'" in out and "roles: specialist" in out and "example/lint:1.0" in out
     assert "settings still to set" in out
-    assert (ws / ".agentflow" / "extensions" / "sample-ext.yaml").is_file()
+    assert (ws / ".ThanhTan" / "extensions" / "sample-ext.yaml").is_file()
     assert main(["ext", "add", str(ext_file)]) == ExitCode.EXTENSION_INVALID  # already there
     assert main(["ext", "list"]) == ExitCode.OK
     assert "sample-ext: in_sync" in capsys.readouterr().out
@@ -374,7 +374,7 @@ def test_extension_scan_tools_run_on_their_step_and_gate_it(ws, ext_file, capsys
     assert probe[-3:] == ["/repo/api.yaml", "--url", "http://host.docker.internal:8000/v1"]
     assert main(["task", "advance", "--result", "pass"]) == ExitCode.GATE_FAILED
 
-    state = json.loads((ws / ".agentflow" / "tasks" / "T-001" / "scans" / "summary.json").read_text(encoding="utf-8"))
+    state = json.loads((ws / ".ThanhTan" / "tasks" / "T-001" / "scans" / "summary.json").read_text(encoding="utf-8"))
     finding = state["outcomes"][0]["findings"][0]["id"] if state["outcomes"][0]["findings"] else None
     assert finding and main(["decide", "--suppress", finding, "--reason", "known"]) == ExitCode.OK
     capsys.readouterr()

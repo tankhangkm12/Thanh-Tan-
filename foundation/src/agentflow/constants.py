@@ -10,7 +10,10 @@ SCHEMA_VERSION = 1
 ENCODING = "utf-8"
 
 # Workspace layout (relative to the project root).
-WORKSPACE_DIR = ".agentflow"
+WORKSPACE_DIR = ".ThanhTan"
+# The name the workspace had before 0.8.0; agentflow moves such a folder to WORKSPACE_DIR the first time it finds it.
+LEGACY_WORKSPACE_DIR = ".agentflow"
+WORKSPACE_DIR_NAMES = (WORKSPACE_DIR, LEGACY_WORKSPACE_DIR)
 STATE_FILE = "state.json"
 STATE_MD_FILE = "STATE.md"
 INTEGRITY_FILE = "integrity.json"
@@ -52,7 +55,8 @@ GIT_EXCLUDE_PATH = "info/exclude"
 PROJECT_DIR_ENV = "AGENTFLOW_PROJECT_DIR"
 SHELL_PWD_ENV = "PWD"
 USER_DIR_ENV = "AGENTFLOW_HOME"
-USER_DIR_NAME = ".agentflow"
+USER_DIR_NAME = ".ThanhTan"
+LEGACY_USER_DIR_NAME = ".agentflow"
 ACTIVE_PROJECT_FILE = "active-project.txt"
 ANSWER_OPTION = "--answer"
 USER_CONFIG_FILE = "user.yaml"
@@ -156,6 +160,7 @@ class ExitCode(IntEnum):
     ROADMAP_INVALID = 35
     CHECKLIST_REFUSED = 36
     INTEGRITY_FAILED = 37
+    WORKSPACE_CONFLICT = 38
 
 
 class ToolName(StrEnum):
@@ -260,7 +265,7 @@ class DriftDoc(StrEnum):
 
 
 class ProjectSection(StrEnum):
-    """The project documents a scout writes (``.agentflow/project/<section>.md``)."""
+    """The project documents a scout writes (``.ThanhTan/project/<section>.md``)."""
 
     PROFILE = "profile"
     ARCHITECTURE = "architecture"
@@ -516,7 +521,7 @@ class ConfirmState(StrEnum):
     CONFIRMED = "confirmed"
 
 
-# Files under .agentflow/project/ that agentflow writes itself.
+# Files under .ThanhTan/project/ that agentflow writes itself.
 CONFIRMATIONS_FILE = "confirmations.json"
 HISTORY_DIR = "history"
 MISSION_HEADING = "Mission"
@@ -801,6 +806,8 @@ class StateKey(StrEnum):
     BRANCH = "branch"
     SIZE = "size"
     TYPE = "type"
+    # The branch the task was started from (the one its review, scope and summary compare against).
+    BASE = "base"
     ROADMAP = "roadmap"
     REPLANNED_AT = "replanned_at"
     HISTORY = "history"

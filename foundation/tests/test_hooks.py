@@ -147,7 +147,7 @@ def test_session_start_summary(project, capsys):
     main(["task", "new", "Add login"])
     out = json.loads(hook(HookEvent.SESSION_START, CliKind.CLAUDE, {"cwd": str(project)}))
     text = out["hookSpecificOutput"]["additionalContext"]
-    assert "Active task: T-001 Add login" in text and "never edit files under .agentflow/" in text
+    assert "Active task: T-001 Add login" in text and "never edit files under .ThanhTan/" in text
     assert "step 'confirm'" in text
 
 
@@ -168,7 +168,7 @@ def test_antigravity_summary_only_on_first_invocation(project):
 
 
 def test_corrupt_state_gives_no_summary(project):
-    (project / ".agentflow" / "state.json").write_text("{", encoding="utf-8")
+    (project / ".ThanhTan" / "state.json").write_text("{", encoding="utf-8")
     assert hook(HookEvent.SESSION_START, CliKind.CLAUDE, {"cwd": str(project)}) == ""
 
 
@@ -186,7 +186,7 @@ def test_stop_reminder_only_while_a_step_is_in_progress(project, capsys):
 
 
 def _save_report(project, task_id, step):
-    path = project / ".agentflow" / "tasks" / task_id / "reports" / f"{step}.md"
+    path = project / ".ThanhTan" / "tasks" / task_id / "reports" / f"{step}.md"
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text("done\n", encoding="utf-8")
 
@@ -196,7 +196,7 @@ def test_stale_report_from_before_the_step_began_does_not_trigger_a_reminder(pro
 
     main(["task", "new", "t"])
     _save_report(project, "T-001", "confirm")
-    old = (project / ".agentflow" / "tasks" / "T-001" / "reports" / "confirm.md")
+    old = (project / ".ThanhTan" / "tasks" / "T-001" / "reports" / "confirm.md")
     os.utime(old, (0, 0))
     assert hook(HookEvent.STOP, CliKind.CLAUDE, {"cwd": str(project), "stop_hook_active": False}) == ""
 
@@ -264,22 +264,22 @@ def test_adapters_read_the_target_of_file_writing_tools():
 
 @pytest.mark.parametrize("tool,key", [("Write", "file_path"), ("Edit", "file_path"), ("MultiEdit", "file_path"), ("NotebookEdit", "notebook_path")])
 def test_claude_file_tools_cannot_write_into_the_workspace(project, tool, key):
-    for path in [project / ".agentflow" / "decisions" / "x.md", ".agentflow/state.json", project / "src" / ".." / ".agentflow" / "a"]:
+    for path in [project / ".ThanhTan" / "decisions" / "x.md", ".ThanhTan/state.json", project / "src" / ".." / ".ThanhTan" / "a"]:
         out = json.loads(hook(HookEvent.PRE_TOOL, CliKind.CLAUDE, claude_write(project, tool, path, key)))
         assert out["hookSpecificOutput"]["permissionDecision"] == "deny"
-        assert ".agentflow" in out["hookSpecificOutput"]["permissionDecisionReason"]
+        assert ".ThanhTan" in out["hookSpecificOutput"]["permissionDecisionReason"]
 
 
 @pytest.mark.parametrize("tool", ["write_to_file", "replace_file_content", "multi_replace_file_content"])
 def test_antigravity_file_tools_cannot_write_into_the_workspace(project, tool):
-    out = json.loads(hook(HookEvent.PRE_TOOL, CliKind.ANTIGRAVITY, agy_write(project, tool, project / ".agentflow" / "decisions" / "x.md")))
-    assert out["decision"] == "deny" and ".agentflow" in out["reason"]
+    out = json.loads(hook(HookEvent.PRE_TOOL, CliKind.ANTIGRAVITY, agy_write(project, tool, project / ".ThanhTan" / "decisions" / "x.md")))
+    assert out["decision"] == "deny" and ".ThanhTan" in out["reason"]
 
 
 def test_file_tools_may_write_everywhere_else(project):
     assert hook(HookEvent.PRE_TOOL, CliKind.CLAUDE, claude_write(project, "Write", project / "src" / "a.py")) == ""
     assert "deny" not in hook(HookEvent.PRE_TOOL, CliKind.ANTIGRAVITY, agy_write(project, "write_to_file", project / "a.py"))
-    assert hook(HookEvent.PRE_TOOL, CliKind.CLAUDE, claude_write(project, "Write", project / ".agentflow-notes" / "a")) == ""
+    assert hook(HookEvent.PRE_TOOL, CliKind.CLAUDE, claude_write(project, "Write", project / ".ThanhTan-notes" / "a")) == ""
 
 
 # ------------------------------------------------- remembering the project for MCP servers

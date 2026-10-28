@@ -231,7 +231,7 @@ def test_architecture_states_what_the_gates_cannot_know():
 
 
 def unreleased() -> str:
-    found = re.search(r"^## \[?Unreleased\]?.*?$(.*?)(?=^## |\Z)", read(CHANGELOG), flags=re.M | re.S | re.I)
+    found = re.search(r"^## \[?Unreleased\]?.*?$(.*)", read(CHANGELOG), flags=re.M | re.S | re.I)
     assert found
     return found.group(1)
 

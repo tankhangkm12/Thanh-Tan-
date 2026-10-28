@@ -14,7 +14,7 @@ Not a test module. Design these helpers rest on (the tests that use them pin it)
           <the tail of the output>
 
 - At ``task advance --result pass`` agentflow runs each command itself and needs it to fail (exit code other than 0, and
-  not 126/127, and not a timeout). It writes ``.agentflow/tasks/<task>/verify-red.json``. The same runner serves the gate
+  not 126/127, and not a timeout). It writes ``.ThanhTan/tasks/<task>/verify-red.json``. The same runner serves the gate
   ``tests-pass``, which runs the project's test command and writes ``tasks/<task>/tests-pass.json``.
 - The command of ``tests-pass``: setting ``test_command`` (``agentflow config set``), else the line
   ``- test-command: <command>`` of a *confirmed* ``project/profile.md``. Timeout: setting ``test_timeout_minutes``,
@@ -101,7 +101,7 @@ def at_spec_step(repo: Path, monkeypatch, capsys, plan: str = PLAN2, *extra: str
     assert say(monkeypatch, "task", "new", "Do it", *extra) == ExitCode.OK
     assert say(monkeypatch, "report", "--step", "plan", text=plan) == ExitCode.OK
     assert say(monkeypatch, "task", "advance", "--result", "pass") == ExitCode.OK
-    if json.loads((repo / ".agentflow" / "state.json").read_text(encoding="utf-8"))["tasks"][0]["step_status"] == "awaiting_approval":
+    if json.loads((repo / ".ThanhTan" / "state.json").read_text(encoding="utf-8"))["tasks"][0]["step_status"] == "awaiting_approval":
         assert say(monkeypatch, "task", "approve") == ExitCode.OK
     capsys.readouterr()
 
@@ -144,7 +144,7 @@ def advance(capsys) -> tuple[int, str, str]:
 
 
 def task_dir(repo: Path) -> Path:
-    return repo / ".agentflow" / "tasks" / "T-001"
+    return repo / ".ThanhTan" / "tasks" / "T-001"
 
 
 def verify_red_record(repo: Path) -> dict:
@@ -159,7 +159,7 @@ tests_pass_record.__test__ = False  # a name that pytest would take for a test w
 
 
 def step_now(repo: Path) -> tuple[str, str]:
-    task = json.loads((repo / ".agentflow" / "state.json").read_text(encoding="utf-8"))["tasks"][0]
+    task = json.loads((repo / ".ThanhTan" / "state.json").read_text(encoding="utf-8"))["tasks"][0]
     return task["current_step"], task["step_status"]
 
 

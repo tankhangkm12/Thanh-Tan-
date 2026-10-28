@@ -1,4 +1,4 @@
-"""Phase B2: `.agentflow/project/roadmap.md`, the project's list of goals (R1, R2, ...).
+"""Phase B2: `.ThanhTan/project/roadmap.md`, the project's list of goals (R1, R2, ...).
 
 Each item is `### R<n> - title` with `- status: todo|doing|done|dropped`, `- goal:` and `- docs:`. An agent proposes the
 list through the `project_write` tool (section `roadmap`); only a person confirms items (`project confirm R1`) or changes

@@ -1,4 +1,4 @@
-"""The project documents under ``.agentflow/project/`` and what a person does to them (confirming them).
+"""The project documents under ``.ThanhTan/project/`` and what a person does to them (confirming them).
 
 A person confirms conventions (``PC-01``, a ``status:`` line in the file), and the mission, the profile, the
 architecture and roadmap items (``mission``, ``profile``, ``architecture``, ``R3``: a hash in ``confirmations.json``).

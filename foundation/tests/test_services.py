@@ -62,7 +62,7 @@ def test_report_write_is_the_same_as_the_cli_and_returns_the_path(service, repo)
     main(["task", "new", "t"])
     info = service.write_report("confirm", "# Confirmed\nall clear")
     assert info.path.endswith("confirm.md") and info.bytes == len("# Confirmed\nall clear\n")
-    assert (repo / ".agentflow" / "tasks" / "T-001" / "reports" / "confirm.md").read_text(encoding="utf-8").startswith("# Confirmed")
+    assert (repo / ".ThanhTan" / "tasks" / "T-001" / "reports" / "confirm.md").read_text(encoding="utf-8").startswith("# Confirmed")
 
 
 def test_report_write_follows_the_rules_of_the_cli(service):
@@ -101,7 +101,7 @@ def test_scan_summary_without_results(service):
 
 def test_project_write_stores_the_section(service, repo):
     info = service.write_project(ProjectSection.PROFILE, "# Profile\r\nA web shop\r\n")
-    path = repo / ".agentflow" / "project" / "profile.md"
+    path = repo / ".ThanhTan" / "project" / "profile.md"
     assert info.path == str(path) and path.read_bytes() == b"# Profile\nA web shop\n"
     service.write_project(ProjectSection.PROFILE, "# Profile v2")
     assert path.read_text(encoding="utf-8") == "# Profile v2\n"
@@ -116,7 +116,7 @@ def test_project_write_rejects_empty_content_and_unknown_sections(service):
 def test_project_documents_are_not_written_while_a_task_is_open(service, repo):
     main(["task", "new", "t"])
     message = refuses(lambda: service.write_project(ProjectSection.PROFILE, "# P"), ExitCode.PROJECT_WRITE_REFUSED)
-    assert "task" in message and not (repo / ".agentflow" / "project" / "profile.md").exists()
+    assert "task" in message and not (repo / ".ThanhTan" / "project" / "profile.md").exists()
     main(["task", "cancel"])
     service.write_project(ProjectSection.PROFILE, "# P")
 
@@ -126,7 +126,7 @@ def test_project_documents_are_not_written_while_a_task_is_open(service, repo):
 
 @pytest.fixture
 def knowledge(repo):
-    root = repo / ".agentflow" / "knowledge"
+    root = repo / ".ThanhTan" / "knowledge"
     (root / "lessons").mkdir(parents=True, exist_ok=True)
     (root / "lessons" / "retries.md").write_text("# Retries\nAlways back off.\nNever retry a POST.\n", encoding="utf-8")
     (root / "conventions.md").write_text("Prefer Enums over strings.\n", encoding="utf-8")
@@ -185,7 +185,7 @@ CONVENTIONS = """# Quy ước
 
 
 def conventions_path(repo):
-    return repo / ".agentflow" / "project" / "conventions.md"
+    return repo / ".ThanhTan" / "project" / "conventions.md"
 
 
 def confirm_by_hand(repo, code):

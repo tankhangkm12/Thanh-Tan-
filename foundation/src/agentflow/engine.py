@@ -51,6 +51,7 @@ def start_task(
     size: str | None = None,
     roadmap: str | None = None,
     task_type: str | None = None,
+    base: str | None = None,
 ) -> Task:
     first = workflow.first_step()
     return Task(
@@ -64,6 +65,7 @@ def start_task(
         size=size,
         roadmap=roadmap,
         type=task_type,
+        base=base,
     )
 
 

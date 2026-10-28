@@ -3,7 +3,7 @@
 Once ``locked-files.json`` exists for a task that is still going, the hook denies, for every role and both CLIs:
 - a file tool (Write, Edit, MultiEdit, NotebookEdit; Antigravity's three) aimed at a locked file;
 - a shell command (Bash, PowerShell, ``run_command``) that writes, deletes, moves or copies over a locked file, in the
-  forms the guard already reads for ``.agentflow/`` (redirects, tee, sed -i, cp, mv, rm, dd, truncate, Set-Content...);
+  forms the guard already reads for ``.ThanhTan/`` (redirects, tee, sed -i, cp, mv, rm, dd, truncate, Set-Content...);
 - a git command that brings a locked file back from another commit (``git checkout <ref> -- file``, ``git restore -s``)
   or removes or renames it (``git rm``, ``git mv``);
 - the creation of a test configuration file that is not in the lock (``conftest.py``, ``pytest.ini``, ``tox.ini``,
@@ -486,7 +486,7 @@ def test_the_commands_that_change_what_the_tests_run_or_accept_a_change_stay_the
 
 @pytest.mark.parametrize(
     "path",
-    [".agentflow/config.yaml", ".agentflow/tasks/T-001/locked-files.json", ".agentflow/tasks/T-001/verify-red.json", ".agentflow/integrity.json", ".agentflow/project/profile.md"],
+    [".ThanhTan/config.yaml", ".ThanhTan/tasks/T-001/locked-files.json", ".ThanhTan/tasks/T-001/verify-red.json", ".ThanhTan/integrity.json", ".ThanhTan/project/profile.md"],
 )
 def test_the_files_that_say_what_is_locked_and_what_is_run_are_closed_to_the_tools(locked, path):
     assert denied(locked, tool="Write", path=locked / path)

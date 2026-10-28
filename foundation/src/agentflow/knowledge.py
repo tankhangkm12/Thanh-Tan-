@@ -1,7 +1,7 @@
 """The person's own knowledge store, outside every repository, and what moves between it and a workspace.
 
 Only a person runs these (the guard refuses an agent): ``init`` makes the folder, ``pull`` copies chosen files from
-it into ``.agentflow/knowledge/`` for the agents to read, ``push`` copies a lesson from the workspace back into it.
+it into ``.ThanhTan/knowledge/`` for the agents to read, ``push`` copies a lesson from the workspace back into it.
 Agents never write to the store.
 """
 
@@ -60,7 +60,7 @@ def _inside(root: Path, path: Path) -> bool:
 
 
 def pull_files(store: Path, workspace_dir: Path, names: list[str]) -> list[Path]:
-    """Copy files of the store into ``.agentflow/knowledge/``, keeping their place. All or nothing."""
+    """Copy files of the store into ``.ThanhTan/knowledge/``, keeping their place. All or nothing."""
     root = _require_store(store)
     chosen: list[tuple[Path, Path]] = []
     for name in names:

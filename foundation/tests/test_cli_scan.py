@@ -83,7 +83,7 @@ def test_blocking_findings_fail_the_scan_and_the_gate_until_a_person_suppresses_
     assert main(["task", "advance", "--result", "pass"]) == ExitCode.GATE_FAILED
     assert "scan 'semgrep' blocks" in capsys.readouterr().err
 
-    state = json.loads((ws / ".agentflow" / "tasks" / "T-001" / "scans" / "summary.json").read_text(encoding="utf-8"))
+    state = json.loads((ws / ".ThanhTan" / "tasks" / "T-001" / "scans" / "summary.json").read_text(encoding="utf-8"))
     ids = {finding["id"] for outcome in state["outcomes"] for finding in outcome["findings"] if finding["blocking"]}
     assert main(["decide", "--suppress", "semgrep:nope", "--reason", "x"]) == ExitCode.INVALID_INPUT
     for finding_id in ids:
@@ -133,5 +133,5 @@ def test_gitleaks_finding_blocks(ws, capsys):
 def test_the_summary_reports_scans_when_the_task_is_sealed(ws, capsys):
     assert main(["scan"]) == ExitCode.OK
     assert main(["task", "advance", "--result", "pass"]) == ExitCode.OK
-    summary = (ws / ".agentflow" / "tasks" / "T-001" / "summary.md").read_text(encoding="utf-8")
+    summary = (ws / ".ThanhTan" / "tasks" / "T-001" / "summary.md").read_text(encoding="utf-8")
     assert "semgrep: clean" in summary and "trivy: clean" in summary

@@ -74,7 +74,7 @@ def conflicts(extension: Extension, workflow: Workflow, others: list[Extension])
 
 
 def add_extension(paths: WorkspacePaths, workflow: Workflow, source: Path) -> Extension:
-    """Check ``source``, copy it into ``.agentflow/extensions/`` and register it in ``config.yaml``."""
+    """Check ``source``, copy it into ``.ThanhTan/extensions/`` and register it in ``config.yaml``."""
     source = source.resolve()
     extension = load_extension_file(source)
     config = load_config(paths)

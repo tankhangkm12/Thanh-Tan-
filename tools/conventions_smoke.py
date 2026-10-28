@@ -103,7 +103,7 @@ def person_assets(s: Session, base: Path, repo: Path) -> Path:
     s.af("knowledge", "init", "--dir", str(store))
     (store / "semgrep" / RULE_FILE).write_text(RULE, encoding=ENCODING)
     s.af("knowledge", "pull", f"semgrep/{RULE_FILE}")
-    expect((repo / ".agentflow" / "knowledge" / "semgrep" / RULE_FILE).is_file(), "the rule file is copied into the workspace")
+    expect((repo / ".ThanhTan" / "knowledge" / "semgrep" / RULE_FILE).is_file(), "the rule file is copied into the workspace")
     warned = s.af("task", "new", "probe")
     expect("unconfirmed" in warned.stderr, "task new warns while conventions are unconfirmed", warned.stderr)
     s.af("task", "cancel")
@@ -119,17 +119,17 @@ def agents_cannot_decide_or_write(s: Session, repo: Path) -> None:
     for command in ("agentflow project confirm --all", "agentflow decide --answer Q1 --text x --check review", "agentflow knowledge push x.md"):
         verdict = json.loads(s.af("guard", stdin=json.dumps({"command": command, "cwd": str(repo)})).stdout)
         expect(verdict["rule"] == "person-only", f"the guard refuses `{command}` from an agent", str(verdict))
-    target = str(repo / ".agentflow" / "decisions" / "forged.md")
+    target = str(repo / ".ThanhTan" / "decisions" / "forged.md")
     claude = s.af("hook", "pre-tool", "--cli", "claude", stdin=json.dumps({"cwd": str(repo), "tool_name": "Write", "tool_input": {"file_path": target}}))
-    expect(json.loads(claude.stdout)["hookSpecificOutput"]["permissionDecision"] == "deny", "the Claude hook refuses a Write into .agentflow/")
+    expect(json.loads(claude.stdout)["hookSpecificOutput"]["permissionDecision"] == "deny", "the Claude hook refuses a Write into .ThanhTan/")
     agy = s.af(
         "hook", "pre-tool", "--cli", "antigravity",
         stdin=json.dumps({"workspacePaths": [str(repo)], "toolCall": {"name": "write_to_file", "args": {"TargetFile": target}}}),
     )  # fmt: skip
-    expect(json.loads(agy.stdout)["decision"] == "deny", "the Antigravity hook refuses write_to_file into .agentflow/")
-    shell = json.loads(s.af("guard", stdin=json.dumps({"command": "echo x > .agentflow/decisions/forged.md", "cwd": str(repo)})).stdout)
-    expect(shell["rule"] == "workspace-write", "the guard refuses a shell redirect into .agentflow/", str(shell))
-    expect(not Path(target).exists(), "nothing was written into .agentflow/decisions/")
+    expect(json.loads(agy.stdout)["decision"] == "deny", "the Antigravity hook refuses write_to_file into .ThanhTan/")
+    shell = json.loads(s.af("guard", stdin=json.dumps({"command": "echo x > .ThanhTan/decisions/forged.md", "cwd": str(repo)})).stdout)
+    expect(shell["rule"] == "workspace-write", "the guard refuses a shell redirect into .ThanhTan/", str(shell))
+    expect(not Path(target).exists(), "nothing was written into .ThanhTan/decisions/")
 
 
 def plan(items: list[tuple[str, str, str, str]], question: bool = False) -> str:
@@ -146,7 +146,7 @@ def plan(items: list[tuple[str, str, str, str]], question: bool = False) -> str:
 
 
 def active_task(repo: Path) -> str:
-    state = json.loads((repo / ".agentflow" / "state.json").read_text(encoding=ENCODING))
+    state = json.loads((repo / ".ThanhTan" / "state.json").read_text(encoding=ENCODING))
     return state["active_task_id"]
 
 
@@ -214,8 +214,8 @@ def conventions_flow(s: Session, base: Path, repo: Path) -> None:
 
     tag = f"agentflow/{task}/approved"
     expect(s.git("tag", "-l", tag) == tag and s.git("cat-file", "-t", tag) == "tag", "the approval tag is annotated")
-    lesson = repo / ".agentflow" / "tasks" / task / "lessons" / "L1.md"
-    summary = (repo / ".agentflow" / "tasks" / task / "summary.md").read_text(encoding=ENCODING)
+    lesson = repo / ".ThanhTan" / "tasks" / task / "lessons" / "L1.md"
+    summary = (repo / ".ThanhTan" / "tasks" / task / "summary.md").read_text(encoding=ENCODING)
     expect(lesson.is_file() and "L1: Keep statuses in one module" in summary, "the summary proposes the lesson and it is a file", summary)
     s.af("knowledge", "push", str(lesson))
     expect((store / "lessons" / "L1.md").is_file(), "a person pushed the lesson into their own store")

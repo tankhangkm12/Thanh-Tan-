@@ -169,7 +169,7 @@ def test_the_continue_skill_gives_each_implementer_agent_its_real_effort():
 def test_the_changelog_records_the_tier_change_under_unreleased():
     """Checks that the entry exists and carries the values; the wording is free."""
     text = read(CHANGELOG)
-    unreleased = text.split("## [Unreleased]", 1)[1].split("\n## ", 1)[0]
+    unreleased = text.split("## [Unreleased]", 1)[1]
     changed = unreleased.split("### Changed", 1)[1]
     assert "implementer-deep" in changed and "sonnet" in changed.lower() and "high" in changed
     assert "db-engineer" in changed

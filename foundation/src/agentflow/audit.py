@@ -1,6 +1,6 @@
 """The audit log of the pre-tool hook: which tool calls touched the files that carry a person's approval.
 
-A line is added to ``.agentflow/audit.jsonl`` for every call whose path or command *mentions* a protected name. The log
+A line is added to ``.ThanhTan/audit.jsonl`` for every call whose path or command *mentions* a protected name. The log
 is a witness, not a lock: ``task approve`` refuses when it holds a call that was let through and could have written
 the step's checklist or the state. Hashes are the main layer; this one catches a hand that the hashes would miss.
 """

@@ -3,7 +3,7 @@
 Claude Code starts a plugin's MCP server in the project. Antigravity starts it in the plugin's own directory and
 offers no variable or message that names the project. So the server looks, in this order, at: its working
 directory, ``AGENTFLOW_PROJECT_DIR``, ``PWD`` (the shell that launched the CLI), and finally the project that
-the last Antigravity hook call remembered in the user's agentflow folder (``~/.agentflow/active-project.txt``).
+the last Antigravity hook call remembered in the user's agentflow folder (``~/.ThanhTan/active-project.txt``).
 """
 
 import os
@@ -13,6 +13,7 @@ from pathlib import Path
 from agentflow.constants import (
     ACTIVE_PROJECT_FILE,
     ENCODING,
+    LEGACY_USER_DIR_NAME,
     PROJECT_DIR_ENV,
     SHELL_PWD_ENV,
     USER_DIR_ENV,
@@ -25,9 +26,19 @@ from agentflow.workspace import WorkspacePaths, find_workspace
 
 
 def user_dir(environ: Mapping[str, str] | None = None) -> Path:
-    """The user's agentflow folder (``~/.agentflow``, or ``AGENTFLOW_HOME``)."""
+    """The user's agentflow folder (``~/.ThanhTan``, or ``AGENTFLOW_HOME``). A ``~/.agentflow`` from before 0.8.0 is moved
+    to the new name the first time; when it cannot be moved (a file is open), it is used where it is."""
     env = os.environ if environ is None else environ
-    return Path(env[USER_DIR_ENV]) if env.get(USER_DIR_ENV) else Path.home() / USER_DIR_NAME
+    if env.get(USER_DIR_ENV):
+        return Path(env[USER_DIR_ENV])
+    home = Path.home()
+    folder, legacy = home / USER_DIR_NAME, home / LEGACY_USER_DIR_NAME
+    if not folder.exists() and legacy.is_dir():
+        try:
+            legacy.rename(folder)
+        except OSError:
+            return legacy
+    return folder
 
 
 def remember_project(root: Path, environ: Mapping[str, str] | None = None) -> None:

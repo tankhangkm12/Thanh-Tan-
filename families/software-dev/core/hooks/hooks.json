@@ -1,5 +1,5 @@
 {
-  "description": "agentflow hooks: block risky git commands and writes into .agentflow/, load the task summary at session start, remind about task state on stop. They do nothing in projects without .agentflow/.",
+  "description": "agentflow hooks: block risky git commands and writes into .ThanhTan/, load the task summary at session start, remind about task state on stop. They do nothing in projects without .ThanhTan/.",
   "hooks": {
     "SessionStart": [
       {

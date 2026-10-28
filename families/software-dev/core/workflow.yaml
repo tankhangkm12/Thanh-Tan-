@@ -16,7 +16,7 @@ agent_dirs:
   antigravity: agents
 # Approval checklists: a step that needs a person lists what they check. `approval_checklist` are the fixed questions
 # (codes K1, K2...); `approval_items` add lines from the step's report (plan items, review conventions, proposals).
-# agentflow writes them to .agentflow/tasks/<task>/approve-<step>.md and `task approve` reads the ticks.
+# agentflow writes them to .ThanhTan/tasks/<task>/approve-<step>.md and `task approve` reads the ticks.
 # Task sizes (`agentflow task new "<title>" --size small|normal`). A small task skips the approval of the plan (the plan
 # check still runs, and the plan has at most 3 items; confirm and review still need a person) and its security step runs
 # Gitleaks and Semgrep only (also Semgrep with the project's own convention rules).
@@ -116,6 +116,6 @@ steps:
       - Mục "must fix" đã xử lý hoặc có lý do rõ ràng.
       - Mục `## Đề xuất cập nhật hồ sơ` đúng và đủ, hoặc `không có` là đúng. Gate `drift-reviewed` chỉ kiểm hình thức, phần đúng sai do bạn kiểm; reviewer chỉ đề xuất, đề xuất nào bạn đồng ý thì bạn tự cập nhật hồ sơ (hoặc nhờ scout ghi lại rồi xác nhận).
       - Thay đổi đúng kế hoạch đã duyệt, không có việc ngoài phạm vi.
-      - "`summary.md` và kết quả scan (`.agentflow/tasks/<task>/scans/`) không còn phát hiện chặn nào chưa giải thích."
-      - '"Bài học đề xuất" đáng giữ thì đưa về kho: `agentflow knowledge push .agentflow/tasks/<task>/lessons/L1.md`.'
+      - "`summary.md` và kết quả scan (`.ThanhTan/tasks/<task>/scans/`) không còn phát hiện chặn nào chưa giải thích."
+      - '"Bài học đề xuất" đáng giữ thì đưa về kho: `agentflow knowledge push .ThanhTan/tasks/<task>/lessons/L1.md`.'
     approval_items: [review-requirements, review-conventions, changed-docs, drift-proposals]

@@ -5,7 +5,7 @@ Not a test module. Design these helpers rest on (the tests that use them pin it)
 - A step opts in with ``approval_checklist`` (fixed questions, codes K1, K2, ...) and/or ``approval_items``
   (``plan-items`` -> C<n>, ``review-conventions`` -> PC-xx, ``drift-proposals`` -> D<n>). A step that declares neither
   has no checklist and ``task approve`` behaves as it always did.
-- ``task advance --result pass`` into ``awaiting_approval`` writes ``.agentflow/tasks/<task>/approve-<step>.md``.
+- ``task advance --result pass`` into ``awaiting_approval`` writes ``.ThanhTan/tasks/<task>/approve-<step>.md``.
 - Exit codes: 36 CHECKLIST_REFUSED, 37 INTEGRITY_FAILED (spelled as numbers, like the phase B helpers do).
 """
 
@@ -111,7 +111,7 @@ def open_workspace(repo: Path, tmp_path: Path, monkeypatch, capsys, workflow: Pa
 
 
 def workspace(repo: Path) -> Path:
-    return repo / ".agentflow"
+    return repo / ".ThanhTan"
 
 
 def task_dir(repo: Path, task: str = "T-001") -> Path:

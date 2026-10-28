@@ -27,7 +27,7 @@ from agentflow.projectlocator import EnvironmentProjectLocator
 from agentflow.services import WorkspaceServices
 
 INSTRUCTIONS = (
-    "agentflow keeps the state of a software task in .agentflow/. Use these tools instead of editing files there. "
+    "agentflow keeps the state of a software task in .ThanhTan/. Use these tools instead of editing files there. "
     "A tool that refuses says why; follow its message. Approving a step, cancelling, sealing, deciding, "
     "confirming a replan and changing settings are for a person and are not offered."
 )
@@ -149,7 +149,7 @@ def build_server(service: WorkspaceService) -> MCPServer:
     )
     register(
         ToolName.PROJECT_WRITE,
-        "Save a project document (profile, architecture, sources or conventions) under .agentflow/project/. "
+        "Save a project document (profile, architecture, sources or conventions) under .ThanhTan/project/. "
         "Refused while a task is open.",
         project_write,
     )
@@ -174,10 +174,10 @@ def build_server(service: WorkspaceService) -> MCPServer:
     )
     register(
         ToolName.KNOWLEDGE_SEARCH,
-        "Search the knowledge files a person copied into .agentflow/knowledge/ (case-insensitive). Returns file, line and text.",
+        "Search the knowledge files a person copied into .ThanhTan/knowledge/ (case-insensitive). Returns file, line and text.",
         knowledge_search,
     )
-    register(ToolName.KNOWLEDGE_READ, "Read one file of .agentflow/knowledge/ by its relative path.", knowledge_read)
+    register(ToolName.KNOWLEDGE_READ, "Read one file of .ThanhTan/knowledge/ by its relative path.", knowledge_read)
     return server
 
 

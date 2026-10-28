@@ -25,6 +25,6 @@ Run each on its own: `agentflow config get backend.db.engine`, `agentflow config
 
 Run the project's up command, then the down command, then the up command again, against the database in its container. All three must succeed. Do not mark the item done on a reading of the SQL alone. The item's `done-when` must name both the up and the down command (the plan check refuses a migration item without them).
 
-When the database is PostgreSQL the test step lints the changed migrations with Squawk and blocks on any finding; read its output in `.agentflow/tasks/<task>/scans/` and fix the migration rather than asking for a suppression. For other databases that lint is skipped and the report says so.
+When the database is PostgreSQL the test step lints the changed migrations with Squawk and blocks on any finding; read its output in `.ThanhTan/tasks/<task>/scans/` and fix the migration rather than asking for a suppression. For other databases that lint is skipped and the report says so.
 
 Commit with `agentflow commit "<what changed>" --item <code>`.

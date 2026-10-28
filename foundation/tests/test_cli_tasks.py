@@ -79,7 +79,7 @@ def test_blocked_task_override_records_decision(ws, capsys):
     assert "task blocked" in out and "blocked" in out
     code, out, _ = run(capsys, "task", "approve", "--reason", "checked by hand")
     assert code == ExitCode.OK and "decision recorded:" in out
-    decisions = [p for p in (ws / ".agentflow" / "decisions").iterdir() if p.suffix == ".md"]
+    decisions = [p for p in (ws / ".ThanhTan" / "decisions").iterdir() if p.suffix == ".md"]
     assert len(decisions) == 1 and "checked by hand" in decisions[0].read_text(encoding="utf-8")
 
 
@@ -95,7 +95,7 @@ def test_report_reads_stdin(ws, capsys, monkeypatch):
     monkeypatch.setattr("sys.stdin", io.StringIO("# Check\nfine"))
     code, out, _ = run(capsys, "report", "--step", "confirm")
     assert code == ExitCode.OK and "report saved:" in out
-    report = ws / ".agentflow" / "tasks" / "T-001" / "reports" / "confirm.md"
+    report = ws / ".ThanhTan" / "tasks" / "T-001" / "reports" / "confirm.md"
     assert report.read_text(encoding="utf-8") == "# Check\nfine\n"
     monkeypatch.setattr("sys.stdin", io.StringIO("x"))
     assert run(capsys, "report", "--step", "ghost")[0] == ExitCode.UNKNOWN_STEP

@@ -1,7 +1,7 @@
 """Chặng D-checklist (D1 + D2 gốc): a step that needs a person gets a checklist file, and `task approve` reads it.
 
 A step opts in with `approval_checklist` / `approval_items` in the workflow. The file is
-`.agentflow/tasks/<task>/approve-<step>.md`: a header (task, step, report, generated, skeleton-sha256), a
+`.ThanhTan/tasks/<task>/approve-<step>.md`: a header (task, step, report, generated, skeleton-sha256), a
 `## Checklist` section of `- [ ] <code>: <text>` lines and a last `## Ghi chú của bạn` section for the person's notes.
 `task approve` refuses (exit 36) while a required box is open or the skeleton (items, header) was changed.
 """

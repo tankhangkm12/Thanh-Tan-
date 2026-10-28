@@ -1,9 +1,9 @@
-"""What a person confirmed in the project documents, kept as hashes in ``.agentflow/project/confirmations.json``.
+"""What a person confirmed in the project documents, kept as hashes in ``.ThanhTan/project/confirmations.json``.
 
 A document (or a part of one: the mission, a roadmap item) is confirmed while its text still hashes to what the person
 confirmed. Nothing is written into the document itself, so an agent that rewrites it cannot leave a "confirmed" mark
 behind: any change makes it unconfirmed again, and writing back the very same text makes it confirmed again.
-Only agentflow writes this file (the hook keeps agents out of ``.agentflow/``).
+Only agentflow writes this file (the hook keeps agents out of ``.ThanhTan/``).
 """
 
 import hashlib

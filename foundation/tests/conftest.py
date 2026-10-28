@@ -110,5 +110,5 @@ def workflow_file(tmp_path, workflow_data) -> Path:
 
 @pytest.fixture(autouse=True)
 def _user_dir_in_tmp(tmp_path_factory, monkeypatch):
-    """Nothing a test runs may touch the real ~/.agentflow."""
+    """Nothing a test runs may touch the real ~/.ThanhTan."""
     monkeypatch.setenv("AGENTFLOW_HOME", str(tmp_path_factory.mktemp("user-home")))

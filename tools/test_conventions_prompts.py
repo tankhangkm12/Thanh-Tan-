@@ -64,9 +64,13 @@ def test_the_continue_skill_hands_each_item_to_the_agent_plan_assign_names():
         assert needle in text, needle
 
 
-def test_the_start_skill_offers_the_small_size_and_the_planner_keeps_a_small_plan_small():
+def test_the_size_comes_from_the_command_and_the_planner_keeps_a_small_plan_small():
     start = (CORE / "skills" / "start" / "SKILL.md").read_text(encoding="utf-8")
-    assert "--size small" in start and "at most 3 plan items" in start and "when in doubt use `normal`" in start
+    assert "--size small" in start and "at most 3 plan items" in start and "never guess a size" in start
+    for command in ("start-small", "hotfix", "refactor", "chore"):
+        assert f"`/dev-core:{command}`" in start, command
+    small = (CORE / "skills" / "start-small" / "SKILL.md").read_text(encoding="utf-8")
+    assert "`--size small`" in small and "skills/start/SKILL.md" in small
     planner = role("planner")
     assert "size: small" in planner and "at most 3 items" in planner
     continue_skill = (CORE / "skills" / "continue" / "SKILL.md").read_text(encoding="utf-8")

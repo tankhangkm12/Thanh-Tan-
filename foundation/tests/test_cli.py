@@ -83,8 +83,8 @@ def test_init_creates_workspace(git_repo, workflow_file, monkeypatch, capsys):
     assert main(["init", "--workflow", str(workflow_file)]) == ExitCode.OK
     out = capsys.readouterr().out
     assert "workflow: sample (copied;" in out
-    assert "git exclude: added .agentflow/" in out
-    assert (git_repo / ".agentflow" / "state.json").is_file()
+    assert "git exclude: added .ThanhTan/" in out
+    assert (git_repo / ".ThanhTan" / "state.json").is_file()
 
 
 def test_init_twice_is_safe(git_repo, workflow_file, monkeypatch, capsys):
@@ -187,7 +187,7 @@ def test_next_uses_copy_when_source_is_gone(workspace, workflow_file, capsys):
 
 
 def test_status_reports_corrupt_state(workspace, capsys):
-    (workspace / ".agentflow" / "state.json").write_text("{}", encoding="utf-8")
+    (workspace / ".ThanhTan" / "state.json").write_text("{}", encoding="utf-8")
     assert main(["status"]) == ExitCode.INVALID_STATE
     assert capsys.readouterr().err.startswith("error:")
 

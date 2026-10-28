@@ -30,7 +30,7 @@ CHANGELOG = REPO / "CHANGELOG.md"
 RELEASE = REPO / "docs" / "release.md"
 BACKEND_README = BACKEND / "README.md"
 
-AGENTFLOW_VERSION, CORE_VERSION, BACKEND_VERSION = "0.7.0", "0.6.0", "0.3.0"
+AGENTFLOW_VERSION, CORE_VERSION, BACKEND_VERSION = "0.8.0", "0.7.0", "0.4.0"
 
 
 def read(path: Path) -> str:
@@ -61,7 +61,7 @@ def section(text: str, heading: str, level: int = 2) -> str:
 
 
 def unreleased() -> str:
-    found = re.search(r"^## \[?Unreleased\]?.*?$(.*?)(?=^## |\Z)", read(CHANGELOG), flags=re.M | re.S | re.I)
+    found = re.search(r"^## \[?Unreleased\]?.*?$(.*)", read(CHANGELOG), flags=re.M | re.S | re.I)
     assert found
     return found.group(1)
 

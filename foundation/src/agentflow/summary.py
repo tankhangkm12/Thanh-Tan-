@@ -21,7 +21,7 @@ NO_ITEM_GROUP = "other commits"
 NONE_LINE = "- none"
 HOTFIX_MERGE_HEADING = "Merge the hotfix"
 HOTFIX_MERGE_NOTE = (
-    f"These are for a person to run; agentflow and its agents never merge into {MAIN_BRANCH} or {DEVELOP_BRANCH}. "
+    "These are for a person to run; agentflow and its agents never merge into the main or the development branch. "
     "Pick the next version for the tag."
 )
 
@@ -37,11 +37,13 @@ def build_summary(
     roadmap: str | None = None,
     spec_delta: str | None = None,
     replan: str | None = None,
+    develop_branch: str = DEVELOP_BRANCH,
 ) -> str:
     lines = [
         f"# {task.id}: {task.title}",
         "",
         f"- Branch: {task.branch}",
+        *([f"- Base: {task.base}"] if task.base else []),
         *([f"- Size: {task.size}"] if task.size else []),
         *([f"- Type: {task.type}"] if task.type else []),
         *([f"- Roadmap: {roadmap}"] if roadmap else []),
@@ -78,17 +80,17 @@ def build_summary(
     else:
         lines.append(NONE_LINE)
     if task.type == TaskType.HOTFIX and task.branch:
-        lines += ["", f"## {HOTFIX_MERGE_HEADING}", "", HOTFIX_MERGE_NOTE, "", "```", *hotfix_merge_commands(task.branch), "```"]
+        lines += ["", f"## {HOTFIX_MERGE_HEADING}", "", HOTFIX_MERGE_NOTE, "", "```", *hotfix_merge_commands(task.branch, task.base or MAIN_BRANCH, develop_branch), "```"]
     return "\n".join(lines) + "\n"
 
 
-def hotfix_merge_commands(branch: str) -> list[str]:
-    """What a person runs to bring a finished hotfix into main (with a version tag) and back into develop."""
+def hotfix_merge_commands(branch: str, main: str = MAIN_BRANCH, develop: str = DEVELOP_BRANCH) -> list[str]:
+    """What a person runs to bring a finished hotfix into the main branch (with a version tag) and back into develop."""
     return [
-        f"git switch {MAIN_BRANCH}",
+        f"git switch {main}",
         f"git merge --no-ff {branch}",
         'git tag -a v<version> -m "<version>"',
-        f"git switch {DEVELOP_BRANCH}",
+        f"git switch {develop}",
         f"git merge --no-ff {branch}",
     ]
 

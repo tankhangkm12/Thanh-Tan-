@@ -1,6 +1,6 @@
 """What agentflow does when a CLI fires a hook.
 
-Hooks must never get in the way: a project without ``.agentflow/``, unreadable input or an unreadable
+Hooks must never get in the way: a project without ``.ThanhTan/``, unreadable input or an unreadable
 state all end in "no output", which every CLI treats as "carry on".
 """
 
@@ -13,13 +13,14 @@ from typing import Any
 from agentflow.constants import (
     ANTIGRAVITY_FIRST_INVOCATION,
     CliKind,
+    IN_FLIGHT_TASK_STATUSES,
     HistoryEvent,
     HookEvent,
     ReplyKind,
     StepStatus,
     TaskStatus,
 )
-from agentflow import audit
+from agentflow import audit, gitconfig
 from agentflow.engine import next_action
 from agentflow.gates import plan_report_path
 from agentflow.errors import AgentflowError
@@ -30,11 +31,11 @@ from agentflow.projectlocator import remember_project
 from agentflow.models import HookInput, HookReply, State, Task, Workflow
 from agentflow.render import NONE_TEXT, describe_action, describe_step
 from agentflow.state import JsonStateStore
-from agentflow.workspace import GitWorkspaceLookup, WorkspacePaths, find_workspace, load_workspace_workflow
+from agentflow.workspace import GitWorkspaceLookup, WorkspacePaths, find_workspace, load_config, load_workspace_workflow
 
 RULES_TEXT = (
     "Rules: change task state only through `agentflow task ...`; save step reports with "
-    "the `report_write` tool (or `agentflow report --step <id>`); commit with `agentflow commit`; never edit files under .agentflow/ "
+    "the `report_write` tool (or `agentflow report --step <id>`); commit with `agentflow commit`; never edit files under .ThanhTan/ "
     "by hand (the file tools are blocked there too); never push."
 )
 NO_TASK_TEXT = "No active task. To begin, use the start skill (it runs `agentflow task new`)."
@@ -77,7 +78,7 @@ def _workspace(cwd: Path | None) -> WorkspacePaths | None:
         return None
     try:
         return find_workspace(cwd)
-    except AgentflowError:  # not a git repository, or no .agentflow/ in it
+    except AgentflowError:  # not a git repository, or no .ThanhTan/ in it
         return None
 
 
@@ -91,7 +92,7 @@ def _reply(
 ) -> HookReply:
     match event:
         case HookEvent.PRE_TOOL:
-            return _audited(paths, cli, hook_input, _guard_reply(hook_input, branches, workspaces))
+            return _audited(paths, cli, hook_input, _guard_reply(hook_input, branches, workspaces, protected_branches(paths)))
         case HookEvent.SESSION_START:
             if cli is CliKind.ANTIGRAVITY and hook_input.invocation_num != ANTIGRAVITY_FIRST_INVOCATION:
                 return HookReply()
@@ -116,13 +117,27 @@ def _audited(paths: WorkspacePaths, cli: CliKind, hook_input: HookInput, reply: 
     return reply
 
 
-def _guard_reply(hook_input: HookInput, branches: BranchLookup, workspaces: WorkspaceLookup) -> HookReply:
+def protected_branches(paths: WorkspacePaths) -> frozenset[str]:
+    """The branches an agent must not commit on: main and develop, the ones the project named (``git.*`` settings) and the
+    base of every open task. A workspace that cannot be read gives the built-in two (the hook must never get in the way)."""
+    try:
+        names = gitconfig.names_from(load_config(paths).settings)
+        state = JsonStateStore(paths.dir, load_workspace_workflow(paths)).load()
+        bases = [task.base for task in state.tasks if task.status in IN_FLIGHT_TASK_STATUSES]
+    except AgentflowError:
+        return gitconfig.GitNames().protected()
+    return names.protected(bases)
+
+
+def _guard_reply(
+    hook_input: HookInput, branches: BranchLookup, workspaces: WorkspaceLookup, protected: frozenset[str] | None = None
+) -> HookReply:
     if hook_input.cwd is None:
         return HookReply()
     if hook_input.write_target is not None:
         verdict = writes_into_workspace(hook_input.write_target, hook_input.cwd)
     elif hook_input.command:
-        verdict = evaluate(hook_input.command, hook_input.cwd, branches, workspaces)
+        verdict = evaluate(hook_input.command, hook_input.cwd, branches, workspaces, protected_branches=protected)
     else:
         return HookReply()
     if verdict.denied:

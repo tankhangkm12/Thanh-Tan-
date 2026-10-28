@@ -180,6 +180,8 @@ class Task:
     roadmap: str | None = None
     # feature, bugfix, ...; ``None`` for a task recorded before the type was kept (it was then read from the branch).
     type: str | None = None
+    # The branch the task started from; ``None`` for a task recorded before it was kept (then read off its branch name).
+    base: str | None = None
     # When a person confirmed the replan of this finished task (``agentflow replan done``); ``None`` until then.
     replanned_at: str | None = None
 
@@ -230,6 +232,7 @@ def _task_from_dict(data: Mapping[str, Any]) -> Task:
         size=data.get(StateKey.SIZE),
         roadmap=data.get(StateKey.ROADMAP),
         type=data.get(StateKey.TYPE),
+        base=data.get(StateKey.BASE),
         replanned_at=data.get(StateKey.REPLANNED_AT),
         history=tuple(
             HistoryEntry(
@@ -271,6 +274,8 @@ def _task_to_dict(task: Task) -> dict[str, Any]:
         data[StateKey.ROADMAP] = task.roadmap
     if task.type is not None:
         data[StateKey.TYPE] = task.type
+    if task.base is not None:
+        data[StateKey.BASE] = task.base
     if task.replanned_at is not None:
         data[StateKey.REPLANNED_AT] = task.replanned_at
     return data

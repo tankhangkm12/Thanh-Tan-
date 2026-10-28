@@ -173,7 +173,7 @@ def skill(name: str) -> str:
 
 def test_the_approve_skill_sends_the_person_to_the_checklist_before_the_command():
     text = skill("approve")
-    assert "approve-" in text and ".agentflow/tasks/<task>" in text
+    assert "approve-" in text and ".ThanhTan/tasks/<task>" in text
     assert re.search(r"\[x\]|tick", text)
     assert text.index("approve-") < text.index("agentflow task approve")
 
@@ -238,7 +238,7 @@ def test_readme_tells_the_person_to_run_doctor_after_updating_and_what_it_report
 
 
 def unreleased() -> str:
-    found = re.search(r"^## \[?Unreleased\]?.*?$(.*?)(?=^## |\Z)", read(CHANGELOG), flags=re.M | re.S | re.I)
+    found = re.search(r"^## \[?Unreleased\]?.*?$(.*)", read(CHANGELOG), flags=re.M | re.S | re.I)
     assert found, "CHANGELOG has no Unreleased section"
     return found.group(1)
 

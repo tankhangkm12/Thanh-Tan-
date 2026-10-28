@@ -174,13 +174,13 @@ def test_status_warns_about_a_document_that_is_gone(repo, monkeypatch, capsys):
     code, _out, err = run(capsys, "status")
     assert code == ExitCode.OK
     assert "docs/spec.md missing" in err
-    assert docpin.changes(repo / ".agentflow", repo, "T-001") == [docpin.DocChange("docs/spec.md", docpin.MISSING)]
+    assert docpin.changes(repo / ".ThanhTan", repo, "T-001") == [docpin.DocChange("docs/spec.md", docpin.MISSING)]
 
 
 def test_a_document_that_appears_after_being_absent_counts_as_a_change(repo, monkeypatch, capsys):
     to_confirm_approved(repo, monkeypatch, capsys, CONFIRM.replace("docs/design", "docs/later.md"))
     (repo / "docs" / "later.md").write_text("now\n", encoding="utf-8")
-    assert docpin.changes(repo / ".agentflow", repo, "T-001") == [docpin.DocChange("docs/later.md", docpin.APPEARED)]
+    assert docpin.changes(repo / ".ThanhTan", repo, "T-001") == [docpin.DocChange("docs/later.md", docpin.APPEARED)]
 
 
 # ------------------------------------------------------------------ a verdict per requirement

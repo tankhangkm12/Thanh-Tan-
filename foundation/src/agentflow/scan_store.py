@@ -1,4 +1,4 @@
-"""Where scan results live: ``.agentflow/tasks/<task>/scans/``, plus the decisions that suppress findings."""
+"""Where scan results live: ``.ThanhTan/tasks/<task>/scans/``, plus the decisions that suppress findings."""
 
 import hashlib
 import json

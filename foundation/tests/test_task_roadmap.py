@@ -39,7 +39,7 @@ def ws(gitflow_repo, tmp_path, monkeypatch, capsys):
 
 
 def state_task(repo):
-    return json.loads((repo / ".agentflow" / "state.json").read_text(encoding="utf-8"))["tasks"][-1]
+    return json.loads((repo / ".ThanhTan" / "state.json").read_text(encoding="utf-8"))["tasks"][-1]
 
 
 def branches(repo):
@@ -62,7 +62,7 @@ def test_a_task_can_be_tied_to_a_roadmap_item(ws, capsys):
 
 def test_the_link_is_shown_in_state_md_and_in_status(ws, capsys):
     run(capsys, "task", "new", "Đặt món", "--roadmap", "R1")
-    assert "Roadmap: R1" in (ws / ".agentflow" / "STATE.md").read_text(encoding="utf-8")
+    assert "Roadmap: R1" in (ws / ".ThanhTan" / "STATE.md").read_text(encoding="utf-8")
     _, out, _ = run(capsys, "status")
     assert "roadmap: R1 - Đặt món" in out
 
@@ -86,7 +86,7 @@ def test_a_link_to_something_that_is_not_an_item_is_refused_and_creates_nothing(
     result, _, err = run(capsys, "task", "new", "t", "--roadmap", code)
     assert result == INVALID_INPUT and code.split()[0] in err
     assert branches(ws) == before
-    assert json.loads((ws / ".agentflow" / "state.json").read_text(encoding="utf-8"))["tasks"] == []
+    assert json.loads((ws / ".ThanhTan" / "state.json").read_text(encoding="utf-8"))["tasks"] == []
     assert statuses(ws) == {"R1": "todo", "R2": "todo", "R3": "todo"}
 
 
@@ -189,7 +189,7 @@ def test_warnings_never_stop_the_task_from_being_created(ws, capsys):
 def test_approving_the_last_step_leaves_the_item_doing_and_the_summary_names_it(ws, monkeypatch, capsys):
     finish_task(ws, monkeypatch, "dat-mon", "--roadmap", "R1")
     assert statuses(ws)["R1"] == "doing"
-    summary = (ws / ".agentflow" / "tasks" / "T-001" / "summary.md").read_text(encoding="utf-8")
+    summary = (ws / ".ThanhTan" / "tasks" / "T-001" / "summary.md").read_text(encoding="utf-8")
     assert "- Roadmap: R1 - Đặt món" in summary
 
 

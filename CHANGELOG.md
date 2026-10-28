@@ -2,9 +2,32 @@
 
 Mọi thay đổi đáng chú ý của repo này được ghi ở đây. Định dạng theo [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
-Repo chứa nhiều thành phần có số phiên bản riêng: `agentflow` (foundation), `dev-core`, `dev-backend`. Số phiên bản hiện tại: agentflow 0.7.0, dev-core 0.6.0, dev-backend 0.3.0. Chưa có bản phát hành (tag) nào; bản đầu tiên dự kiến là `v1.0.0` (xem [docs/release.md](docs/release.md)).
+Repo chứa nhiều thành phần có số phiên bản riêng: `agentflow` (foundation), `dev-core`, `dev-backend`. Số phiên bản hiện tại: agentflow 0.8.0, dev-core 0.7.0, dev-backend 0.4.0. Tag `v0.7.0` đánh dấu bản đã dùng ổn định trước 0.8.0; cách phát hành: [docs/release.md](docs/release.md).
 
 ## [Unreleased]
+
+## [0.8.0] - 2026-10-28
+
+agentflow 0.8.0, dev-core 0.7.0, dev-backend 0.4.0.
+
+### Changed
+
+- Thư mục làm việc đổi tên (agentflow): `.agentflow/` của dự án thành `.ThanhTan/`, `~/.agentflow/` thành `~/.ThanhTan/`. Lệnh `agentflow` và biến `AGENTFLOW_*` giữ nguyên. Lệnh `agentflow` đầu tiên trong một dự án chỉ có `.agentflow/` tự đổi tên nó (giữ mọi task, báo một dòng, thêm `.ThanhTan/` vào `.git/info/exclude`); dự án có cả hai thư mục bị từ chối (mã 38 `WORKSPACE_CONFLICT`) tới khi người giữ một. Thư mục cũ vẫn được hook bảo vệ như thư mục mới cho tới khi đổi tên. Đổi tên lỗi trên Windows (phiên đang mở giữ file): agentflow báo đóng phiên Claude Code và Antigravity rồi chạy lại.
+- Cỡ task theo lệnh (dev-core): `/dev-core:start` luôn cỡ `normal` (feature hoặc bugfix), không còn tự đoán cỡ. Lệnh mới `/dev-core:start-small` (cỡ `small`, feature/bugfix/refactor/chore), `/dev-core:hotfix`, `/dev-core:refactor`, `/dev-core:chore`. Lệnh không hợp với yêu cầu thì skill nói lệnh nào hợp và dừng.
+
+### Added
+
+- Cài một lệnh (`uv run tools/install.py`): cài hoặc cập nhật `agentflow` bằng Python 3.12 do uv quản lý (không dùng `python` trên PATH: tránh lỗi "Python was not found" của lối tắt Microsoft Store và môi trường tool trỏ tới Python đã gỡ), plugin của Claude Code (thêm hoặc cập nhật marketplace, `install` hoặc `update`) và Antigravity. `--backend`, `--design`, `--only claude|agy`, `--check` (chỉ kiểm, không đổi gì). Báo cách xử lý khi file bị phiên đang mở giữ. Không đụng tới dự án nào.
+- Nhánh gốc của task do dự án chọn (agentflow, dev-core): `agentflow task new --base <nhánh>` và cài đặt `git.base.default`, `git.base.<feature|bugfix|hotfix|refactor|chore>`, `git.main_branch`, `git.develop_branch` (`agentflow config set`, việc của người). Thứ tự chọn: `--base`, loại task, mặc định chung, rồi `develop` (hotfix: `main`). Task ghi `base` vào `state.json` lúc tạo (task cũ vẫn đọc được: nhánh gốc suy từ tiền tố nhánh); `scope`, `review-map`, `scan`, `spec-delta.md`, `summary.md` (kể cả lệnh merge hotfix) so với đúng nhánh gốc; `status` và `STATE.md` hiện `base`. `task new` đòi nhánh gốc có trên máy (báo cách xử lý) và cảnh báo khi nó tụt so với `origin`. `config set` từ chối khóa `git.*` lạ và tên nhánh sai, `config check` báo giá trị sai viết tay. Hook và `agentflow guard` bảo vệ thêm các nhánh đã đặt tên và nhánh gốc của task đang mở (agent không commit, merge, rebase trên đó). Skill `start` truyền `--base` khi người nói rõ nhánh.
+
+### Nâng cấp từ 0.7.0
+
+- Chạy `uv run --python 3.12 tools/install.py` (thêm `--backend` nếu dùng dev-backend) từ thư mục repo sau `git pull`; nó thay cho `uv tool install --force --reinstall ./foundation`, `claude plugin update dev-core@thanh-tan-plugins` và `agy plugin install` lại. Mở phiên mới để nạp các lệnh `/dev-core:start-small`, `hotfix`, `refactor`, `chore`.
+- Ở mỗi dự án: lệnh `agentflow` đầu tiên đổi `.agentflow/` thành `.ThanhTan/` (đóng phiên Antigravity đang mở trước); rồi `agentflow workflow sync` để chép workflow mới (checklist nhắc `.ThanhTan/`). Quy tắc permissions của Claude Code viết theo `.agentflow/` thì đổi thành `.ThanhTan/` (README Bước 4).
+
+## [0.7.0] - 2026-10-28
+
+agentflow 0.7.0, dev-core 0.6.0, dev-backend 0.3.0 (tag `v0.7.0`).
 
 ### Added
 

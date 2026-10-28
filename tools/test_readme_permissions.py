@@ -35,8 +35,8 @@ PERSON_COMMANDS = [
 EDIT_DENIES = [
     "Edit(./.claude/settings.json)",
     "Edit(./.claude/settings.local.json)",
-    "Edit(./.agentflow/state.json)",
-    "Edit(./.agentflow/**/state.json)",
+    "Edit(./.ThanhTan/state.json)",
+    "Edit(./.ThanhTan/**/state.json)",
 ]
 SHELLS = ("Bash", "PowerShell")
 
