@@ -1,7 +1,7 @@
 {
   "mcpServers": {
-    "agentflow": {
-      "command": "agentflow",
+    "thanhtan": {
+      "command": "thanhtan",
       "args": ["mcp", "serve"]
     }
   }

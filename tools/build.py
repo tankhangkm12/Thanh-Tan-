@@ -38,7 +38,7 @@ class Capability(StrEnum):
     READ = "read"
     EDIT = "edit"
     RUN = "run"
-    # The agentflow MCP tools: the ones every role uses, and the one that writes project documents.
+    # The thanhtan MCP tools: the ones every role uses, and the one that writes project documents.
     WORKSPACE = "workspace"
     PROJECT = "project"
     # The tool that keeps a diagnosis (the debugger).
@@ -95,7 +95,7 @@ DEEP_EXTRA = " (and those with no tier)"
 # documents for the CLI (its SDK uses other names and must not be mixed in).
 # The MCP server belongs to dev-core, so every plugin's agents name its tools with dev-core's prefix:
 # mcp__plugin_<plugin>_<server>__<tool> (checked in a real session, see docs/mcp-notes.md).
-MCP_SERVER_PREFIX = "mcp__plugin_dev-core_agentflow__"
+MCP_SERVER_PREFIX = "mcp__plugin_dev-core_thanhtan__"
 WORKSPACE_TOOL_NAMES = (
     "status", "next_step", "plan_check", "report_write", "scan_summary", "conventions", "knowledge_search", "knowledge_read",
 )  # fmt: skip
@@ -123,7 +123,7 @@ ANTIGRAVITY_TOOLS = {
     Capability.DIAGNOSE: (),
 }
 # Everything a tool list is allowed to contain. Edit tools are the ones a read-only role must never get;
-# Bash, PowerShell and run_command can change files too, which is why those roles also write through agentflow.
+# Bash, PowerShell and run_command can change files too, which is why those roles also write through thanhtan.
 CLAUDE_ALLOWED = frozenset(
     {"Agent", "Bash", "Edit", "Glob", "Grep", "LSP", "NotebookEdit", "PowerShell", "Read", "Skill", "TodoWrite", "WebFetch", "WebSearch", "Write"}
     | set(WORKSPACE_TOOLS)
@@ -329,11 +329,11 @@ CHECKLISTS_BEGIN = "<!-- BEGIN:checklists -->"
 CHECKLISTS_END = "<!-- END:checklists -->"
 USAGE_FILE = "USAGE.md"
 WORKFLOW_FILE = "workflow.yaml"
-# What each source of dynamic lines adds to a checklist (agentflow writes them from the step's report).
+# What each source of dynamic lines adds to a checklist (thanhtan writes them from the step's report).
 ITEM_SOURCES = {
     "plan-items": "một ô `C<n>` cho mỗi mục của kế hoạch (`plan-items`)",
     "review-conventions": "một ô `PC-xx` cho mỗi quy ước `check: review` đang hiệu lực (`review-conventions`)",
-    "spec-items": "một ô `C<n>` cho mỗi mục kế hoạch, kèm test, lệnh và kết quả agentflow tự chạy lại (`spec-items`)",
+    "spec-items": "một ô `C<n>` cho mỗi mục kế hoạch, kèm test, lệnh và kết quả thanhtan tự chạy lại (`spec-items`)",
     "drift-proposals": "một ô `D<n>` cho mỗi đề xuất ở mục `## Đề xuất cập nhật hồ sơ` (`drift-proposals`)",
     "locked-files": "một ô `L<n>` cho mỗi file sẽ bị khóa khi bạn duyệt: file test, file hạ tầng test, cấu hình test (`locked-files`)",
     "review-requirements": "một ô `Y<n>` cho mỗi yêu cầu của bước `confirm`, review phải ghi `Y<n>: đạt` hoặc `Y<n>: chưa đạt` (`review-requirements`)",

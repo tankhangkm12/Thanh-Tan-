@@ -8,7 +8,7 @@
     uv run tools/smoke_backend.py --until plan     # stop after the plan checks (or: implement)
     uv run tools/smoke_backend.py --install-check  # also (re)install both plugins and check what the CLIs load
 
-Everything happens in a temporary directory; no other repository is touched. Needs `agentflow` on PATH, git, and a
+Everything happens in a temporary directory; no other repository is touched. Needs `thanhtan` on PATH, git, and a
 running Docker engine (PostgreSQL, the sample service, Semgrep, Trivy, Gitleaks, Squawk, Schemathesis).
 The first run downloads images and the Semgrep rules / Trivy database, so it takes a while.
 """
@@ -37,7 +37,7 @@ from conventions_smoke import (
     person_assets,
     setup_through_mcp,
 )
-from smoke import AGENTFLOW, Failure, Session, _make_writable_and_retry, expect, run
+from smoke import THANHTAN, Failure, Session, _make_writable_and_retry, expect, run
 
 ENCODING = "utf-8"
 REPO = Path(__file__).resolve().parents[1]
@@ -48,7 +48,7 @@ EXTENSION = BACKEND / "extension.yaml"
 README = REPO / "README.md"
 MARKETPLACE = "thanh-tan-plugins"
 CORE_NAME, BACKEND_NAME = "dev-core", "dev-backend"
-CORE_VERSION, BACKEND_VERSION = "0.7.0", "0.4.0"
+CORE_VERSION, BACKEND_VERSION = "1.0.0", "1.0.0"
 TASK_ID = "T-001"
 USAGE_ERROR_CODES = {"plan_invalid": 24, "gate_failed": 25, "scan_blocked": 27}
 MANDATORY_ASK = ("task approve", "task cancel")
@@ -84,8 +84,8 @@ def sh(command: str, cwd: Path, check: bool = True) -> subprocess.CompletedProce
 
 
 def af_code(session: Session, code: int, *args: str, stdin: str | None = None) -> subprocess.CompletedProcess[str]:
-    done = run([AGENTFLOW, *args], session.repo, stdin)
-    expect(done.returncode == code, f"agentflow {' '.join(args)[:70]} -> exit {done.returncode} (wanted {code})", done.stdout + done.stderr)
+    done = run([THANHTAN, *args], session.repo, stdin)
+    expect(done.returncode == code, f"thanhtan {' '.join(args)[:70]} -> exit {done.returncode} (wanted {code})", done.stdout + done.stderr)
     return done
 
 
@@ -113,7 +113,7 @@ def missing_ask_rules(settings_path: Path) -> list[str]:
         asked = " ".join(data.get("permissions", {}).get("ask", []))
     except (OSError, json.JSONDecodeError):
         asked = ""
-    return [command for command in MANDATORY_ASK if f"agentflow {command}" not in asked]
+    return [command for command in MANDATORY_ASK if f"thanhtan {command}" not in asked]
 
 
 INTERFACE_AFTER_IMPLEMENTATION = (
@@ -254,7 +254,7 @@ def task_flow(s: Session, project: str, port: int, until: str) -> None:
     expect((repo / ".ThanhTan" / "tasks" / task_id / "lessons" / "L1.md").is_file(), "the proposed lesson is a file a person can push")
     s.af("knowledge", "push", str(repo / ".ThanhTan" / "tasks" / task_id / "lessons" / "L1.md"))
     expect((store / "lessons" / "L1.md").is_file(), "a person pushed the lesson into their own store")
-    tag = f"agentflow/{task_id}/approved"
+    tag = f"thanhtan/{task_id}/approved"
     expect(s.git("tag", "-l", tag) == tag and s.git("cat-file", "-t", tag) == "tag", "the approval tag exists and is annotated")
     message = s.git("tag", "-l", "--format=%(contents)", tag)
     expect(task_id in message and "List items" in message and "Approved by: Smoke" in message, "the tag message has task, title, approver", message)
@@ -264,7 +264,7 @@ def task_flow(s: Session, project: str, port: int, until: str) -> None:
         expect(needle in summary, f"summary.md has '{needle}'", summary)
 
     # --- hooks: a direct git commit and a push are refused
-    for command, phrase in (("git commit -m sneaky", "agentflow commit"), ("git push origin develop", "a person pushes")):
+    for command, phrase in (("git commit -m sneaky", "thanhtan commit"), ("git push origin develop", "a person pushes")):
         payload = json.dumps({"cwd": str(repo), "tool_input": {"command": command}})
         out = json.loads(s.af("hook", "pre-tool", "--cli", "claude", stdin=payload).stdout)
         reason = out["hookSpecificOutput"]["permissionDecisionReason"]
@@ -284,7 +284,7 @@ def cli(*args: str, cwd: Path | None = None, stdin: str | None = None) -> subpro
 def warn_if_ask_rules_missing(settings_path: Path) -> bool:
     missing = missing_ask_rules(settings_path)
     for command in missing:
-        print(f"WARNING: {settings_path} has no 'ask' rule for `agentflow {command}`: without it an agent can approve for itself")
+        print(f"WARNING: {settings_path} has no 'ask' rule for `thanhtan {command}`: without it an agent can approve for itself")
     return not missing
 
 
@@ -327,7 +327,7 @@ def install_check(repo: Path, with_session: bool = True) -> None:
         for needle in (f"{CORE_NAME}:start", f"{CORE_NAME}:setup", f"{CORE_NAME}:scout", f"{CORE_NAME}:continue", f"{BACKEND_NAME}:db-migration", f"{BACKEND_NAME}:contract-test", f"{CORE_NAME}:planner", f"{CORE_NAME}:implementer-fast", f"{CORE_NAME}:implementer-deep", f"{BACKEND_NAME}:db-engineer"):
             expect(needle in text, f"Claude Code loaded {needle}", text[:400])
         servers = {server["name"]: server.get("status") for server in init.get("mcp_servers", [])}
-        expect(servers.get(f"plugin:{CORE_NAME}:agentflow") == "connected", "Claude Code connected dev-core's MCP server", str(servers))
+        expect(servers.get(f"plugin:{CORE_NAME}:thanhtan") == "connected", "Claude Code connected dev-core's MCP server", str(servers))
         results = json.dumps([e for e in events if e.get("type") == "user"])
         expect("git push is blocked for agents" in results, "the dev-core hook blocked `git push` in a real session", results[:600])
 
@@ -363,14 +363,14 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--install-check", action="store_true", help="also reinstall both plugins and check what the CLIs load")
     parser.add_argument("--only-install-check", action="store_true", help="skip the task flow")
     args = parser.parse_args(argv)
-    for tool in (AGENTFLOW, "git", "docker"):
+    for tool in (THANHTAN, "git", "docker"):
         if shutil.which(tool) is None:
             print(f"{tool} must be on PATH", file=sys.stderr)
             return 2
-    base = Path(tempfile.mkdtemp(prefix="agentflow-backend-smoke-"))
+    base = Path(tempfile.mkdtemp(prefix="thanhtan-backend-smoke-"))
     os.environ["GIT_CEILING_DIRECTORIES"] = str(base)
-    os.environ["AGENTFLOW_HOME"] = str(base / "user-home")  # nothing here may touch the real ~/.ThanhTan
-    port, project = free_port(), f"agentflow-smoke-{secrets.token_hex(3)}"
+    os.environ["THANHTAN_HOME"] = str(base / "user-home")  # nothing here may touch the real ~/.ThanhTan
+    port, project = free_port(), f"thanhtan-smoke-{secrets.token_hex(3)}"
     os.environ["API_PORT"], os.environ["API_URL"] = str(port), f"http://localhost:{port}"
     repo: Path | None = None
     try:

@@ -1,9 +1,9 @@
 import pytest
 
-from agentflow.constants import PlanItemKind
-from agentflow.interfaces import PlanWideRule
-from agentflow.plan import PlanQuestion, check_plan, parse_plan
-from agentflow.plan_rules import ItemOrderRule
+from thanhtan.constants import PlanItemKind
+from thanhtan.interfaces import PlanWideRule
+from thanhtan.plan import PlanQuestion, check_plan, parse_plan
+from thanhtan.plan_rules import ItemOrderRule
 
 
 class Roles:

@@ -1,12 +1,12 @@
 {
-  "description": "agentflow hooks: block risky git commands and writes into .ThanhTan/, load the task summary at session start, remind about task state on stop. They do nothing in projects without .ThanhTan/.",
+  "description": "thanhtan hooks: block risky git commands and writes into .ThanhTan/, load the task summary at session start, remind about task state on stop. They do nothing in projects without .ThanhTan/.",
   "hooks": {
     "SessionStart": [
       {
         "hooks": [
           {
             "type": "command",
-            "command": "agentflow",
+            "command": "thanhtan",
             "args": ["hook", "session-start", "--cli", "claude"],
             "timeout": 30
           }
@@ -19,7 +19,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "agentflow",
+            "command": "thanhtan",
             "args": ["hook", "pre-tool", "--cli", "claude"],
             "timeout": 30
           }
@@ -31,7 +31,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "agentflow",
+            "command": "thanhtan",
             "args": ["hook", "stop", "--cli", "claude"],
             "timeout": 30
           }

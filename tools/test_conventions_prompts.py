@@ -22,7 +22,7 @@ def role(name: str) -> str:
 @pytest.mark.parametrize("name", ["planner", "implementer", "reviewer"])
 def test_these_roles_read_the_conventions_first(name):
     body = role(name)
-    assert "`conventions` tool" in body and "agentflow conventions" in body
+    assert "`conventions` tool" in body and "thanhtan conventions" in body
     assert "enforced" in body
 
 
@@ -36,7 +36,7 @@ def test_the_planner_asks_instead_of_guessing():
     body = role("planner")
     assert "## Chưa có quy ước" in body and "### Q1 - " in body and "- ask:" in body
     assert "do not guess" in body.lower()
-    assert "agentflow decide --answer Q1" in body and "never answer" in body.lower()
+    assert "thanhtan decide --answer Q1" in body and "never answer" in body.lower()
 
 
 def test_the_reviewer_answers_for_every_review_convention():
@@ -48,7 +48,7 @@ def test_the_reviewer_answers_for_every_review_convention():
 
 def test_the_continue_skill_stops_on_unanswered_questions():
     text = (CORE / "skills" / "continue" / "SKILL.md").read_text(encoding="utf-8")
-    assert "unanswered" in text and "agentflow decide --answer" in text
+    assert "unanswered" in text and "thanhtan decide --answer" in text
     assert "conventions" in text
 
 
@@ -60,7 +60,7 @@ def test_the_planner_proposes_a_tier_and_a_layer_for_every_item():
 
 def test_the_continue_skill_hands_each_item_to_the_agent_plan_assign_names():
     text = (CORE / "skills" / "continue" / "SKILL.md").read_text(encoding="utf-8")
-    for needle in ("agentflow plan assign --cli claude", "--cli antigravity", "project-", "agentflow role grant", "implementer-fast", "implementer-deep", "no tier", "plugins add roles of their own"):
+    for needle in ("thanhtan plan assign --cli claude", "--cli antigravity", "project-", "thanhtan role grant", "implementer-fast", "implementer-deep", "no tier", "plugins add roles of their own"):
         assert needle in text, needle
 
 

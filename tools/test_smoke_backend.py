@@ -15,9 +15,9 @@ import smoke_backend as sb  # noqa: E402
 def test_missing_ask_rules_are_reported(tmp_path, capsys):
     settings = tmp_path / "settings.json"
     assert sb.missing_ask_rules(settings) == list(sb.MANDATORY_ASK)  # no file: all missing
-    settings.write_text(json.dumps({"permissions": {"allow": ["Bash(agentflow status *)"]}}), encoding="utf-8")
+    settings.write_text(json.dumps({"permissions": {"allow": ["Bash(thanhtan status *)"]}}), encoding="utf-8")
     assert sb.missing_ask_rules(settings) == list(sb.MANDATORY_ASK)
-    settings.write_text(json.dumps({"permissions": {"ask": ["Bash(agentflow task approve *)", "Bash(agentflow decide *)"]}}), encoding="utf-8")
+    settings.write_text(json.dumps({"permissions": {"ask": ["Bash(thanhtan task approve *)", "Bash(thanhtan decide *)"]}}), encoding="utf-8")
     assert sb.missing_ask_rules(settings) == ["task cancel"]
     assert sb.warn_if_ask_rules_missing(settings) is False
     assert "task cancel" in capsys.readouterr().out

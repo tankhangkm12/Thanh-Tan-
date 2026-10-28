@@ -15,28 +15,28 @@ Nhóm plugin phục vụ phát triển phần mềm. `dev-core` giữ chuẩn ch
 
 ## Quy trình 7 bước
 
-Định nghĩa trong [`core/workflow.yaml`](core/workflow.yaml), do `agentflow` thực thi.
+Định nghĩa trong [`core/workflow.yaml`](core/workflow.yaml), do `thanhtan` thực thi.
 
 | # | Bước | Role | Cần người duyệt | Fail thì |
 |---|---|---|---|---|
 | 1 | `confirm`: xác nhận task | orchestrator | có | blocked |
 | 2 | `plan`: vào workspace, lập kế hoạch | planner | có | blocked |
-| 3 | `test-spec`: viết test trước (gate `test-spec-valid`: agentflow tự chạy lại, phải đỏ) | tester | có, kể cả task small | quay về `plan` |
+| 3 | `test-spec`: viết test trước (gate `test-spec-valid`: thanhtan tự chạy lại, phải đỏ) | tester | có, kể cả task small | quay về `plan` |
 | 4 | `implement`: triển khai | implementer | không | blocked |
-| 5 | `test`: kiểm thử (gate `tests-pass`: agentflow tự chạy, phải xanh) | tester | không | quay về `implement` |
+| 5 | `test`: kiểm thử (gate `tests-pass`: thanhtan tự chạy, phải xanh) | tester | không | quay về `implement` |
 | 6 | `security`: kiểm tra bảo mật | security | không | quay về `implement` |
 | 7 | `review`: review | reviewer | có | quay về `implement` |
 
-Không có bước "loop" riêng: fail ở `test`/`security`/`review` quay thẳng về `implement` và đếm vòng. Hết 3 vòng (`max_rounds`) task chuyển `blocked`, chỉ người mới cho làm tiếp (`agentflow task approve`, được ghi lại trong `.ThanhTan/decisions/`) hoặc hủy (`agentflow task cancel`).
+Không có bước "loop" riêng: fail ở `test`/`security`/`review` quay thẳng về `implement` và đếm vòng. Hết 3 vòng (`max_rounds`) task chuyển `blocked`, chỉ người mới cho làm tiếp (`thanhtan task approve`, được ghi lại trong `.ThanhTan/decisions/`) hoặc hủy (`thanhtan task cancel`).
 
-Chỉ role `implementer` sửa code. `tester` chỉ ghi vào thư mục test; `orchestrator`, `planner`, `security`, `reviewer` không có tool sửa file và ghi báo cáo qua tool MCP `report_write` (dự phòng: `agentflow report`).
+Chỉ role `implementer` sửa code. `tester` chỉ ghi vào thư mục test; `orchestrator`, `planner`, `security`, `reviewer` không có tool sửa file và ghi báo cáo qua tool MCP `report_write` (dự phòng: `thanhtan report`).
 
 ## Gitflow
 
 - `main`: chỉ chứa bản đã phát hành.
 - `develop`: nhánh tích hợp; nhánh `feature/...` và `bugfix/...` tách từ đây.
 - `hotfix/...` tách từ `main`.
-- Tên nhánh task: `<loại>/T-001-<slug>`, do `agentflow task new` tạo.
+- Tên nhánh task: `<loại>/T-001-<slug>`, do `thanhtan task new` tạo.
 - Agent không tự `push`, không commit hay merge trên `main`/`develop`; hook của `dev-core` chặn các lệnh này.
 
 ## Gate bằng tool
@@ -45,10 +45,10 @@ Một bước chỉ được coi là xong khi tool xác nhận, không dựa và
 
 - Test: `uv run pytest` (hoặc test runner của dự án) phải xanh.
 - Manifest plugin: `claude plugin validate` và `agy plugin validate` phải qua.
-- Bí mật: `agentflow commit` quét Gitleaks (Docker/Podman) trên phần staged; engine không chạy là không commit.
-- Bước `security` (gate `scans-clean`): `agentflow scan` chạy trong container Semgrep (rule từ Semgrep Registry, chặn mức `ERROR`), Trivy (chặn lỗ hổng `HIGH`/`CRITICAL` đã có bản vá) và Gitleaks (mọi phát hiện đều chặn); thêm Semgrep với rule do chính bạn viết khi có quy ước `check: semgrep`. Thiếu kết quả, kết quả cũ hoặc còn phát hiện chặn thì `task advance --result pass` bị từ chối.
-- Bước `plan` (gate `plan-valid`): `agentflow plan check` kiểm mã mục, role, `done-when`, `docs`, luật `plan` của quy ước và mọi câu hỏi "Chưa có quy ước" đã được trả lời.
+- Bí mật: `thanhtan commit` quét Gitleaks (Docker/Podman) trên phần staged; engine không chạy là không commit.
+- Bước `security` (gate `scans-clean`): `thanhtan scan` chạy trong container Semgrep (rule từ Semgrep Registry, chặn mức `ERROR`), Trivy (chặn lỗ hổng `HIGH`/`CRITICAL` đã có bản vá) và Gitleaks (mọi phát hiện đều chặn); thêm Semgrep với rule do chính bạn viết khi có quy ước `check: semgrep`. Thiếu kết quả, kết quả cũ hoặc còn phát hiện chặn thì `task advance --result pass` bị từ chối.
+- Bước `plan` (gate `plan-valid`): `thanhtan plan check` kiểm mã mục, role, `done-when`, `docs`, luật `plan` của quy ước và mọi câu hỏi "Chưa có quy ước" đã được trả lời.
 - Bước `review` (gate `conventions-reviewed`): báo cáo review phải có một dòng cho từng quy ước `check: review`.
 - Bước `review` (gate `drift-reviewed`): báo cáo review phải có mục `## Đề xuất cập nhật hồ sơ` (`không có`, hoặc `- <tài liệu>: <đề xuất>`); gate chỉ kiểm hình thức, người kiểm tính đúng ở checklist Review.
 - Plugin con thêm gate qua extension: `dev-backend` chạy Squawk (lint migration PostgreSQL) và Schemathesis (contract test) ở bước `test`, cùng gate `scans-clean`.
-- Lint, type check và build của chính dự án vẫn do dự án khai báo trong `done-when` của kế hoạch; agentflow chưa có gate riêng cho chúng.
+- Lint, type check và build của chính dự án vẫn do dự án khai báo trong `done-when` của kế hoạch; thanhtan chưa có gate riêng cho chúng.

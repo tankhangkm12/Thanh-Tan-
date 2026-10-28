@@ -1,0 +1,1322 @@
+"""Command-line entry point for thanhtan."""
+
+import argparse
+import json
+import os
+import sys
+from collections.abc import Callable
+from dataclasses import dataclass, replace
+from importlib.metadata import version
+from pathlib import Path
+
+from thanhtan import amend, diagnosis, docpin, envvars, gitconfig, lockfiles, lockflow, permissions, stats, taskexport, workspacesync
+from thanhtan.assign import ProjectAgentNames, WorkflowAgentNames, assignment_lines
+from thanhtan.convention_sources import load_effective_conventions
+from thanhtan.services import WorkspaceServices
+from thanhtan.testspec import TESTS_PASS_FILE, require_active_spec_step, task_file, verify_red
+from thanhtan.checklist import ChecklistWriter, check_approval, finish_approval
+from thanhtan.integrity import NOTHING_TO_ACCEPT, Integrity
+from thanhtan.checklist import checklist_path
+from thanhtan.constants import ConfirmState, DiagnosisCommand, PermissionsCommand, WorkspaceCommand, StateCommand, TestsCommand, KnowledgeCommand, KnowledgePlace, McpCommand, ProjectCommand, ReplanCommand, ReplanState, RoadmapCommand, RoadmapStatus, RoleCommand
+from thanhtan.interfaces import AgentNames
+from thanhtan.roles import RoleGrants
+from thanhtan.constants import ANSWER_OPTION, DECISION_SCOPE_PROJECT, CheckKind, TestSpecMode
+from thanhtan.convention_sources import next_code, write_answer
+from thanhtan.knowledge import add_personal_convention, init_store, pull_files, push_file
+from thanhtan.project import load_conventions
+from thanhtan.userconfig import knowledge_dir, save_knowledge_dir
+from thanhtan.confirmations import Confirmations
+from thanhtan.project import confirm_project, mission_state, roadmap_state, status_lines, unconfirmed_conventions
+from thanhtan.replan import ReplanStatus, confirm_replan, replan_status, skip_replan
+from thanhtan.roadmap import find_item, is_code, items_of, read_roadmap, require_linkable, set_status
+from thanhtan.constants import (
+    CONTAINER_TOOLS,
+    ENCODING,
+    HOOK_LOG_ENV,
+    EXCLUDE_ENTRY,
+    IN_FLIGHT_TASK_STATUSES,
+    PACKAGE_NAME,
+    SEMGREP_DEFAULT_RULESETS,
+    STEP_RESULTS,
+    VERSION_FLAG,
+    WORKSPACE_DIR,
+    CliKind,
+    Command,
+    ConfigCommand,
+    DriftStatus,
+    ExtCommand,
+    GateKind,
+    PlanCommand,
+    ExitCode,
+    HookEvent,
+    SyncOutcome,
+    TaskCommand,
+    TaskEvent,
+    StepStatus,
+    TaskStatus,
+    TaskType,
+    ToolStatus,
+    WorkflowCommand,
+)
+from thanhtan.commit import commit_staged
+from thanhtan.doctor import SystemToolProbe, run_doctor, running_version
+from thanhtan.engine import next_action
+from thanhtan.errors import ThanhTanError
+from thanhtan.gates import GateContext, WorkspaceGates, plan_problems, plan_report_path
+from thanhtan.git import GitBranchLookup, SubprocessGit, run_git
+from thanhtan.guard import evaluate, parse_request, verdict_to_dict
+from thanhtan.hook import handle_hook, protected_branches
+from thanhtan.models import State, ToolCheck, Workflow
+from thanhtan.plan import PlanItem, parse_plan
+from thanhtan.projectcontext import load_project_context
+from thanhtan.render import NONE_TEXT, describe_action, describe_step
+from thanhtan.extension import Extension
+from thanhtan.extensions import add_extension, copy_path, drift, load_registered, sync_extensions
+from thanhtan.models import Task
+from thanhtan.settings import coerce, get_value, set_value, settings_problems
+from thanhtan.scan import ScanService, all_tools, summary_lines, tools_for_step, unsuppressed_blocking
+from thanhtan.scan_store import ScanStore, suppressed_ids, write_suppression
+from thanhtan.scan_tools import VAR_RANGE
+from thanhtan.scan_types import ScanContext
+from thanhtan.seal import NOT_SCANNED, TaskSealer, base_branch
+from thanhtan.summary import HOTFIX_MERGE_NOTE, hotfix_merge_commands
+from thanhtan.fsutil import write_text_atomic
+from thanhtan import reviewmarks
+from thanhtan.reviewmap import REVIEW_MAP_FILE, build_review_map, collect_commits
+from thanhtan.semgrep_rules import HttpRuleFetcher, default_cache_dir
+from thanhtan.runner import SubprocessRunner
+from thanhtan.scanner import ContainerGitleaksScanner
+from thanhtan.state import JsonStateStore, utc_now
+from thanhtan.sync import sync_workflow, workflow_drift
+from thanhtan.tasks import (
+    advance_task,
+    approve_task,
+    cancel_task,
+    seal_finished_task,
+    new_task,
+    require_active_task,
+    write_report,
+)
+from thanhtan.workspace import (
+    WorkspacePaths,
+    find_workspace,
+    git_toplevel,
+    init_workspace,
+    load_config,
+    load_workspace_workflow,
+    GitWorkspaceLookup,
+    save_config,
+)
+
+CLI_OPTION = "--cli"
+TYPE_OPTION = "--type"
+SIZE_OPTION = "--size"
+BASE_OPTION = "--base"
+ROADMAP_OPTION = "--roadmap"
+RESULT_OPTION = "--result"
+REASON_OPTION = "--reason"
+STEP_OPTION = "--step"
+SHORT_SHA_LENGTH = 9
+WORKFLOW_OPTION = "--workflow"
+FILE_OPTION = "--file"
+ALL_OPTION = "--all"
+SUPPRESS_OPTION = "--suppress"
+COMMIT_OPTION = "--commit"
+ITEM_OPTION = "--item"
+FORCE_OPTION = "--force"
+ERROR_PREFIX = "error: "
+WARNING_PREFIX = "warning: "
+SEMGREP_RULESETS_KEY = "scan.semgrep.rulesets"
+SYNC_HINT = "run `thanhtan workflow sync` to use the new version"
+
+Handler = Callable[[argparse.Namespace], ExitCode]
+
+
+def build_parser() -> argparse.ArgumentParser:
+    parser = argparse.ArgumentParser(prog=PACKAGE_NAME, description="Shared engine for plugin family workflows.")
+    parser.add_argument(VERSION_FLAG, action="version", version=f"{PACKAGE_NAME} {version(PACKAGE_NAME)}")
+    commands = parser.add_subparsers(dest="command", metavar="<command>")
+
+    commands.add_parser(Command.DOCTOR, help="check uv, git and a container runtime")
+
+    init = commands.add_parser(Command.INIT, help=f"create or complete {EXCLUDE_ENTRY} in this git repository")
+    init.add_argument(WORKFLOW_OPTION, required=True, type=Path, help="family workflow.yaml to copy in")
+
+    commands.add_parser(Command.STATUS, help="show the open task, its current step and what comes next")
+    commands.add_parser(Command.NEXT, help="show the next step for the workflow and current state")
+
+    workflow = commands.add_parser(Command.WORKFLOW, help="manage the workspace's workflow copy")
+    workflow_commands = workflow.add_subparsers(dest="workflow_command", metavar="<workflow command>", required=True)
+    sync = workflow_commands.add_parser(WorkflowCommand.SYNC, help="replace the copy with the checked source")
+    sync.add_argument(FORCE_OPTION, action="store_true", help="sync even while tasks are mid-workflow")
+
+    task = commands.add_parser(Command.TASK, help="start, advance, approve or cancel a task")
+    task_commands = task.add_subparsers(dest="task_command", metavar="<task command>", required=True)
+    new = task_commands.add_parser(TaskCommand.NEW, help="create the task's gitflow branch and record the task")
+    new.add_argument("title", help="what the task is about")
+    new.add_argument(TYPE_OPTION, type=TaskType, choices=list(TaskType), default=TaskType.FEATURE)
+    new.add_argument(SIZE_OPTION, help="task size, one of the sizes the workflow defines (default: the workflow's default size)")
+    new.add_argument(ROADMAP_OPTION, help="the roadmap item (R1, R2 ...) the task serves; moves it to doing")
+    new.add_argument(
+        BASE_OPTION,
+        help="the branch to start from (default: git.base.<type> or git.base.default of the project settings, else develop; main for a hotfix)",
+    )
+    advance = task_commands.add_parser(TaskCommand.ADVANCE, help="record that the current step passed or failed")
+    advance.add_argument(RESULT_OPTION, required=True, type=TaskEvent, choices=list(STEP_RESULTS))
+    approve = task_commands.add_parser(TaskCommand.APPROVE, help="approve the step, or resume a blocked task")
+    approve.add_argument(REASON_OPTION, help="why a blocked task is resumed (kept in decisions/)")
+    task_commands.add_parser(TaskCommand.CANCEL, help="cancel the active task")
+    seal = task_commands.add_parser(TaskCommand.SEAL, help="for a person: write summary.md and the approval tag of a finished task")
+    seal.add_argument("task_id", help="id of a finished task, e.g. T-001")
+    seal.add_argument(COMMIT_OPTION, help="tag this commit instead of the task branch's tip (e.g. after the branch was deleted)")
+    export = task_commands.add_parser(
+        TaskCommand.EXPORT, help="for a person: a new branch with the whole task as one commit, ready to push for a pull request"
+    )
+    export.add_argument("task_id", nargs="?", help="the task (default: the open task, else the last finished one)")
+    export.add_argument("--branch", help="name of the new branch (default: the task branch without its T-001- part)")
+    export.add_argument("--message", help="the commit message (default: '<type>: <title>')")
+
+    workspace_parser = commands.add_parser(
+        Command.WORKSPACE, help="carry this workspace to another machine through your own private git repository"
+    )
+    workspace_commands = workspace_parser.add_subparsers(dest="workspace_command", metavar="<workspace command>", required=True)
+    ws_remote = workspace_commands.add_parser(WorkspaceCommand.REMOTE, help="for a person, once per machine: clone your private repository into ~/.ThanhTan/store")
+    ws_remote.add_argument("url", help="your private repository, e.g. https://github.com/<you>/thanhtan-workspaces.git")
+    ws_save = workspace_commands.add_parser(WorkspaceCommand.SAVE, help="for a person: save this workspace, its task branches and approval tags, and push")
+    ws_load = workspace_commands.add_parser(WorkspaceCommand.LOAD, help="for a person: bring the saved workspace, branches and tags onto this machine")
+    ws_load.add_argument("--workflow", type=Path, help="dev-core's workflow.yaml on this machine (found by itself when left out)")
+    ws_status = workspace_commands.add_parser(WorkspaceCommand.STATUS, help="when this workspace was saved, and whether this machine changed it since (read-only)")
+    for sub in (ws_save, ws_load, ws_status):
+        sub.add_argument("--name", help="the project's folder in your repository (default: owner/repo of origin)")
+    for sub in (ws_save, ws_load):
+        sub.add_argument("--force", action="store_true", help="go on although the other side changed (save) or this machine has unsaved changes (load)")
+
+    permissions_parser = commands.add_parser(Command.PERMISSIONS, help="the Claude Code permission rules thanhtan needs")
+    permissions_commands = permissions_parser.add_subparsers(dest="permissions_command", metavar="<permissions command>", required=True)
+    perm_install = permissions_commands.add_parser(
+        PermissionsCommand.INSTALL, help="for a person: merge the rules into .claude/settings.json (keeps yours, drops the old agentflow ones)"
+    )
+    perm_install.add_argument("--check", action="store_true", help="change nothing; say what is missing")
+    perm_install.add_argument("--user", action="store_true", help="use ~/.claude/settings.json instead of the project's")
+
+    ext = commands.add_parser(Command.EXT, help="extensions: what child plugins add (roles, rules, scan tools, gates)")
+    ext_commands = ext.add_subparsers(dest="ext_command", metavar="<ext command>", required=True)
+    ext_add = ext_commands.add_parser(ExtCommand.ADD, help="for a person: check an extension.yaml and register it in this workspace")
+    ext_add.add_argument("path", type=Path, help="the plugin's extension.yaml")
+    ext_commands.add_parser(ExtCommand.LIST, help="registered extensions and whether their source changed")
+    ext_sync = ext_commands.add_parser(ExtCommand.SYNC, help="for a person: replace the copies with their checked sources")
+    ext_sync.add_argument("name", nargs="?", help="only this extension")
+    ext_sync.add_argument(FORCE_OPTION, action="store_true", help="sync even while tasks are in progress")
+
+    config = commands.add_parser(Command.CONFIG, help="project settings that extensions read (.ThanhTan/config.yaml)")
+    config_commands = config.add_subparsers(dest="config_command", metavar="<config command>", required=True)
+    config_get = config_commands.add_parser(ConfigCommand.GET, help="print a setting (exit 29 when it is not set)")
+    config_get.add_argument("key", help="dotted key, for example area.group.name")
+    config_set = config_commands.add_parser(ConfigCommand.SET, help="for a person: set a setting")
+    config_set.add_argument("key")
+    config_set.add_argument("value")
+    config_commands.add_parser(ConfigCommand.CHECK, help="check the settings against what the extensions declare")
+
+    scan = commands.add_parser(Command.SCAN, help="run the scanners of the current step in containers (--all: every configured scan)")
+    scan.add_argument(ALL_OPTION, action="store_true", help="run every configured scan, not only the current step's")
+
+    commands.add_parser(Command.REVIEW_MAP, help="write review-map.md for the active task: its commits and files by plan item (read-only on the project)")
+
+    scope = commands.add_parser(Command.SCOPE, help="what to review in this round: the changes since the last review or security round of the step (read-only)")
+    scope.add_argument("--step", help="the step whose last round marks the start (default: the current step)")
+
+    decide = commands.add_parser(Command.DECIDE, help="for a person: record a decision (accept a scan finding, or answer a question)")
+    what = decide.add_mutually_exclusive_group(required=True)
+    what.add_argument(SUPPRESS_OPTION, metavar="FINDING_ID", help="accept this scan finding as a false positive")
+    what.add_argument(ANSWER_OPTION, metavar="QUESTION", help="answer a question: Q1 of the plan, or S1 of the setup")
+    decide.add_argument(REASON_OPTION, help="why it is acceptable (with --suppress)")
+    decide.add_argument("--text", help="the convention the answer sets, in one line (with --answer)")
+    decide.add_argument("--check", choices=[str(kind) for kind in CheckKind], help="how it is checked (with --answer)")
+    decide.add_argument("--rule", help="item-order for plan, a rule file in knowledge/semgrep/ for semgrep (with --answer)")
+    decide.add_argument("--layers", help="layer-order: the layers from first to last, comma separated (with --answer)")
+    decide.add_argument("--scope", help="layer-order: path globs that limit the rule, comma separated; none means the whole plan (with --answer)")
+    decide.add_argument("--overrides", help="the code of a lower-priority convention this one replaces (with --answer)")
+    decide.add_argument("--global", dest="to_store", action="store_true", help="also add it to your personal knowledge store (with --answer)")
+
+    plan = commands.add_parser(Command.PLAN, help="check the plan of the active task")
+    plan_commands = plan.add_subparsers(dest="plan_command", metavar="<plan command>", required=True)
+    check = plan_commands.add_parser(PlanCommand.CHECK, help="every item needs a code, a valid role, done-when and docs")
+    check.add_argument(FILE_OPTION, type=Path, help="check this Markdown file instead of the task's plan report")
+    assign = plan_commands.add_parser(PlanCommand.ASSIGN, help="which agent takes each plan item: its role, and its tier where the role has tiers")
+    assign.add_argument(CLI_OPTION, type=CliKind, choices=list(CliKind), default=CliKind.CLAUDE, help="the CLI that will call the agents (default: claude)")
+
+    role = commands.add_parser(Command.ROLE, help="tools a person grants a role for this project")
+    role_commands = role.add_subparsers(dest="role_command", metavar="<role command>", required=True)
+    grant = role_commands.add_parser(RoleCommand.GRANT, help="for a person: let a role use an MCP tool (or a pattern such as mcp__server__*) in this project")
+    grant.add_argument("role")
+    grant.add_argument("tool", help="mcp__<server>, mcp__<server>__* or mcp__<server>__<tool>")
+    revoke = role_commands.add_parser(RoleCommand.REVOKE, help="for a person: take a granted tool away again")
+    revoke.add_argument("role")
+    revoke.add_argument("tool")
+    role_commands.add_parser(RoleCommand.LIST, help="the grants of this project and the agents that carry them")
+    role_commands.add_parser(RoleCommand.SYNC, help="for a person: write the project agents again from the grants and the installed plugins")
+
+    report = commands.add_parser(Command.REPORT, help="store a step report read from stdin")
+    report.add_argument(STEP_OPTION, required=True, help="step id the report belongs to")
+
+    commit = commands.add_parser(Command.COMMIT, help="scan staged changes for secrets, then commit with the task prefix")
+    commit.add_argument("message", help="commit message, without the task prefix")
+    commit.add_argument(ITEM_OPTION, help="plan item (C1, ...) this commit belongs to")
+
+    commands.add_parser(Command.GUARD, help='read {"command", "cwd"} JSON from stdin, print an allow/deny verdict')
+
+    commands.add_parser(Command.CONVENTIONS, help="the conventions to work to: decisions, project and personal store, merged")
+
+    project = commands.add_parser(Command.PROJECT, help="the project documents a scout wrote (.ThanhTan/project/)")
+    project_commands = project.add_subparsers(dest="project_command", metavar="<project command>", required=True)
+    confirm = project_commands.add_parser(
+        ProjectCommand.CONFIRM, help="for a person: confirm conventions (PC-01 ...), the mission, profile, architecture or roadmap items (R1 ...)"
+    )
+    confirm.add_argument("codes", nargs="*", metavar="CODE")
+    confirm.add_argument("--all", action="store_true", dest="everything", help="confirm every convention (not the mission, profile, architecture or roadmap)")
+    project_commands.add_parser(ProjectCommand.STATUS, help="which project documents exist and which a person has confirmed")
+
+    roadmap = commands.add_parser(Command.ROADMAP, help="the project's roadmap (.ThanhTan/project/roadmap.md)")
+    roadmap_commands = roadmap.add_subparsers(dest="roadmap_command", metavar="<roadmap command>", required=True)
+    roadmap_commands.add_parser(RoadmapCommand.LIST, help="the items with their status")
+    roadmap_show = roadmap_commands.add_parser(RoadmapCommand.SHOW, help="one item with its goal and its documents (read-only)")
+    roadmap_show.add_argument("code", help="roadmap item, e.g. R3")
+    roadmap_set = roadmap_commands.add_parser(RoadmapCommand.SET, help="for a person: move an item to todo, doing, done or dropped")
+    roadmap_set.add_argument("code", help="roadmap item, e.g. R3")
+    roadmap_set.add_argument("status", choices=[str(status) for status in RoadmapStatus])
+
+    state = commands.add_parser(Command.STATE, help="for a person: take state.json as it is after reading a change made outside thanhtan")
+    state_commands = state.add_subparsers(dest="state_command", metavar="<state command>", required=True)
+    accept = state_commands.add_parser(StateCommand.ACCEPT, help="record why and trust state.json again (and clear what the audit log shows)")
+    accept.add_argument("--reason", required=True, help="why you accept it")
+
+    diagnosis_parser = commands.add_parser(Command.DIAGNOSIS, help="diagnoses of failures: kept for the open task, or as D-001... for a later bugfix task")
+    diagnosis_commands = diagnosis_parser.add_subparsers(dest="diagnosis_command", metavar="<diagnosis command>", required=True)
+    diagnosis_commands.add_parser(DiagnosisCommand.WRITE, help="keep a diagnosis read from stdin (needs '## Tái hiện' and '## Nguyên nhân')")
+    diagnosis_commands.add_parser(DiagnosisCommand.LIST, help="the diagnoses of the open task, or the ones kept outside a task (read-only)")
+    diagnosis_show = diagnosis_commands.add_parser(DiagnosisCommand.SHOW, help="print a diagnosis kept outside a task (read-only)")
+    diagnosis_show.add_argument("code", help="D-001, D-002, ...")
+
+    stats_parser = commands.add_parser(Command.STATS, help="what the tasks cost: rounds, approvals, time by step, gates that refused a pass (read-only)")
+    stats_parser.add_argument("--task", default=None, help="only this task (T-001)")
+    stats_parser.add_argument("--json", action="store_true", help="print JSON instead of text")
+
+    tests = commands.add_parser(Command.TESTS, help="the tests of the active task, run by thanhtan itself")
+    tests_commands = tests.add_subparsers(dest="tests_command", metavar="<tests command>", required=True)
+    tests_commands.add_parser(TestsCommand.VERIFY_RED, help="at the test-spec step: run the commands of the report and check each one fails")
+    tests_commands.add_parser(TestsCommand.CHECK, help="are the locked test files as they were approved? (read-only)")
+    tests_amend = tests_commands.add_parser(TestsCommand.AMEND, help="for a person: open a window to change an approved test, and say why")
+    tests_amend.add_argument("files", nargs="+", help="the locked files to open (or a test configuration file to add)")
+    tests_amend.add_argument("--reason", default=None, help="why the test is changed (kept in decisions/)")
+    tests_amend.add_argument("--accept-green", action="store_true", help="accept that the changed test passes on the old code (needs --reason)")
+
+    replan = commands.add_parser(Command.REPLAN, help="after a task: the replan of the project documents (proposed by the scout, closed by a person)")
+    replan_commands = replan.add_subparsers(dest="replan_command", metavar="<replan command>", required=True)
+    replan_commands.add_parser(ReplanCommand.STATUS, help="where the replan of the latest finished task stands (read-only)")
+    replan_commands.add_parser(ReplanCommand.WRITE, help="store the replan (read from stdin) as a proposal for the latest finished task")
+    replan_commands.add_parser(ReplanCommand.DONE, help="for a person: the proposed replan is done (after reading replan.md)")
+    replan_skip = replan_commands.add_parser(ReplanCommand.SKIP, help="for a person: decide not to replan a finished task, and say why")
+    replan_skip.add_argument("task_id", help="the latest finished task, e.g. T-001")
+    replan_skip.add_argument("--reason", required=True, help="why the replan is not needed")
+
+    knowledge = commands.add_parser(Command.KNOWLEDGE, help="your personal knowledge store (outside every repository)")
+    knowledge_commands = knowledge.add_subparsers(dest="knowledge_command", metavar="<knowledge command>", required=True)
+    k_init = knowledge_commands.add_parser(KnowledgeCommand.INIT, help="for a person: create the store's folders and files")
+    k_init.add_argument("--dir", type=Path, default=None, help="the store's folder (default: the one in the user config, else ~/knowledge)")
+    k_pull = knowledge_commands.add_parser(KnowledgeCommand.PULL, help="for a person: copy files of the store into .ThanhTan/knowledge/")
+    k_pull.add_argument("files", nargs="+", metavar="FILE", help="paths inside the store")
+    k_push = knowledge_commands.add_parser(KnowledgeCommand.PUSH, help="for a person: copy a lesson from the workspace into the store")
+    k_push.add_argument("file", type=Path)
+    k_push.add_argument("--as", dest="place", default=str(KnowledgePlace.LESSONS), choices=[str(p) for p in KnowledgePlace])
+
+    mcp = commands.add_parser(Command.MCP, help="the MCP server that gives agents the thanhtan tools")
+    mcp_commands = mcp.add_subparsers(dest="mcp_command", metavar="<mcp command>", required=True)
+    mcp_commands.add_parser(McpCommand.SERVE, help="serve the tools over stdio (started by Claude Code or Antigravity)")
+
+    hook = commands.add_parser(Command.HOOK, help="answer a Claude Code or Antigravity hook (JSON on stdin)")
+    hook.add_argument("event", type=HookEvent, choices=list(HookEvent))
+    hook.add_argument(CLI_OPTION, required=True, type=CliKind, choices=list(CliKind))
+    return parser
+
+
+def main(argv: list[str] | None = None) -> int:
+    _utf8_when_redirected()
+    parser = build_parser()
+    args = parser.parse_args(argv)
+    handler = HANDLERS.get(args.command)
+    if handler is None:
+        parser.print_help()
+        return ExitCode.USAGE
+    try:
+        return handler(args)
+    except ThanhTanError as exc:
+        _err(f"{ERROR_PREFIX}{exc}")
+        return exc.code
+
+
+# Commands a CLI runs for itself (hooks, the MCP server, the guard): their output is read by a program, so the alias stays quiet.
+_QUIET_FOR_ALIAS = frozenset({Command.HOOK, Command.MCP, Command.GUARD})
+ALIAS_NOTICE = "note: `agentflow` is now called `thanhtan`; this alias will be removed in a later release"
+
+
+def legacy_main(argv: list[str] | None = None) -> int:
+    """``agentflow ...``: the same as ``thanhtan ...``, with one line on stderr saying the new name."""
+    words = sys.argv[1:] if argv is None else argv
+    if not words or words[0] not in _QUIET_FOR_ALIAS:
+        _err(ALIAS_NOTICE)
+    return main(argv)
+
+
+# ---------------------------------------------------------------- handlers
+
+
+def cmd_doctor(args: argparse.Namespace) -> ExitCode:
+    report = run_doctor(SystemToolProbe(), running_version=running_version())
+    width = max(len(check.tool) for check in report.checks)
+    for check in report.checks:
+        print(_doctor_line(check, width))
+    if not any(c.status is not ToolStatus.MISSING for c in report.checks if c.tool in CONTAINER_TOOLS):
+        print(f"container runtime: install at least one of {', '.join(CONTAINER_TOOLS)}")
+    if report.ok:
+        print("result: all required tools found")
+        return ExitCode.OK
+    print("result: required tools are missing")
+    return ExitCode.MISSING_REQUIREMENT
+
+
+def _doctor_line(check: ToolCheck, width: int) -> str:
+    label = f"[{check.status}]".ljust(len(f"[{ToolStatus.WARNING}]"))
+    parts = [part for part in (check.version, check.detail) if part]
+    if check.status is ToolStatus.MISSING:
+        parts.append(f"install: {check.install_url}")
+    return f"{label} {check.tool.ljust(width)}  {'; '.join(parts)}"
+
+
+def cmd_init(args: argparse.Namespace) -> ExitCode:
+    result = init_workspace(Path.cwd(), args.workflow)
+    paths = result.paths
+    config = load_config(paths)
+    print(f"workspace: {paths.dir}")
+    print(f"created: {', '.join(result.created)}" if result.created else "created: nothing, workspace was complete")
+    copy_note = "copied" if result.workflow_copied else "kept the existing copy"
+    print(f"workflow: {config.workflow.family} ({copy_note}; source {config.workflow.source_path})")
+    print(f"git exclude: added {EXCLUDE_ENTRY}" if result.exclude_added else "git exclude: already excluded")
+    _warn_drift(workflow_drift(config))
+    return ExitCode.OK
+
+
+@dataclass(frozen=True)
+class _Opened:
+    paths: WorkspacePaths
+    workflow: Workflow
+    state: State
+
+
+def _open_workspace() -> _Opened:
+    """Workspace, workflow copy in use and validated state; warns when the source drifted."""
+    paths = find_workspace(Path.cwd())
+    config = load_config(paths)
+    workflow = load_workspace_workflow(paths)
+    state = JsonStateStore(paths.dir, workflow).load()
+    _warn_drift(workflow_drift(config))
+    return _Opened(paths, workflow, state)
+
+
+def cmd_status(args: argparse.Namespace) -> ExitCode:
+    opened = _open_workspace()
+    workflow, state = opened.workflow, opened.state
+    task = state.active_task()
+    print(f"workspace: {opened.paths.dir}")
+    print(f"workflow: {workflow.family} ({len(workflow.steps)} steps)")
+    print(f"active task: {NONE_TEXT if task is None else f'{task.id} {task.title}'}")
+    if task is not None:
+        step = workflow.get_step(task.current_step)
+        step_text = describe_step(step) if step else task.current_step
+        print(f"current step: {step_text}, {task.step_status}")
+        rounds = f"{task.loop_round}/{workflow.max_rounds}"
+        print(f"task status: {task.status}; rework rounds: {rounds}; branch: {task.branch or NONE_TEXT}")
+        if task.size:
+            print(f"size: {task.size}")
+        if task.base:
+            print(f"base: {task.base}")
+        if task.type:
+            keeps = " (keeps the behaviour: its tests must pass before and after the change)" if workflow.test_spec_mode(task) is TestSpecMode.GREEN else ""
+            print(f"type: {task.type}{keeps}")
+        if task.roadmap:
+            item = find_item(items_of(opened.paths.dir), task.roadmap)
+            print(f"roadmap: {item.label if item else task.roadmap}")
+        for change in docpin.changes(opened.paths.dir, opened.paths.root, task.id):
+            _err(f"{WARNING_PREFIX}the document {change.path} {change.kind} since the task was approved: check the work still follows it")
+    others = [t for t in state.tasks if t.status in IN_FLIGHT_TASK_STATUSES and t is not task]
+    if others:
+        print("other open tasks: " + ", ".join(f"{t.id} ({t.current_step}, {t.status})" for t in others))
+    suggestion = WorkspaceServices(opened.paths).next_roadmap(state)
+    if suggestion is not None:
+        print(f"next roadmap: {suggestion}")
+    print(f"next: {describe_action(next_action(workflow, task))}")
+    return ExitCode.OK
+
+
+def cmd_next(args: argparse.Namespace) -> ExitCode:
+    opened = _open_workspace()
+    action = next_action(opened.workflow, opened.state.active_task())
+    print(f"{action.kind}: {describe_action(action)}")
+    return ExitCode.OK
+
+
+def cmd_workflow(args: argparse.Namespace) -> ExitCode:
+    # argparse requires a workflow subcommand, and sync is the only one so far.
+    result = sync_workflow(Path.cwd(), force=args.force)
+    if result.outcome is SyncOutcome.UNCHANGED:
+        print("workflow: already in sync with its source")
+        return ExitCode.OK
+    print("workflow: copy replaced with the source version")
+    if result.forced_task_ids:
+        _err(f"{WARNING_PREFIX}synced with --force while tasks were open: {', '.join(result.forced_task_ids)}")
+    return ExitCode.OK
+
+
+def _store(opened: _Opened) -> JsonStateStore:
+    return JsonStateStore(opened.paths.dir, opened.workflow)
+
+
+def cmd_tests(args: argparse.Namespace) -> ExitCode:
+    opened = _open_workspace()
+    match args.tests_command:
+        case TestsCommand.CHECK:
+            return _tests_check(opened)
+        case TestsCommand.AMEND:
+            for line in amend.open_windows(opened.paths.dir, require_active_task(opened.state).id, args.files, args.reason or "", args.accept_green, utc_now()):
+                print(line)
+            return ExitCode.OK
+    task = require_active_task(opened.state)
+    require_active_spec_step(opened.workflow, task)
+    project = load_project_context(opened.paths.dir, opened.workflow, task)
+    git = SubprocessGit(opened.paths.root)
+    problems, record = verify_red(opened.paths.dir, opened.workflow, task, opened.paths.root, git.head_or_empty(), project.lookup)
+    if record is not None:
+        for code, entry in record["results"].items():
+            detail = f" (exit {entry['exit_code']})" if "exit_code" in entry else ""
+            print(f"{code} {entry['status']}{detail}")
+    for problem in problems:
+        print(f"- {problem}")
+    if problems:
+        return ExitCode.GATE_FAILED
+    print("every command fails, as tests written first should")
+    return ExitCode.OK
+
+
+def _tests_check(opened: _Opened) -> ExitCode:
+    task = require_active_task(opened.state)
+    problems = lockfiles.check(opened.paths.dir, opened.paths.root, task.id)
+    if problems is None:
+        print("no locked files: nothing is locked until a person approves the test-spec step")
+        return ExitCode.OK
+    for problem in problems:
+        print(f"- {problem}")
+    if problems:
+        return ExitCode.GATE_FAILED
+    record = lockfiles.load(opened.paths.dir, task.id) or {}
+    windows = len(record.get("windows", {}))
+    print(f"locked files intact ({len(record.get('files', {}))})" + (f"; {windows} window(s) open for a person's change" if windows else ""))
+    return ExitCode.OK
+
+
+def cmd_state(args: argparse.Namespace) -> ExitCode:
+    paths = find_workspace(Path.cwd())
+    decision = Integrity(paths.dir).accept(
+        args.reason, utc_now(), lambda task_id: lockfiles.file_digest(paths.dir, task_id), lockflow.settings_digest(load_config(paths).settings)
+    )
+    print(NOTHING_TO_ACCEPT if decision is None else f"state accepted; decision recorded: {decision}")
+    return ExitCode.OK
+
+
+def cmd_task(args: argparse.Namespace) -> ExitCode:
+    opened = _open_workspace()
+    if args.task_command == TaskCommand.EXPORT:
+        return _export_task(opened, args)
+    store = _store(opened)
+    if args.task_command in {TaskCommand.NEW, TaskCommand.ADVANCE, TaskCommand.APPROVE}:
+        warning = Integrity(opened.paths.dir).verify(bool(opened.state.tasks)).warning
+        if warning:
+            _err(f"{WARNING_PREFIX}{warning}")
+        lockflow.verify(opened.paths.dir, load_config(opened.paths).settings, opened.state.active_task())
+    match args.task_command:
+        case TaskCommand.NEW:
+            if args.roadmap is not None:
+                require_linkable(opened.paths.dir, args.roadmap)
+            before = replan_status(opened.paths.dir, opened.state, SubprocessGit(opened.paths.root))
+            if args.base is not None and (problem := gitconfig.name_problem(args.base)):
+                raise ThanhTanError(f"{BASE_OPTION}: {problem}", ExitCode.INVALID_INPUT)
+            base = gitconfig.names_from(load_config(opened.paths).settings).base_for(args.type, args.base)
+            _warn_base_behind(opened.paths.root, base)
+            task = new_task(store, opened.workflow, SubprocessGit(opened.paths.root), args.title, args.type, utc_now, args.size, args.roadmap, base)
+            if task.roadmap:
+                set_status(opened.paths.dir, task.roadmap, RoadmapStatus.DOING)
+            size_note = f" (size {task.size})" if task.size else ""
+            roadmap_note = f" (roadmap {task.roadmap})" if task.roadmap else ""
+            print(f"{task.id} created on branch {task.branch} from {task.base}{size_note}{roadmap_note}")
+            unconfirmed = unconfirmed_conventions(opened.paths.dir)
+            if unconfirmed:
+                _err(
+                    f"{WARNING_PREFIX}{len(unconfirmed)} convention(s) are still unconfirmed ({', '.join(unconfirmed)}): "
+                    "a person confirms them with `thanhtan project confirm`"
+                )
+            _warn_project_documents(opened.paths.dir, task)
+            _warn_replan(before)
+        case TaskCommand.ADVANCE:
+            ending = opened.state.active_task()
+            task = advance_task(store, opened.workflow, args.result, utc_now, _gates(opened), _sealer(opened), ChecklistWriter(opened.paths.dir))
+            print(f"{task.id}: step '{task.current_step}' is now {task.step_status} (task {task.status})")
+            _print_hotfix_merge(task)
+            _warn_skipped_tests(opened, args.result)
+            _mark_review_round(opened, ending)
+            if task.step_status is StepStatus.AWAITING_APPROVAL and task.status is TaskStatus.OPEN and (step := opened.workflow.get_step(task.current_step)) and step.has_checklist:
+                print(f"checklist to tick before approving: {checklist_path(opened.paths.dir, task.id, step.id)}")
+                if GateKind.DRIFT_REVIEWED in step.gates:
+                    print(f"review map (where each plan item changed the code): {_write_review_map(opened, task)}")
+        case TaskCommand.APPROVE:
+            active = opened.state.active_task()
+            approval = check_approval(opened.paths.dir, opened.workflow, active) if active is not None else None
+            locked, lock_warnings = (
+                lockflow.lock_on_approval(opened.paths.dir, opened.paths.root, opened.workflow, active, utc_now()) if active is not None else ([], [])
+            )
+            pinned = docpin.pin_on_approval(opened.paths.dir, opened.paths.root, opened.workflow, active, utc_now()) if active is not None else []
+            result = approve_task(store, opened.workflow, opened.paths.dir, utc_now, args.reason, _sealer(opened))
+            for line in (*locked, *pinned):
+                print(line)
+            for warning_text in lock_warnings:
+                _err(f"{WARNING_PREFIX}{warning_text}")
+            task = result.task
+            if approval is not None:
+                kept = finish_approval(opened.paths.dir, approval, active, opened.workflow, utc_now())
+                if kept is not None:
+                    print(f"note recorded: {kept}")
+            print(f"{task.id}: step '{task.current_step}' is now {task.step_status} (task {task.status})")
+            if result.decision_file is not None:
+                print(f"decision recorded: {result.decision_file}")
+            _print_hotfix_merge(task)
+        case TaskCommand.CANCEL:
+            task = cancel_task(store, opened.workflow, utc_now)
+            _release_roadmap_item(opened.paths.dir, store.load(), task)
+            print(f"{task.id} cancelled")
+        case TaskCommand.SEAL:
+            path = seal_finished_task(store, _sealer(opened), args.task_id, args.commit)
+            print(f"{args.task_id} sealed; summary: {path}")
+    state = store.load()
+    print(f"next: {describe_action(next_action(opened.workflow, state.active_task()))}")
+    return ExitCode.OK
+
+
+def _warn_base_behind(root: Path, base: str) -> None:
+    """The branch a task starts from may be behind its copy on origin (a colleague pushed): the task would start on old code."""
+    behind = run_git(root, "rev-list", "--count", f"{base}..origin/{base}")
+    if behind.returncode == 0 and behind.stdout.strip().isdigit() and int(behind.stdout) > 0:
+        _err(
+            f"{WARNING_PREFIX}'{base}' is {behind.stdout.strip()} commit(s) behind origin/{base}: the task would start on code that is not "
+            f"the latest. Cancel it and run `git switch {base}` then `git pull` first, unless that is what you want"
+        )
+
+
+def _warn_skipped_tests(opened: _Opened, result: TaskEvent) -> None:
+    """A pass of the step with the gate `tests-pass` that ran no project tests because the plan has only `kind: other` items."""
+    task = opened.state.active_task()
+    step = opened.workflow.get_step(task.current_step) if task is not None else None
+    if result is not TaskEvent.PASS or step is None or GateKind.TESTS_PASS not in step.gates:
+        return
+    try:
+        record = json.loads(task_file(opened.paths.dir, task.id, TESTS_PASS_FILE).read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        return
+    if record.get("status") == "skipped":
+        _err(f"{WARNING_PREFIX}no test command is set, so no project tests ran; the plan has only 'kind: other' items. Set one with `thanhtan config set test_command \"<command>\"` to run tests anyway")
+
+
+def _print_hotfix_merge(task: Task) -> None:
+    """A finished hotfix: the commands a person runs to merge it into main and back into develop."""
+    if task.status is not TaskStatus.DONE or task.type != TaskType.HOTFIX or not task.branch:
+        return
+    print(f"hotfix {task.id} is done. {HOTFIX_MERGE_NOTE}")
+    for command in hotfix_merge_commands(task.branch):
+        print(f"  {command}")
+
+
+def _warn_project_documents(workspace_dir: Path, task: Task) -> None:
+    """Warnings (never errors) about the mission and roadmap a new task rests on."""
+    confirmations = Confirmations.load(workspace_dir)
+    mission = mission_state(workspace_dir, confirmations)
+    if mission is ConfirmState.MISSING:
+        _err(f"{WARNING_PREFIX}the project has no mission yet: the scout writes it from your documents (setup skill), then a person confirms it with `thanhtan project confirm mission`")
+    elif mission is ConfirmState.UNCONFIRMED:
+        _err(f"{WARNING_PREFIX}the mission is unconfirmed: a person confirms it with `thanhtan project confirm mission`")
+    state, unconfirmed = roadmap_state(workspace_dir, confirmations)
+    if state is ConfirmState.MISSING:
+        _err(f"{WARNING_PREFIX}the project has no roadmap (roadmap missing): the scout proposes one (setup skill), then a person confirms its items")
+    elif unconfirmed:
+        _err(f"{WARNING_PREFIX}the roadmap has unconfirmed items: {', '.join(unconfirmed)} (a person confirms them with `thanhtan project confirm {unconfirmed[0]} ...`)")
+    if task.roadmap is None and task.type != TaskType.HOTFIX:  # a hotfix is unplanned work
+        _err(f"{WARNING_PREFIX}this task is not tied to a roadmap item: start it with `{ROADMAP_OPTION} Rn` (see `thanhtan roadmap list`)")
+    elif task.roadmap in unconfirmed:
+        _err(f"{WARNING_PREFIX}the roadmap item {task.roadmap} you linked is unconfirmed: a person confirms it with `thanhtan project confirm {task.roadmap}`")
+
+
+def _warn_replan(before: ReplanStatus) -> None:
+    """The task finished before this one was neither replanned nor skipped (a warning; nothing stops the new task)."""
+    task = before.task_id
+    if before.state is ReplanState.PENDING:
+        _err(
+            f"{WARNING_PREFIX}task {task} was approved but never replanned: have the scout replan it (replan skill), "
+            f'or a person skips it with `thanhtan replan skip {task} --reason "..."`'
+        )
+    elif before.state is ReplanState.PROPOSED:
+        _err(
+            f"{WARNING_PREFIX}the replan of task {task} is only proposed: a person reads .ThanhTan/tasks/{task}/replan.md "
+            f'and runs `thanhtan replan done` (or `thanhtan replan skip {task} --reason "..."`)'
+        )
+
+
+def _release_roadmap_item(workspace_dir: Path, state: State, cancelled: Task) -> None:
+    """A cancelled task that was the only work on a roadmap item puts the item back to todo."""
+    if not cancelled.roadmap:
+        return
+    item = find_item(items_of(workspace_dir), cancelled.roadmap)
+    if item is None or item.status is not RoadmapStatus.DOING:
+        return
+    others = [t for t in state.tasks if t.id != cancelled.id and t.roadmap == cancelled.roadmap and t.status is not TaskStatus.CANCELLED]
+    if not others:
+        set_status(workspace_dir, cancelled.roadmap, RoadmapStatus.TODO)
+
+
+def _sealer(opened: _Opened) -> TaskSealer:
+    def scan_lines(task: Task) -> list[str]:
+        return summary_lines(ScanStore(opened.paths.dir), opened.paths.dir, task.id) or NOT_SCANNED
+
+    develop = gitconfig.names_from(load_config(opened.paths).settings).develop
+    return TaskSealer(SubprocessGit(opened.paths.root), opened.paths.dir, opened.workflow, utc_now, scan_lines, develop)
+
+
+def _plan_items(opened: _Opened) -> dict[str, PlanItem] | None:
+    """Items of the active task's plan by code, or ``None`` while there is no plan report."""
+    task = opened.state.active_task()
+    step = next((s for s in opened.workflow.steps if GateKind.PLAN_VALID in s.gates), None)
+    if task is None or step is None:
+        return None
+    path = plan_report_path(opened.paths.dir, task.id, step.id)
+    if not path.is_file():
+        return None
+    return {item.code: item for item in parse_plan(path.read_text(encoding=ENCODING)).items}
+
+
+def _gates(opened: _Opened) -> WorkspaceGates:
+    project = load_project_context(opened.paths.dir, opened.workflow, opened.state.active_task())
+    git = SubprocessGit(opened.paths.root)
+    context = GateContext(opened.paths.dir, opened.workflow, project, git.head_or_empty)
+    return WorkspaceGates(context, lambda step: [kind for step_id, kind in project.extra_gates if step_id == step.id])
+
+
+def _semgrep_rulesets(lookup) -> tuple[str, ...]:
+    configured = lookup(SEMGREP_RULESETS_KEY)
+    if isinstance(configured, str):
+        return (configured,)
+    return tuple(configured) if configured else SEMGREP_DEFAULT_RULESETS
+
+
+def cmd_ext(args: argparse.Namespace) -> ExitCode:
+    opened = _open_workspace()
+    match args.ext_command:
+        case ExtCommand.ADD:
+            extension = add_extension(opened.paths, opened.workflow, args.path)
+            print(f"registered extension '{extension.name}' (copy: {copy_path(opened.paths, extension.name)})")
+            _describe_extension(extension)
+            missing = settings_problems([extension], load_config(opened.paths).settings)
+            if missing:
+                print("settings still to set (a person runs `thanhtan config set <key> <value>`):")
+                for problem in missing:
+                    print(f"  - {problem}")
+        case ExtCommand.LIST:
+            registered = load_registered(opened.paths)
+            if not registered:
+                print("no extensions registered")
+            for item in registered:
+                print(f"{item.extension.name}: {drift(item.ref)}")
+                _describe_extension(item.extension)
+        case ExtCommand.SYNC:
+            in_flight = [t.id for t in opened.state.tasks if t.status in IN_FLIGHT_TASK_STATUSES]
+            for report in sync_extensions(opened.paths, opened.workflow, args.name, in_flight, args.force):
+                print(f"{report.name}: {report.outcome}")
+    return ExitCode.OK
+
+
+def _describe_extension(extension: Extension) -> None:
+    if extension.roles:
+        print(f"  roles: {', '.join(extension.role_ids)}")
+    for tool in extension.scan_tools:
+        print(f"  scan tool: {tool.id} (image {tool.image}, step {tool.step}, network {tool.network})")
+    if extension.gates:
+        print("  gates: " + ", ".join(f"{kind} on {step}" for step, kind in extension.gates))
+    for rule in extension.path_rules:
+        print(f"  path rule {rule.id}: {', '.join(rule.paths)} -> {', '.join(rule.roles)}")
+
+
+def cmd_config(args: argparse.Namespace) -> ExitCode:
+    paths = find_workspace(Path.cwd())
+    config = load_config(paths)
+    extensions = [item.extension for item in load_registered(paths)]
+    match args.config_command:
+        case ConfigCommand.GET:
+            value = get_value(config.settings, args.key)
+            if value is None:
+                raise ThanhTanError(f"setting '{args.key}' is not set", ExitCode.SETTINGS_INVALID)
+            print(value if isinstance(value, str) else json.dumps(value, ensure_ascii=False))
+        case ConfigCommand.SET:
+            if gitconfig.is_git_key(args.key):
+                gitconfig.check_assignment(args.key, args.value)
+            value = coerce(extensions, args.key, args.value)
+            updated = set_value(config.settings, args.key, value)
+            save_config(paths, replace(config, settings=updated))
+            if args.key in lockflow.TEST_SETTING_KEYS:
+                Integrity(paths.dir).record_settings(lockflow.settings_digest(updated))
+            print(f"{args.key} set")
+        case ConfigCommand.CHECK:
+            problems = [*settings_problems(extensions, config.settings), *gitconfig.settings_problems(config.settings)]
+            for problem in problems:
+                print(f"- {problem}")
+            if problems:
+                raise ThanhTanError(f"{len(problems)} problem(s) in the project settings", ExitCode.SETTINGS_INVALID)
+            print("settings ok")
+    return ExitCode.OK
+
+
+def _mark_review_round(opened: _Opened, ending: Task | None) -> None:
+    """A review or security round that has just ended leaves the commit it looked at, for the next round's `thanhtan scope`."""
+    step = opened.workflow.get_step(ending.current_step) if ending is not None else None
+    if ending is None or step is None or not ({GateKind.DRIFT_REVIEWED, GateKind.SCANS_CLEAN} & set(step.gates)):
+        return
+    try:
+        head = SubprocessGit(opened.paths.root).rev_parse(ending.branch or "HEAD")
+    except ThanhTanError:
+        return
+    reviewmarks.record(task_file(opened.paths.dir, ending.id, ""), step.id, head, utc_now())
+
+
+def _write_review_map(opened: _Opened, task: Task) -> Path:
+    """Work out review-map.md of the task from git and tests-pass.json and save it in the task folder."""
+    items = list((_plan_items(opened) or {}).values())
+    base = base_branch(task)
+    commits = collect_commits(opened.paths.root, base, task.branch or "HEAD") if SubprocessGit(opened.paths.root).branch_exists(base) else []
+    try:
+        results = json.loads(task_file(opened.paths.dir, task.id, TESTS_PASS_FILE).read_text(encoding="utf-8")).get("spec_results") or {}
+    except (OSError, ValueError):
+        results = {}
+    path = task_file(opened.paths.dir, task.id, REVIEW_MAP_FILE)
+    write_text_atomic(path, build_review_map(task.id, task.title, items, commits, results))
+    return path
+
+
+def cmd_scope(args: argparse.Namespace) -> ExitCode:
+    opened = _open_workspace()
+    task = require_active_task(opened.state)
+    step_id = args.step or task.current_step
+    root, tip = opened.paths.root, task.branch or "HEAD"
+    base, note = base_branch(task), ""
+    marked = reviewmarks.mark(task_file(opened.paths.dir, task.id, ""), step_id)
+    if marked is not None:
+        if run_git(root, "merge-base", "--is-ancestor", marked, tip).returncode == 0:
+            base = marked
+        else:
+            note = f" ({marked[:SHORT_SHA_LENGTH]} marked by the last round is not in the branch)"
+    since = f"since {base[:SHORT_SHA_LENGTH]}, the end of the last '{step_id}' round" if base == marked else "whole task"
+    print(f"scope: {since}{note}")
+    print(f"diff: git diff {base}..{tip}")
+    commits = collect_commits(root, base, tip)
+    print(f"commits: {len(commits)}")
+    for commit in commits:
+        print(f"- {commit.sha[:SHORT_SHA_LENGTH]} {commit.subject}" + (f" [{commit.item}]" if commit.item else ""))
+        for path, added, removed in commit.files:
+            print(f"    {path} (+{added} -{removed})")
+    if not commits:
+        print("nothing changed since the last round: report that the earlier findings still stand or are closed, and stop")
+    return ExitCode.OK
+
+
+def _export_task(opened: _Opened, args: argparse.Namespace) -> ExitCode:
+    tasks = opened.state.tasks
+    if args.task_id:
+        task = next((item for item in tasks if item.id == args.task_id), None)
+        if task is None:
+            raise ThanhTanError(f"no task {args.task_id}", ExitCode.INVALID_INPUT)
+    else:
+        done = [item for item in tasks if item.status is TaskStatus.DONE]
+        task = opened.state.active_task() or (done[-1] if done else None)
+        if task is None:
+            raise ThanhTanError("no task to export yet", ExitCode.NO_ACTIVE_TASK)
+    result = taskexport.export(opened.paths.root, task, branch=args.branch, message=args.message)
+    for line in result.lines:
+        print(line)
+    for warning_text in result.warnings:
+        _err(f"{WARNING_PREFIX}{warning_text}")
+    return ExitCode.OK
+
+
+def cmd_workspace(args: argparse.Namespace) -> ExitCode:
+    if args.workspace_command == WorkspaceCommand.REMOTE:
+        lines = workspacesync.set_remote(args.url)
+    elif args.workspace_command == WorkspaceCommand.LOAD:
+        root = git_toplevel(Path.cwd())
+        report = workspacesync.load(root, name=args.name, force=args.force, workflow=args.workflow, at=utc_now(), machine=workspacesync.default_machine())
+        lines = report.lines
+        for warning_text in report.warnings:
+            _err(f"{WARNING_PREFIX}{warning_text}")
+    elif args.workspace_command == WorkspaceCommand.STATUS:
+        lines = workspacesync.status(git_toplevel(Path.cwd()), name=args.name)
+    else:
+        opened = _open_workspace()
+        branches = [task.branch for task in opened.state.tasks if task.branch]
+        report = workspacesync.save(opened.paths, branches, name=args.name, force=args.force, at=utc_now(), machine=workspacesync.default_machine())
+        lines = report.lines
+        for warning_text in report.warnings:
+            _err(f"{WARNING_PREFIX}{warning_text}")
+    for line in lines:
+        print(line)
+    return ExitCode.OK
+
+
+def cmd_permissions(args: argparse.Namespace) -> ExitCode:
+    root = git_toplevel(Path.cwd())
+    path, result = permissions.install(root, check=args.check, user_home=Path.home() if args.user else None)
+    for rule in result.removed:
+        print(f"- {rule}")
+    for rule in result.added:
+        print(f"+ {rule}")
+    for note in result.notes:
+        _err(f"{WARNING_PREFIX}{note}")
+    if not result.changed:
+        print(f"{path}: the thanhtan rules are all there")
+        return ExitCode.OK
+    if args.check:
+        print(f"{path}: {len(result.added)} rule(s) missing, {len(result.removed)} to remove; run without --check to write them")
+        return ExitCode.ERROR
+    print(f"{path}: {len(result.added)} rule(s) added, {len(result.removed)} removed; open a new Claude Code session to use them")
+    return ExitCode.OK
+
+
+def cmd_diagnosis(args: argparse.Namespace) -> ExitCode:
+    opened = _open_workspace()
+    match args.diagnosis_command:
+        case DiagnosisCommand.WRITE:
+            info = WorkspaceServices(opened.paths).write_diagnosis(sys.stdin.read())
+            print(f"diagnosis saved: {info.path}")
+        case DiagnosisCommand.LIST:
+            found = diagnosis.listing(opened.paths.dir, opened.state)
+            if not found:
+                print("no diagnoses yet")
+            for item in found:
+                print(f"{item.name}: {item.path}")
+        case DiagnosisCommand.SHOW:
+            print(diagnosis.read(opened.paths.dir, args.code), end="")
+    return ExitCode.OK
+
+
+def cmd_stats(args: argparse.Namespace) -> ExitCode:
+    opened = _open_workspace()
+    if args.task is not None and all(task.id != args.task for task in opened.state.tasks):
+        raise ThanhTanError(f"no task {args.task} in this workspace", ExitCode.INVALID_INPUT)
+    found = stats.collect(opened.paths.dir, opened.state, args.task)
+    if args.json:
+        print(json.dumps([item.to_dict() for item in found], ensure_ascii=False, indent=2))
+    else:
+        for line in stats.render(found):
+            print(line)
+    return ExitCode.OK
+
+
+def cmd_review_map(args: argparse.Namespace) -> ExitCode:
+    opened = _open_workspace()
+    print(f"review map: {_write_review_map(opened, require_active_task(opened.state))}")
+    return ExitCode.OK
+
+
+def cmd_scan(args: argparse.Namespace) -> ExitCode:
+    opened = _open_workspace()
+    task = require_active_task(opened.state)
+    project = load_project_context(opened.paths.dir, opened.workflow, task)
+    specs = all_tools(opened.workflow, project) if args.all else tools_for_step(task.current_step, opened.workflow, project)
+    if not specs:
+        print(f"no scans are configured for step '{task.current_step}'")
+        return ExitCode.OK
+    git = SubprocessGit(opened.paths.root)
+    if not git.is_clean():
+        raise ThanhTanError(
+            "the working tree has uncommitted changes; scan results must describe the committed branch, so commit or stash first",
+            ExitCode.DIRTY_WORKING_TREE,
+        )
+    base = base_branch(task)
+    if not git.branch_exists(base):
+        raise ThanhTanError(f"base branch '{base}' does not exist locally", ExitCode.BRANCH_PROBLEM)
+    head = git.rev_parse("HEAD")
+    context = ScanContext(
+        repo=opened.paths.root,
+        base=base,
+        head=head,
+        changed_files=git.changed_files(base, head),
+        lookup=project.lookup,
+        cache_dir=default_cache_dir(),
+        rulesets=_semgrep_rulesets(project.lookup),
+        extra={VAR_RANGE: f"{base}..{head}"},
+        fetcher=HttpRuleFetcher(),
+        warn=lambda message: _err(f"{WARNING_PREFIX}{message}"),
+    )
+    store = ScanStore(opened.paths.dir)
+    outcomes = ScanService(SubprocessRunner(), store).run(task.id, specs, context)
+    suppressed = suppressed_ids(opened.paths.dir, task.id)
+    blocked = 0
+    for outcome in outcomes:
+        left = unsuppressed_blocking(outcome, suppressed)
+        blocked += len(left)
+        note = f" ({outcome.note})" if outcome.note else ""
+        print(f"{outcome.tool}: {outcome.status}, {len(outcome.findings)} finding(s), {len(left)} blocking{note}")
+        for finding in left:
+            print(f"  - {finding.id} [{finding.severity}] {finding.message}".rstrip())
+    print(f"results: {store.scans_dir(task.id)}")
+    if blocked:
+        raise ThanhTanError(f"{blocked} blocking finding(s); fix them, or a person suppresses a false positive with `thanhtan decide`", ExitCode.SCAN_BLOCKED)
+    return ExitCode.OK
+
+
+def _question_scope(opened: _Opened, question: str) -> tuple[str, str]:
+    """(scope, where it was asked): the active task when its plan asks it, ``project`` when the setup did."""
+    task = opened.state.active_task()
+    items = _plan_questions(opened)
+    if task is not None and question in items:
+        return task.id, f"the plan of {task.id}"
+    project = load_conventions(opened.paths.dir)
+    if project is not None and question in {q.code for q in project.questions}:
+        return DECISION_SCOPE_PROJECT, "project/conventions.md"
+    raise ThanhTanError(
+        f"no question '{question}' in the active task's plan or in the project's open questions", ExitCode.INVALID_INPUT
+    )
+
+
+def _plan_questions(opened: _Opened) -> set[str]:
+    task = opened.state.active_task()
+    step = next((s for s in opened.workflow.steps if GateKind.PLAN_VALID in s.gates), None)
+    if task is None or step is None:
+        return set()
+    path = plan_report_path(opened.paths.dir, task.id, step.id)
+    return {q.code for q in parse_plan(path.read_text(encoding=ENCODING)).questions} if path.is_file() else set()
+
+
+def _decide_answer(opened: _Opened, args: argparse.Namespace) -> ExitCode:
+    if not args.text or not args.text.strip():
+        raise ThanhTanError("an answer needs --text (the convention, in one line)", ExitCode.INVALID_INPUT)
+    if not args.check:
+        raise ThanhTanError(f"an answer needs --check ({', '.join(CheckKind)})", ExitCode.INVALID_INPUT)
+    scope, where = _question_scope(opened, args.answer)
+    store = knowledge_dir()
+    if args.to_store and not store.is_dir():
+        raise ThanhTanError(f"--global needs your knowledge store: run `thanhtan knowledge init` first ({store})", ExitCode.INVALID_INPUT)
+    code = next_code(opened.paths.dir)
+    path = write_answer(
+        opened.paths.dir, scope, args.answer, code, args.text, CheckKind(args.check), args.rule, args.overrides, utc_now(),
+        args.layers, args.scope,
+    )
+    print(f"decision recorded: {path} ({code}, from {where})")
+    if args.to_store:
+        title = f"{args.answer} ({scope})"
+        kept = add_personal_convention(store, title, args.check, args.rule, args.text.strip(), f"answer to {args.answer} of {scope}", args.layers, args.scope)
+        print(f"added to your knowledge store: {kept}")
+    return ExitCode.OK
+
+
+def cmd_decide(args: argparse.Namespace) -> ExitCode:
+    opened = _open_workspace()
+    if args.answer:
+        return _decide_answer(opened, args)
+    if not args.reason:
+        raise ThanhTanError("a suppression needs a reason (--reason)", ExitCode.INVALID_INPUT)
+    task = require_active_task(opened.state)
+    known = {f.id: f for outcome in ScanStore(opened.paths.dir).load(task.id).values() for f in outcome.findings}
+    finding = known.get(args.suppress)
+    if finding is None:
+        raise ThanhTanError(
+            f"no finding '{args.suppress}' in the scan results of {task.id} (run `thanhtan scan` and copy the id)",
+            ExitCode.INVALID_INPUT,
+        )
+    path = write_suppression(opened.paths.dir, task.id, finding, args.reason, utc_now())
+    print(f"decision recorded: {path}")
+    return ExitCode.OK
+
+
+def _plan_assign(opened: _Opened, args: argparse.Namespace) -> ExitCode:
+    items = _plan_items(opened)
+    if items is None:
+        raise ThanhTanError("no plan report yet: nothing to assign", ExitCode.PLAN_INVALID)
+    names: AgentNames = WorkflowAgentNames(opened.workflow.tiered_roles)
+    if args.cli is CliKind.CLAUDE:  # Antigravity agents already see every installed MCP server
+        names = ProjectAgentNames(names, RoleGrants(opened.paths, opened.workflow).project_agent_for)
+    for line in assignment_lines(list(items.values()), names):
+        print(line)
+    return ExitCode.OK
+
+
+def cmd_plan(args: argparse.Namespace) -> ExitCode:
+    opened = _open_workspace()
+    if args.plan_command == PlanCommand.ASSIGN:
+        return _plan_assign(opened, args)
+    project = load_project_context(opened.paths.dir, opened.workflow, opened.state.active_task())
+    if args.file is not None:
+        problems = plan_problems(args.file.read_text(encoding=ENCODING), project)
+    else:
+        problems = list(WorkspaceServices(opened.paths).plan_check().problems)
+    if problems:
+        for problem in problems:
+            print(f"- {problem}")
+        raise ThanhTanError(f"the plan has {len(problems)} problem(s)", ExitCode.PLAN_INVALID)
+    print("plan ok")
+    return ExitCode.OK
+
+
+def cmd_role(args: argparse.Namespace) -> ExitCode:
+    opened = _open_workspace()
+    grants = RoleGrants(opened.paths, opened.workflow)
+    match args.role_command:
+        case RoleCommand.GRANT:
+            lines = grants.grant(args.role, args.tool)
+            lines.insert(0, f"{args.role} may use {args.tool} in this project")
+        case RoleCommand.REVOKE:
+            lines = grants.revoke(args.role, args.tool)
+            lines.insert(0, f"{args.role} no longer has {args.tool}")
+        case RoleCommand.SYNC:
+            lines = grants.sync() or ["project agents are up to date"]
+        case _:
+            lines = grants.listing()
+    print("\n".join(lines))
+    return ExitCode.OK
+
+
+def cmd_report(args: argparse.Namespace) -> ExitCode:
+    opened = _open_workspace()
+    info = WorkspaceServices(opened.paths).write_report(args.step, sys.stdin.read())
+    print(f"report saved: {info.path}")
+    return ExitCode.OK
+
+
+def cmd_commit(args: argparse.Namespace) -> ExitCode:
+    opened = _open_workspace()
+    scanner = ContainerGitleaksScanner(SubprocessRunner())
+    project = load_project_context(opened.paths.dir, opened.workflow)
+    lock = lockflow.lock_commit(opened.paths.dir, opened.paths.root, opened.state.active_task(), opened.workflow, project.lookup, utc_now())
+    result = commit_staged(
+        _store(opened), SubprocessGit(opened.paths.root), scanner, args.message, args.item, _plan_items(opened), lockflow.commit_rules(project.rules, lock)
+    )
+    print(f"committed {result.sha[:SHORT_SHA_LENGTH]}: {result.message}")
+    for path in result.outside:
+        _err(f"{WARNING_PREFIX}{path} is not in the files of item {args.item}; the reviewer will see it as outside the plan")
+    if lock is not None and lock.active:
+        for warning_text in lock.closed(result.sha):
+            _err(f"{WARNING_PREFIX}{warning_text}")
+    return ExitCode.OK
+
+
+def cmd_guard(args: argparse.Namespace) -> ExitCode:
+    request = parse_request(sys.stdin.read())
+    cwd = request.cwd or Path.cwd()
+    try:
+        protected = protected_branches(find_workspace(cwd))
+    except ThanhTanError:  # no workspace here: the built-in protected branches
+        protected = None
+    verdict = evaluate(request.command, cwd, GitBranchLookup(), GitWorkspaceLookup(), protected_branches=protected)
+    print(json.dumps(verdict_to_dict(verdict), ensure_ascii=False))
+    return ExitCode.OK
+
+
+def cmd_knowledge(args: argparse.Namespace) -> ExitCode:
+    match args.knowledge_command:
+        case KnowledgeCommand.INIT:
+            store = args.dir or knowledge_dir()
+            created = init_store(store)
+            save_knowledge_dir(store)
+            print(f"knowledge store: {store}")
+            print(f"created: {', '.join(created)}" if created else "created: nothing, the store was complete")
+        case KnowledgeCommand.PULL:
+            paths = find_workspace(Path.cwd())
+            for path in pull_files(knowledge_dir(), paths.dir, args.files):
+                print(f"pulled: {path}")
+        case KnowledgeCommand.PUSH:
+            paths = find_workspace(Path.cwd())
+            print(f"pushed: {push_file(knowledge_dir(), paths.dir, args.file, args.place)}")
+    return ExitCode.OK
+
+
+def cmd_conventions(args: argparse.Namespace) -> ExitCode:
+    paths = find_workspace(Path.cwd())
+    items = WorkspaceServices(paths).conventions()
+    if not items:
+        print("no conventions yet (the setup skill writes the project's; a person may add their own)")
+    for item in items:
+        mark = "" if item.enforced else " [unconfirmed: a suggestion, not checked]"
+        rule = f" rule={item.rule}" if item.rule else ""
+        print(f"{item.code} ({item.source}, check={item.check}{rule}){mark}: {item.title}")
+        print(f"    {item.description}")
+    for problem in load_effective_conventions(paths.dir).problems:
+        _err(f"{WARNING_PREFIX}{problem}")
+    return ExitCode.OK
+
+
+def cmd_project(args: argparse.Namespace) -> ExitCode:
+    paths = find_workspace(Path.cwd())
+    if args.project_command == ProjectCommand.STATUS:
+        for line in status_lines(paths.dir):
+            print(line)
+        return ExitCode.OK
+    result = confirm_project(paths.dir, args.codes, args.everything)
+    if result.confirmed:
+        print(f"confirmed: {', '.join(result.confirmed)}")
+    if result.already:
+        print(f"already confirmed: {', '.join(result.already)}")
+    conventions = result.conventions
+    if conventions is not None and conventions.unconfirmed:
+        print(f"still unconfirmed: {', '.join(conventions.unconfirmed)}")
+    if conventions is not None and conventions.open_questions:
+        print(f"open questions: {', '.join(conventions.open_questions)} (see .ThanhTan/project/conventions.md)")
+    return ExitCode.OK
+
+
+def cmd_roadmap(args: argparse.Namespace) -> ExitCode:
+    paths = find_workspace(Path.cwd())
+    if args.roadmap_command == RoadmapCommand.LIST:
+        found = read_roadmap(paths.dir)
+        if found is None:
+            print("no roadmap yet (the setup skill has the scout propose one)")
+            return ExitCode.OK
+        confirmations = Confirmations.load(paths.dir)
+        for item in found[1]:
+            note = "" if confirmations.is_confirmed(item.code, item.content) else " (unconfirmed)"
+            print(f"{item.code} [{item.status}] {item.title}{note}")
+        return ExitCode.OK
+    if not is_code(args.code):
+        raise ThanhTanError(f"'{args.code}' is not a roadmap item code (R and digits, for example R3)", ExitCode.INVALID_INPUT)
+    if args.roadmap_command == RoadmapCommand.SHOW:
+        item = find_item(items_of(paths.dir), args.code)
+        if item is None:
+            raise ThanhTanError(f"the roadmap has no item {args.code} (see `thanhtan roadmap list`)", ExitCode.INVALID_INPUT)
+        note = "" if Confirmations.load(paths.dir).is_confirmed(item.code, item.content) else " (unconfirmed)"
+        print(f"{item.code} [{item.status}] {item.title}{note}")
+        print(f"goal: {item.goal or NONE_TEXT}")
+        print(f"docs: {item.docs or NONE_TEXT}")
+        return ExitCode.OK
+    before = set_status(paths.dir, args.code, RoadmapStatus(args.status))
+    print(f"{args.code}: {before} -> {args.status}")
+    return ExitCode.OK
+
+
+def cmd_replan(args: argparse.Namespace) -> ExitCode:
+    opened = _open_workspace()
+    git = SubprocessGit(opened.paths.root)
+    match args.replan_command:
+        case ReplanCommand.STATUS:
+            status = replan_status(opened.paths.dir, opened.state, git)
+            print(f"replan: {status.state}")
+            if status.task_id:
+                print(f"task: {status.task_id}")
+        case ReplanCommand.WRITE:
+            info = WorkspaceServices(opened.paths).write_replan(sys.stdin.read())
+            print(f"replan saved: {info.path}")
+            print("proposed only: a person reads it, then runs `thanhtan replan done` (or `thanhtan replan skip`)")
+        case ReplanCommand.DONE:
+            task = confirm_replan(_store(opened), opened.paths.dir, git, utc_now())
+            print(f"{task.id}: replan done")
+        case ReplanCommand.SKIP:
+            path = skip_replan(_store(opened), opened.paths.dir, git, args.task_id, args.reason, utc_now())
+            print(f"{args.task_id}: replan skipped; decision: {path}")
+    return ExitCode.OK
+
+
+def cmd_mcp(args: argparse.Namespace) -> ExitCode:
+    # argparse requires an mcp subcommand, and serve is the only one so far.
+    from thanhtan.mcp_server import serve  # imported here: hooks start often and must stay fast
+
+    serve()
+    return ExitCode.OK
+
+
+def cmd_hook(args: argparse.Namespace) -> ExitCode:
+    # Hooks must not break the agent: report problems on stderr but always exit 0.
+    stdin_text = sys.stdin.read()
+    try:
+        output = handle_hook(args.event, args.cli, stdin_text, GitBranchLookup())
+    except Exception as exc:  # noqa: BLE001 - a crashing hook would otherwise surface as a tool error
+        _err(f"{WARNING_PREFIX}thanhtan hook failed: {exc}")
+        return ExitCode.OK
+    _log_hook_call(args, stdin_text, output)
+    if output:
+        print(output)
+    return ExitCode.OK
+
+
+HANDLERS: dict[str, Handler] = {
+    Command.HOOK: cmd_hook,
+    Command.DOCTOR: cmd_doctor,
+    Command.INIT: cmd_init,
+    Command.STATUS: cmd_status,
+    Command.NEXT: cmd_next,
+    Command.WORKFLOW: cmd_workflow,
+    Command.TASK: cmd_task,
+    Command.EXT: cmd_ext,
+    Command.CONFIG: cmd_config,
+    Command.ROLE: cmd_role,
+    Command.SCAN: cmd_scan,
+    Command.REVIEW_MAP: cmd_review_map,
+    Command.SCOPE: cmd_scope,
+    Command.DECIDE: cmd_decide,
+    Command.PLAN: cmd_plan,
+    Command.REPORT: cmd_report,
+    Command.COMMIT: cmd_commit,
+    Command.GUARD: cmd_guard,
+    Command.MCP: cmd_mcp,
+    Command.PROJECT: cmd_project,
+    Command.ROADMAP: cmd_roadmap,
+    Command.STATE: cmd_state,
+    Command.TESTS: cmd_tests,
+    Command.STATS: cmd_stats,
+    Command.DIAGNOSIS: cmd_diagnosis,
+    Command.WORKSPACE: cmd_workspace,
+    Command.PERMISSIONS: cmd_permissions,
+    Command.REPLAN: cmd_replan,
+    Command.CONVENTIONS: cmd_conventions,
+    Command.KNOWLEDGE: cmd_knowledge,
+}
+
+
+# ----------------------------------------------------------------- helpers
+
+
+def _warn_drift(drift: DriftStatus) -> None:
+    if drift is DriftStatus.SOURCE_CHANGED:
+        _err(f"{WARNING_PREFIX}the workflow source changed since it was copied; {SYNC_HINT}")
+    elif drift is DriftStatus.SOURCE_MISSING:
+        _err(f"{WARNING_PREFIX}the workflow source no longer exists; using the copy in {WORKSPACE_DIR}/")
+
+
+def _log_hook_call(args: argparse.Namespace, stdin_text: str, output: str) -> None:
+    """Append the call to the file named by ``HOOK_LOG_ENV``, if set; a log that cannot be written is ignored."""
+    target = envvars.get(os.environ, HOOK_LOG_ENV)
+    if not target:
+        return
+    entry = {"event": args.event, "cli": args.cli, "stdin": stdin_text, "output": output}
+    try:
+        with open(target, "a", encoding=ENCODING) as handle:
+            handle.write(json.dumps(entry, ensure_ascii=False) + "\n")
+    except OSError:
+        pass
+
+
+def _err(message: str) -> None:
+    print(message, file=sys.stderr)
+
+
+def _utf8_when_redirected() -> None:
+    # Workflow names are often non-ASCII; a redirected Windows stream defaults to a legacy code page.
+    for stream in (sys.stdout, sys.stderr):
+        if not stream.isatty() and hasattr(stream, "reconfigure"):
+            stream.reconfigure(encoding=ENCODING)

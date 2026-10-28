@@ -1,8 +1,8 @@
 from collections.abc import Sequence
 from pathlib import Path
 
-from agentflow.constants import GuardDecision, GuardRule
-from agentflow.interfaces import (
+from thanhtan.constants import GuardDecision, GuardRule
+from thanhtan.interfaces import (
     BranchLookup,
     CommandRunner,
     GitClient,
@@ -11,7 +11,7 @@ from agentflow.interfaces import (
     ToolProbe,
     WorkflowSource,
 )
-from agentflow.models import (
+from thanhtan.models import (
     CommandResult,
     GuardVerdict,
     ProbeResult,

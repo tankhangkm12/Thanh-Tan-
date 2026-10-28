@@ -1,14 +1,14 @@
 import pytest
 
-from agentflow.constants import CheckKind, ConventionSource, ConventionStatus
-from agentflow.convention_sources import (
+from thanhtan.constants import CheckKind, ConventionSource, ConventionStatus
+from thanhtan.convention_sources import (
     answer_file_name,
     load_decision_conventions,
     load_effective_conventions,
     next_code,
     write_answer,
 )
-from agentflow.conventions import Convention
+from thanhtan.conventions import Convention
 
 PROJECT = """### PC-01 - Constants
 - check: review

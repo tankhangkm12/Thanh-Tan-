@@ -1,14 +1,14 @@
 import pytest
 from conftest import git
 
-from agentflow.commit import commit_staged
-from agentflow.constants import ExitCode, TaskType
-from agentflow.errors import AgentflowError
-from agentflow.git import SubprocessGit
-from agentflow.models import ScanResult
-from agentflow.state import JsonStateStore
-from agentflow.tasks import new_task
-from agentflow.workspace import init_workspace, load_workspace_workflow
+from thanhtan.commit import commit_staged
+from thanhtan.constants import ExitCode, TaskType
+from thanhtan.errors import ThanhTanError
+from thanhtan.git import SubprocessGit
+from thanhtan.models import ScanResult
+from thanhtan.state import JsonStateStore
+from thanhtan.tasks import new_task
+from thanhtan.workspace import init_workspace, load_workspace_workflow
 
 
 class FakeScanner:
@@ -47,7 +47,7 @@ def test_commits_with_task_prefix_after_scan(env):
 def test_leaks_block_the_commit(env):
     store, client, repo = env
     head = git(repo, "rev-parse", "HEAD")
-    with pytest.raises(AgentflowError) as exc:
+    with pytest.raises(ThanhTanError) as exc:
         commit_staged(store, client, FakeScanner(clean=False), "add a")
     assert exc.value.code is ExitCode.SECRETS_FOUND
     assert "REDACTED" in str(exc.value)
@@ -58,8 +58,8 @@ def test_leaks_block_the_commit(env):
 def test_scanner_errors_block_the_commit(env, code):
     store, client, repo = env
     head = git(repo, "rev-parse", "HEAD")
-    with pytest.raises(AgentflowError) as exc:
-        commit_staged(store, client, FakeScanner(error=AgentflowError("down", code)), "add a")
+    with pytest.raises(ThanhTanError) as exc:
+        commit_staged(store, client, FakeScanner(error=ThanhTanError("down", code)), "add a")
     assert exc.value.code is code
     assert git(repo, "rev-parse", "HEAD") == head
 
@@ -70,7 +70,7 @@ def test_wrong_branch_is_refused_before_scanning(env):
     git(repo, "switch", "-q", "develop")
     git(repo, "stash", "pop", "-q")
     scanner = FakeScanner()
-    with pytest.raises(AgentflowError) as exc:
+    with pytest.raises(ThanhTanError) as exc:
         commit_staged(store, client, scanner, "add a")
     assert exc.value.code is ExitCode.BRANCH_PROBLEM
     assert "feature/T-001-add-thing" in str(exc.value)
@@ -80,14 +80,14 @@ def test_wrong_branch_is_refused_before_scanning(env):
 def test_nothing_staged(env):
     store, client, repo = env
     git(repo, "reset", "-q")
-    with pytest.raises(AgentflowError) as exc:
+    with pytest.raises(ThanhTanError) as exc:
         commit_staged(store, client, FakeScanner(), "x")
     assert exc.value.code is ExitCode.NOTHING_STAGED
 
 
 def test_empty_message(env):
     store, client, _ = env
-    with pytest.raises(AgentflowError) as exc:
+    with pytest.raises(ThanhTanError) as exc:
         commit_staged(store, client, FakeScanner(), "  ")
     assert exc.value.code is ExitCode.INVALID_INPUT
 
@@ -95,7 +95,7 @@ def test_empty_message(env):
 def test_no_active_task(gitflow_repo, workflow_file):
     paths = init_workspace(gitflow_repo, workflow_file).paths
     store = JsonStateStore(paths.dir, load_workspace_workflow(paths))
-    with pytest.raises(AgentflowError) as exc:
+    with pytest.raises(ThanhTanError) as exc:
         commit_staged(store, SubprocessGit(gitflow_repo), FakeScanner(), "x")
     assert exc.value.code is ExitCode.NO_ACTIVE_TASK
 
@@ -104,7 +104,7 @@ def test_no_active_task(gitflow_repo, workflow_file):
 
 
 def _item(*files):
-    from agentflow.plan import PlanItem
+    from thanhtan.plan import PlanItem
 
     return {"C1": PlanItem(code="C1", title="t", files=tuple(files))}
 

@@ -1,6 +1,6 @@
 """Every requirement says where it comes from, and the roadmap item shows its goal and documents.
 
-- ``agentflow roadmap show R2`` (read-only) prints an item with its ``goal`` and ``docs``, so the orchestrator can read the
+- ``thanhtan roadmap show R2`` (read-only) prints an item with its ``goal`` and ``docs``, so the orchestrator can read the
   documents of the item a task serves.
 - The gate ``requirements-sourced`` wants every ``- Y1: ...`` line of the step's report to end with ``(nguồn: <where>)``:
   a document listed under ``## Tài liệu`` (with an optional ``:line``, ``:line-line`` or ``#part``), a file in a listed
@@ -16,11 +16,11 @@ from checklist_helpers import checklist_workflow, open_workspace, write_roadmap
 from conftest import git
 from sdd_helpers import run, say
 
-from agentflow.constants import ExitCode, GuardDecision
-from agentflow.docpin import requirement_source_problems
-from agentflow.guard import evaluate
-from agentflow.plan import parse_requirement_texts
-from agentflow.workflow import load_workflow
+from thanhtan.constants import ExitCode, GuardDecision
+from thanhtan.docpin import requirement_source_problems
+from thanhtan.guard import evaluate
+from thanhtan.plan import parse_requirement_texts
+from thanhtan.workflow import load_workflow
 
 REAL_WORKFLOW = Path(__file__).resolve().parents[2] / "families" / "software-dev" / "core" / "workflow.yaml"
 SPEC = "".join(f"line {n}\n" for n in range(1, 51))
@@ -203,5 +203,5 @@ def test_an_agent_may_read_the_roadmap_but_not_set_it(repo):
     def verdict(command):
         return evaluate(command, repo, _OnFeature(), _Workspaces(repo)).decision
 
-    assert verdict("agentflow roadmap show R1") is GuardDecision.ALLOW
-    assert verdict("agentflow roadmap set R1 done") is GuardDecision.DENY
+    assert verdict("thanhtan roadmap show R1") is GuardDecision.ALLOW
+    assert verdict("thanhtan roadmap set R1 done") is GuardDecision.DENY

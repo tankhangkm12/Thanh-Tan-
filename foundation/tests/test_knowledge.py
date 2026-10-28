@@ -1,9 +1,9 @@
 import pytest
 
-from agentflow.cli import main
-from agentflow.constants import ExitCode
-from agentflow.errors import AgentflowError
-from agentflow.knowledge import (
+from thanhtan.cli import main
+from thanhtan.constants import ExitCode
+from thanhtan.errors import ThanhTanError
+from thanhtan.knowledge import (
     SKELETON_DIRS,
     SKELETON_FILES,
     add_personal_convention,
@@ -11,7 +11,7 @@ from agentflow.knowledge import (
     pull_files,
     push_file,
 )
-from agentflow.userconfig import knowledge_dir, save_knowledge_dir
+from thanhtan.userconfig import knowledge_dir, save_knowledge_dir
 
 
 @pytest.fixture
@@ -39,7 +39,7 @@ def workspace(tmp_path):
 
 
 def refuses(call, code=None):
-    with pytest.raises(AgentflowError) as exc:
+    with pytest.raises(ThanhTanError) as exc:
         call()
     if code is not None:
         assert exc.value.code is code

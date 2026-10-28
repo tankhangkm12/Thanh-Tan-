@@ -1,12 +1,12 @@
 """Chặng E-lock (E2): the one way to change an approved test is a person's command, and it leaves a trace.
 
-``agentflow tests amend <file>... --reason "..."`` is for a person (the guard denies it to agents in every form, see
+``thanhtan tests amend <file>... --reason "..."`` is for a person (the guard denies it to agents in every form, see
 test_lock_guard.py). It opens a window for each file: the hook lets the tools change that file, and only that file. The
-window closes when ``agentflow commit`` commits the file; then the lock holds the new bytes, ``decisions/`` keeps who
-changed what and why (old and new hash), and agentflow runs the commands of the plan items that use the file again, in a
+window closes when ``thanhtan commit`` commits the file; then the lock holds the new bytes, ``decisions/`` keeps who
+changed what and why (old and new hash), and thanhtan runs the commands of the plan items that use the file again, in a
 throwaway checkout of the commit where the red proof was made (so the amended test must still fail on the old code):
 the outcome is kept in ``verify-red.json`` under ``reverified``. A test that now PASSES on the old code no longer proves
-anything: ``agentflow commit`` refuses the commit (before anything is committed) unless the person opened the window with
+anything: ``thanhtan commit`` refuses the commit (before anything is committed) unless the person opened the window with
 ``--accept-green`` and a reason, which is kept in ``decisions/`` and still printed as a warning.
 The window is also how a test configuration file that does not exist yet (a ``conftest.py`` the project really needs)
 gets into the lock.
@@ -43,7 +43,7 @@ from sdd_helpers import run, say
 from spec_helpers import block, no_test_block
 
 from conftest import git
-from agentflow.constants import ExitCode
+from thanhtan.constants import ExitCode
 
 REASON = "the expected value in the test was wrong"
 

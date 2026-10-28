@@ -1,4 +1,4 @@
-"""The hooks dev-core declares must call `agentflow hook` with arguments the CLI accepts."""
+"""The hooks dev-core declares must call `thanhtan hook` with arguments the CLI accepts."""
 
 import json
 import shlex
@@ -6,8 +6,8 @@ from pathlib import Path
 
 import pytest
 
-from agentflow.cli import build_parser
-from agentflow.constants import MCP_SERVER_NAME, PACKAGE_NAME, CliKind, Command, HookEvent, ToolName
+from thanhtan.cli import build_parser
+from thanhtan.constants import MCP_SERVER_NAME, PACKAGE_NAME, CliKind, Command, HookEvent, ToolName
 
 CORE = Path(__file__).resolve().parents[2] / "families" / "software-dev" / "core"
 CLAUDE_HOOKS = CORE / "hooks" / "hooks.json"
@@ -38,7 +38,7 @@ def antigravity_argvs() -> list[list[str]]:
 
 
 @pytest.mark.parametrize(("argvs", "cli"), [(claude_argvs, CliKind.CLAUDE), (antigravity_argvs, CliKind.ANTIGRAVITY)])
-def test_every_declared_hook_is_a_valid_agentflow_call(argvs, cli):
+def test_every_declared_hook_is_a_valid_thanhtan_call(argvs, cli):
     calls = argvs()
     parser = build_parser()
     seen = set()
@@ -57,16 +57,16 @@ def test_claude_pre_tool_matcher_covers_the_shell_and_file_tools():
 
 def test_antigravity_pre_tool_matcher_covers_the_shell_and_file_tools():
     data = json.loads(ANTIGRAVITY_HOOKS.read_text(encoding="utf-8"))
-    assert data["agentflow"]["PreToolUse"][0]["matcher"] == "run_command|write_to_file|replace_file_content|multi_replace_file_content"
+    assert data["thanhtan"]["PreToolUse"][0]["matcher"] == "run_command|write_to_file|replace_file_content|multi_replace_file_content"
 
 
 # ---------------------------------------------------------------- MCP server
 
 
-def test_both_clis_start_the_same_agentflow_mcp_server():
+def test_both_clis_start_the_same_thanhtan_mcp_server():
     for name in (".mcp.json", "mcp_config.json"):
         data = json.loads((CORE / name).read_text(encoding="utf-8"))
-        assert data == {"mcpServers": {MCP_SERVER_NAME: {"command": "agentflow", "args": ["mcp", "serve"]}}}, name
+        assert data == {"mcpServers": {MCP_SERVER_NAME: {"command": "thanhtan", "args": ["mcp", "serve"]}}}, name
 
 
 def test_the_agent_builder_names_exactly_the_tools_the_server_offers():

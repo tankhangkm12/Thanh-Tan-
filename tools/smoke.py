@@ -2,11 +2,11 @@
 # requires-python = ">=3.12"
 # dependencies = ["mcp>=2.3,<3"]
 # ///
-"""End-to-end smoke test of the installed `agentflow` on a throw-away git repository.
+"""End-to-end smoke test of the installed `thanhtan` on a throw-away git repository.
 
     uv run tools/smoke.py
 
-Everything happens in a temporary directory; no other repository is touched. Needs `agentflow` on PATH
+Everything happens in a temporary directory; no other repository is touched. Needs `thanhtan` on PATH
 (see the README), git, and a running Docker or Podman engine for the Gitleaks scan.
 """
 
@@ -22,7 +22,7 @@ import tempfile
 from pathlib import Path
 
 from smoke_support import (  # noqa: F401 - re-exported for the other smoke scripts
-    AGENTFLOW,
+    THANHTAN,
     ENCODING,
     FAKE_TOKEN_PREFIX,
     STEP_TIMEOUT,
@@ -45,15 +45,15 @@ REPLAN = "# Replan\n\n## Mục roadmap đã hoàn thành\nkhông có\n\n## Đề
 
 
 def main() -> int:
-    if shutil.which(AGENTFLOW) is None or shutil.which("git") is None:
+    if shutil.which(THANHTAN) is None or shutil.which("git") is None:
         print("git must be on PATH", file=sys.stderr)
         return 2
-    base = Path(tempfile.mkdtemp(prefix="agentflow-smoke-"))
+    base = Path(tempfile.mkdtemp(prefix="thanhtan-smoke-"))
     repo = base / "sample"
     repo.mkdir()
     env = {"GIT_CEILING_DIRECTORIES": str(base)}
     os.environ.update(env)
-    os.environ["AGENTFLOW_HOME"] = str(base / "user-home")  # nothing here may touch the real ~/.ThanhTan
+    os.environ["THANHTAN_HOME"] = str(base / "user-home")  # nothing here may touch the real ~/.ThanhTan
     try:
         s = Session(repo)
         s.git("init", "-q", "-b", MAIN)
@@ -106,7 +106,7 @@ def main() -> int:
         for _ in range(2):  # implement, test
             s.af("task", "advance", "--result", "pass")
         record = json.loads((repo / ".ThanhTan" / "tasks" / TASK_ID / "tests-pass.json").read_text(encoding=ENCODING))
-        expect(record["status"] == "pass" and record["spec_results"]["C1"]["status"] == "green", "agentflow ran the project tests and the test-spec command again", str(record))
+        expect(record["status"] == "pass" and record["spec_results"]["C1"]["status"] == "green", "thanhtan ran the project tests and the test-spec command again", str(record))
         s.af("task", "advance", "--result", "pass", ok=False)  # security: no scan results yet, the scans-clean gate refuses
         scan = s.af("scan")  # Semgrep, Trivy, Gitleaks in containers
         expect("semgrep: " in scan.stdout and "trivy: " in scan.stdout and "gitleaks: " in scan.stdout, "scan runs three tools", scan.stdout)
@@ -121,7 +121,7 @@ def main() -> int:
         s.approve()
         state = json.loads((repo / ".ThanhTan" / "state.json").read_text(encoding=ENCODING))
         expect(state["tasks"][0]["status"] == "done" and state["active_task_id"] is None, "task is done after review approval")
-        tag = f"agentflow/{TASK_ID}/approved"
+        tag = f"thanhtan/{TASK_ID}/approved"
         expect(s.git("tag", "-l", tag) == tag and s.git("cat-file", "-t", tag) == "tag", "approval tag is annotated")
         summary = (repo / ".ThanhTan" / "tasks" / TASK_ID / "summary.md").read_text(encoding=ENCODING)
         expect("### C1 - Add a greeting" in summary, "summary.md lists the plan item")
@@ -130,7 +130,7 @@ def main() -> int:
         expect(s.af("replan", "status").stdout.splitlines()[0] == "replan: pending", "a finished task waits for its replan")
         s.af("replan", "write", stdin=REPLAN)
         expect(s.af("replan", "status").stdout.splitlines()[0] == "replan: proposed", "the replan is only proposed")
-        asked = json.loads(s.af("guard", stdin=json.dumps({"command": "agentflow replan done", "cwd": str(repo)})).stdout)
+        asked = json.loads(s.af("guard", stdin=json.dumps({"command": "thanhtan replan done", "cwd": str(repo)})).stdout)
         expect(asked["decision"] == "deny", "guard keeps `replan done` for a person", str(asked))
         s.af("replan", "done")  # what a person runs after reading replan.md
         expect(s.af("replan", "status").stdout.splitlines()[0] == "replan: done", "a person closed the replan")
@@ -187,7 +187,7 @@ def main() -> int:
         )
         expect(json.loads(agy.stdout)["decision"] == "deny", "antigravity pre-tool hook denies push")
         summary = s.af("hook", "session-start", "--cli", "claude", stdin=json.dumps({"cwd": str(repo)}))
-        expect("agentflow workspace found" in summary.stdout, "session-start hook prints the summary")
+        expect("thanhtan workspace found" in summary.stdout, "session-start hook prints the summary")
 
         from conventions_smoke import conventions_flow
 
@@ -196,7 +196,7 @@ def main() -> int:
         bare = base / "no-workspace"
         bare.mkdir()
         run(["git", "init", "-q"], bare)
-        silent = run([AGENTFLOW, "hook", "pre-tool", "--cli", "claude"], bare, json.dumps({"cwd": str(bare), "tool_input": {"command": "git push"}}))
+        silent = run([THANHTAN, "hook", "pre-tool", "--cli", "claude"], bare, json.dumps({"cwd": str(bare), "tool_input": {"command": "git push"}}))
         expect(silent.returncode == 0 and silent.stdout == "", "hooks do nothing without .ThanhTan/")
 
         print("\nsmoke test passed")

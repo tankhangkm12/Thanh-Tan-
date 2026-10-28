@@ -3,9 +3,9 @@ import io
 import pytest
 from conftest import SAMPLE_WORKFLOW, write_workflow
 
-from agentflow.cli import main
-from agentflow.constants import ExitCode
-from agentflow.knowledge import init_store
+from thanhtan.cli import main
+from thanhtan.constants import ExitCode
+from thanhtan.knowledge import init_store
 
 PLAN = """### C1 - Build it
 - role: builder

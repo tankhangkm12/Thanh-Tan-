@@ -3,7 +3,7 @@
 import re
 from pathlib import Path
 
-SRC = Path(__file__).resolve().parents[1] / "src" / "agentflow"
+SRC = Path(__file__).resolve().parents[1] / "src" / "thanhtan"
 REPO = Path(__file__).resolve().parents[2]
 # Words that belong to dev-backend (or to software-dev at all), not to the shared engine.
 BANNED = re.compile(r"backend|migration|postgres|squawk|schemathesis|openapi|\bsql\b|db-engineer|database|software-dev", re.I)

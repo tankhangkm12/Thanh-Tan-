@@ -1,11 +1,11 @@
-"""Docs pinned at confirm, a verdict per requirement at review, and `agentflow stats`.
+"""Docs pinned at confirm, a verdict per requirement at review, and `thanhtan stats`.
 
 - A step with ``pin_docs_on_approval`` keeps, when a person approves it, the sha256 of each path its report lists under
   ``## Tài liệu`` (``tasks/<task>/docs-pinned.json``). A document that changes afterwards gets a ``TL<n>`` box in the
-  checklist of a step with ``changed-docs`` and a warning in ``agentflow status``.
+  checklist of a step with ``changed-docs`` and a warning in ``thanhtan status``.
 - The gate ``requirements-reviewed`` wants ``Y1: đạt ...`` or ``Y1: chưa đạt ...`` for every requirement of the first
   step's report; ``review-requirements`` gives the person one box per requirement.
-- Every gate refusal adds a line to ``tasks/<task>/gate-log.jsonl``; ``agentflow stats`` reads it with the history.
+- Every gate refusal adds a line to ``tasks/<task>/gate-log.jsonl``; ``thanhtan stats`` reads it with the history.
 """
 
 import json
@@ -16,11 +16,11 @@ from checklist_helpers import PLAN2, approve, checklist_path, checklist_workflow
 from conftest import git
 from sdd_helpers import run, say
 
-from agentflow import docpin, stats
-from agentflow.constants import ExitCode, HistoryEvent, StepStatus, TaskStatus
-from agentflow.gates import requirement_problems
-from agentflow.models import HistoryEntry, Task
-from agentflow.workflow import load_workflow
+from thanhtan import docpin, stats
+from thanhtan.constants import ExitCode, HistoryEvent, StepStatus, TaskStatus
+from thanhtan.gates import requirement_problems
+from thanhtan.models import HistoryEntry, Task
+from thanhtan.workflow import load_workflow
 
 REAL_WORKFLOW = Path(__file__).resolve().parents[2] / "families" / "software-dev" / "core" / "workflow.yaml"
 

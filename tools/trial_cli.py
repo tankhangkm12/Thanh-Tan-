@@ -3,17 +3,17 @@
     uv run tools/trial_cli.py                # reinstall both plugins, then try both CLIs
     uv run tools/trial_cli.py --no-install   # skip the reinstall
     uv run tools/trial_cli.py --only claude  # (or: agy)
-    uv run tools/trial_cli.py --mcp          # the agentflow MCP tools instead of the hooks
+    uv run tools/trial_cli.py --mcp          # the thanhtan MCP tools instead of the hooks
     uv run tools/trial_cli.py --setup        # the setup skill and the scout (writes the project documents)
     uv run tools/trial_cli.py --modes        # Antigravity only: the fast tier agent and a role grant with a fake MCP server
 
-In a throw-away sample project (with an agentflow workspace) the model is asked to write a file into
+In a throw-away sample project (with an thanhtan workspace) the model is asked to write a file into
 .ThanhTan/decisions/, to run `git push`, and to run `git status`. The evidence is not what the model says but
-what happened: the file must not exist, and the hook log (AGENTFLOW_HOOK_LOG) must show the write and the push
+what happened: the file must not exist, and the hook log (THANHTAN_HOOK_LOG) must show the write and the push
 denied and `git status` let through. Models are not deterministic, so each CLI gets a second try when the model
 did not make all three calls. With --mcp the model is asked to call the `status` and `report_write` tools (and to
 try writing a report for a step that is not the current one, which must be refused); the evidence is the report file.
-Needs `agentflow` on PATH and the plugins installed from this repository.
+Needs `thanhtan` on PATH and the plugins installed from this repository.
 """
 
 import argparse
@@ -29,7 +29,7 @@ import sample_backend as sample
 from smoke import Failure, Session, _make_writable_and_retry, expect
 from smoke_backend import CLI_TIMEOUT_SECONDS, ENCODING, WORKFLOW, cli, install_check
 
-HOOK_LOG_ENV = "AGENTFLOW_HOOK_LOG"
+HOOK_LOG_ENV = "THANHTAN_HOOK_LOG"
 FORGED_FILE = "forged-by-agent.md"
 PRE_TOOL_EVENT = "pre-tool"
 ATTEMPTS = 2
@@ -91,14 +91,14 @@ def trial(which: str, repo: Path) -> None:
 
 MCP_MARKER = "mcp-trial-marker-7f3a"
 MCP_PROMPT = (
-    "This is an automated test of the agentflow MCP tools. Call them, one call each, in this order, and do not use the "
+    "This is an automated test of the thanhtan MCP tools. Call them, one call each, in this order, and do not use the "
     "shell or file tools: "
     "(1) the `status` tool; "
     "(2) the `report_write` tool with step `confirm` and content `# Trial\n{marker}`; "
     "(3) the `report_write` tool with step `plan` and content `not allowed` (this one is expected to be refused). "
     "Then reply with one short sentence saying what each call answered."
 )
-CLAUDE_MCP_PREFIX = "mcp__plugin_dev-core_agentflow__"
+CLAUDE_MCP_PREFIX = "mcp__plugin_dev-core_thanhtan__"
 
 
 def mcp_trial(which: str, repo: Path) -> None:
@@ -129,7 +129,7 @@ SETUP_DOC_TEXT = (
     "Every endpoint is described in openapi.yaml.\n"
 )
 SETUP_PROMPT = (
-    "Use the setup skill of the dev-core plugin to set up this project for agentflow. When it asks where the project's "
+    "Use the setup skill of the dev-core plugin to set up this project for thanhtan. When it asks where the project's "
     f"documents are, the answer is: only `{SETUP_DOC}`. Do the whole setup now, without asking me anything else."
 )
 SETUP_SECTIONS = ("profile", "architecture", "sources", "conventions")
@@ -157,7 +157,7 @@ def setup_trial(which: str, repo: Path) -> None:
     text = (project / "conventions.md").read_text(encoding=ENCODING)
     expect("status: confirmed" not in text and "status: unconfirmed" in text, f"{which}: every convention starts unconfirmed", text[:400])
     checked = subprocess.run(
-        ["agentflow", "project", "confirm", "--all"], cwd=repo, capture_output=True, text=True, encoding=ENCODING, check=False
+        ["thanhtan", "project", "confirm", "--all"], cwd=repo, capture_output=True, text=True, encoding=ENCODING, check=False
     )  # the person's command doubles as the validity check: it refuses a document with problems
     expect(checked.returncode == 0, f"{which}: the conventions the scout wrote are valid", checked.stdout + checked.stderr)
     expect(not (repo / ".ThanhTan" / "tasks").glob("*") or not list((repo / ".ThanhTan" / "tasks").glob("T-*")), f"{which}: no task was started")
@@ -170,9 +170,9 @@ TIER_PLAN = (
     f"- done-when: the file {TIER_FILE} exists and contains the word {TIER_WORD}\n- docs: không có — a plain text file\n"
 )
 TIER_PROMPT = (
-    "You are the implementer for item C1 of the active agentflow task (run `agentflow status`, and read the plan at "
+    "You are the implementer for item C1 of the active thanhtan task (run `thanhtan status`, and read the plan at "
     ".ThanhTan/tasks/T-001/reports/plan.md). Do only item C1: create the file {file} containing the word {word}, "
-    "stage it with git add, and commit it with `agentflow commit \"write the tier trial file\" --item C1`. "
+    "stage it with git add, and commit it with `thanhtan commit \"write the tier trial file\" --item C1`. "
     "Do not advance or approve the task. Then reply with one short sentence."
 )
 NOTE_MARKER = "grant-trial-marker-91c2"
@@ -191,7 +191,7 @@ def agy_with(agent: str, repo: Path, prompt: str, log: Path | None = None) -> su
 
 
 def tier_trial(repo: Path) -> None:
-    """Antigravity: the fast agent is loaded (as its own agent) and really does a plan item through agentflow."""
+    """Antigravity: the fast agent is loaded (as its own agent) and really does a plan item through thanhtan."""
     listed = cli("agy", "agents").stdout
     for name in ("implementer-fast", "implementer-deep", "db-engineer"):
         expect(name in listed.split(), f"agy agents lists {name}", listed)
@@ -214,7 +214,7 @@ def tier_trial(repo: Path) -> None:
         print(f"  attempt {attempt}: the item was not done and committed; the model said: {done.stdout.strip()[:300]}")
     expect((repo / TIER_FILE).is_file() and TIER_WORD in (repo / TIER_FILE).read_text(encoding=ENCODING), "agy: implementer-fast wrote the file")
     message = sample.git(repo, "log", "-1", "--format=%B")
-    expect("T-001: write the tier trial file" in message and "Plan-Item: C1" in message, "agy: implementer-fast committed through agentflow with the plan item", message)
+    expect("T-001: write the tier trial file" in message and "Plan-Item: C1" in message, "agy: implementer-fast committed through thanhtan with the plan item", message)
     seen = log.read_text(encoding=ENCODING, errors="replace").lower() if log.is_file() else ""
     print(f"  (the session log {'mentions' if 'flash' in seen else 'does not mention'} the flash model)")
     s.af("task", "cancel")
@@ -266,8 +266,8 @@ def main(argv: list[str] | None = None) -> int:
     args = parser.parse_args(argv)
     if args.modes and args.only == CLAUDE:
         parser.error("--modes is for Antigravity only (it must not spend Claude Code usage)")
-    base = Path(tempfile.mkdtemp(prefix="agentflow-trial-"))
-    os.environ["AGENTFLOW_HOME"] = str(base / "user-home")  # hooks and servers started by the CLIs inherit it
+    base = Path(tempfile.mkdtemp(prefix="thanhtan-trial-"))
+    os.environ["THANHTAN_HOME"] = str(base / "user-home")  # hooks and servers started by the CLIs inherit it
     try:
         repo = sample.create_repo(base)
         Session(repo).af("init", "--workflow", str(WORKFLOW))

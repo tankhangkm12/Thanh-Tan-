@@ -6,11 +6,11 @@ description: Write a safe database migration with both an up and a down directio
 
 Only the **db-engineer** role writes migrations. Other roles ask for a db-engineer plan item instead.
 
-Run every `agentflow` command on its own, as a single command line. Never join commands with `&&`, `;` or `|`. You never push, merge or open a pull request; that is the person's job.
+Run every `thanhtan` command on its own, as a single command line. Never join commands with `&&`, `;` or `|`. You never push, merge or open a pull request; that is the person's job.
 
 ## Learn the project, do not guess
 
-Run each on its own: `agentflow config get backend.db.engine`, `agentflow config get backend.migrations_dir`, `agentflow config get backend.migrate_up_command`, `agentflow config get backend.migrate_down_command`. Open the newest migrations in that folder and copy their naming, numbering and style.
+Run each on its own: `thanhtan config get backend.db.engine`, `thanhtan config get backend.migrations_dir`, `thanhtan config get backend.migrate_up_command`, `thanhtan config get backend.migrate_down_command`. Open the newest migrations in that folder and copy their naming, numbering and style.
 
 ## Write it
 
@@ -27,4 +27,4 @@ Run the project's up command, then the down command, then the up command again, 
 
 When the database is PostgreSQL the test step lints the changed migrations with Squawk and blocks on any finding; read its output in `.ThanhTan/tasks/<task>/scans/` and fix the migration rather than asking for a suppression. For other databases that lint is skipped and the report says so.
 
-Commit with `agentflow commit "<what changed>" --item <code>`.
+Commit with `thanhtan commit "<what changed>" --item <code>`.

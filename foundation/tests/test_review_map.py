@@ -1,7 +1,7 @@
 from conftest import git
 
-from agentflow.plan import PlanItem
-from agentflow.reviewmap import CommitFiles, build_review_map, collect_commits
+from thanhtan.plan import PlanItem
+from thanhtan.reviewmap import CommitFiles, build_review_map, collect_commits
 
 ITEMS = [
     PlanItem(code="C1", title="Add greeting", files=("src/greet.py", "tests/"), done_when="`uv run pytest tests/test_greet.py`"),
@@ -33,8 +33,8 @@ def test_a_file_outside_the_files_of_the_item_and_a_commit_without_an_item_stand
 def test_the_last_check_of_each_item_and_the_totals_are_shown():
     results = {"C1": {"status": "green"}}
     text = build_review_map("T-001", "Greeting", ITEMS, [commit("aaaaaaa1", "C1", ("src/greet.py", 4, 1))], results)
-    assert "last run by agentflow: green" in text.split("### C1")[1].split("### C2")[0]
-    assert "not run by agentflow" in text.split("### C2")[1]
+    assert "last run by thanhtan: green" in text.split("### C1")[1].split("### C2")[0]
+    assert "not run by thanhtan" in text.split("### C2")[1]
     assert "1 files, +4 -1" in text
 
 

@@ -12,9 +12,9 @@ Not a test module. Design these helpers rest on (the tests that use them pin it)
   under ``locked_files_sha256``.
 - The lock holds from the approval of the step until the task is done or cancelled. It is the same for every role.
 - The gate ``locked-files-intact`` (and the gate ``tests-pass``, before it runs anything) compares the working tree and
-  ``HEAD`` with the hashes; ``agentflow tests check`` does the same on request and changes nothing.
-- A person changes an approved test with ``agentflow tests amend <file>... --reason "..."``, then the file is edited and
-  committed with ``agentflow commit``, which closes the window.
+  ``HEAD`` with the hashes; ``thanhtan tests check`` does the same on request and changes nothing.
+- A person changes an approved test with ``thanhtan tests amend <file>... --reason "..."``, then the file is edited and
+  committed with ``thanhtan commit``, which closes the window.
 - Exit codes: 25 GATE_FAILED, 37 INTEGRITY_FAILED, 22 INVALID_INPUT.
 """
 
@@ -29,10 +29,10 @@ from conftest import git, write_workflow
 from sdd_helpers import PLAN, init_workspace, run, say
 from spec_helpers import FLIP, GREEN, SCRIPTS, at_spec_step, block, spec_report  # noqa: F401 - FLIP is re-exported to the tests
 
-from agentflow.constants import CliKind, ExitCode, HookEvent
-from agentflow.git import GitBranchLookup
-from agentflow.hook import handle_hook
-from agentflow.scanner import ScanResult
+from thanhtan.constants import CliKind, ExitCode, HookEvent
+from thanhtan.git import GitBranchLookup
+from thanhtan.hook import handle_hook
+from thanhtan.scanner import ScanResult
 
 GATE_FAILED = 25
 INVALID_INPUT = 22
@@ -89,7 +89,7 @@ class Clean:
 
 
 def clean_scanner(monkeypatch) -> None:
-    monkeypatch.setattr("agentflow.cli.ContainerGitleaksScanner", Clean)
+    monkeypatch.setattr("thanhtan.cli.ContainerGitleaksScanner", Clean)
 
 
 # ------------------------------------------------------------------ the project
@@ -206,7 +206,7 @@ def finish_task(repo: Path, monkeypatch, capsys) -> None:
     capsys.readouterr()
 
 
-# ------------------------------------------------------------------ reading what agentflow kept
+# ------------------------------------------------------------------ reading what thanhtan kept
 
 
 def workspace(repo: Path) -> Path:
@@ -253,7 +253,7 @@ def head(repo: Path) -> str:
 
 
 def stage_and_commit(repo: Path, monkeypatch, capsys, message: str = "change") -> tuple[int, str, str]:
-    """``agentflow commit`` of what is staged, the way an agent has to commit."""
+    """``thanhtan commit`` of what is staged, the way an agent has to commit."""
     capsys.readouterr()
     code = say(monkeypatch, "commit", message)
     captured = capsys.readouterr()

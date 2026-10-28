@@ -37,9 +37,9 @@ from checklist_helpers import (
 from conftest import SAMPLE_WORKFLOW, git
 from sdd_helpers import project_dir, run, sample_workflow, say, statuses
 
-from agentflow.constants import ExitCode
-from agentflow.errors import AgentflowError
-from agentflow.workflow import load_workflow, parse_workflow
+from thanhtan.constants import ExitCode
+from thanhtan.errors import ThanhTanError
+from thanhtan.workflow import load_workflow, parse_workflow
 
 REAL_WORKFLOW = Path(__file__).resolve().parents[2] / "families" / "software-dev" / "core" / "workflow.yaml"
 
@@ -85,14 +85,14 @@ def test_a_step_without_the_fields_has_none():
     ],
 )
 def test_the_workflow_schema_rejects_bad_checklist_declarations(extra):
-    with pytest.raises(AgentflowError):
+    with pytest.raises(ThanhTanError):
         parse_workflow(workflow_data(**extra), "t")
 
 
 def test_a_checklist_on_a_step_that_needs_no_approval_is_rejected():
     data = workflow_data(approval_checklist=["Nope?"])
     data["steps"][1]["approval_checklist"] = ["Nope?"]  # `build` needs no approval
-    with pytest.raises(AgentflowError, match="build"):
+    with pytest.raises(ThanhTanError, match="build"):
         parse_workflow(data, "t")
 
 
@@ -218,7 +218,7 @@ def test_when_the_file_cannot_be_written_the_pass_is_refused_and_the_state_stays
     def broken(*_a, **_k):
         raise OSError("disk full")
 
-    monkeypatch.setattr("agentflow.checklist.write_text_atomic", broken)
+    monkeypatch.setattr("thanhtan.checklist.write_text_atomic", broken)
     code, _out, _err = run(capsys, "task", "advance", "--result", "pass")
     assert code != ExitCode.OK
     assert (workspace(repo) / "state.json").read_bytes() == before

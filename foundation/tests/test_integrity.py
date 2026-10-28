@@ -1,7 +1,7 @@
 """Chặng D-checklist (D4): state.json is hashed on every save, and a hand edit is caught before `advance` / `approve`.
 
-`.ThanhTan/integrity.json` holds `state_sha256` (the sha256 of the bytes agentflow last wrote) and, once a person has
-accepted something, `accepted_at`. A mismatch ends `task advance` and `task approve` with exit 37. `agentflow state
+`.ThanhTan/integrity.json` holds `state_sha256` (the sha256 of the bytes thanhtan last wrote) and, once a person has
+accepted something, `accepted_at`. A mismatch ends `task advance` and `task approve` with exit 37. `thanhtan state
 accept --reason "..."` is a person's command: it records a decision and takes the file as it is.
 """
 
@@ -24,9 +24,9 @@ from checklist_helpers import (
 )
 from sdd_helpers import run, say
 
-from agentflow.constants import CliKind, ExitCode, HookEvent
-from agentflow.git import GitBranchLookup
-from agentflow.hook import handle_hook
+from thanhtan.constants import CliKind, ExitCode, HookEvent
+from thanhtan.git import GitBranchLookup
+from thanhtan.hook import handle_hook
 
 
 @pytest.fixture
@@ -72,8 +72,8 @@ def test_a_hand_edited_state_json_stops_advance_and_approve(repo, capsys, comman
     edited = state_path(repo).read_bytes()
     code, _out, err = run(capsys, *command)
     assert code == INTEGRITY_FAILED
-    assert "state.json" in err and "agentflow state accept" in err
-    assert state_path(repo).read_bytes() == edited, "agentflow must not overwrite what it refused"
+    assert "state.json" in err and "thanhtan state accept" in err
+    assert state_path(repo).read_bytes() == edited, "thanhtan must not overwrite what it refused"
 
 
 def test_status_still_works_on_a_hand_edited_state(repo, capsys):
@@ -131,7 +131,7 @@ def test_state_accept_needs_a_reason_and_changes_nothing_without_one(repo, capsy
 
 
 def test_state_accept_without_the_option_is_a_usage_error(repo):
-    from agentflow.cli import main
+    from thanhtan.cli import main
 
     with pytest.raises(SystemExit) as stop:
         main(["state", "accept"])
@@ -159,14 +159,14 @@ def hook(command: str, repo, cli=CliKind.CLAUDE) -> str:
 @pytest.mark.parametrize(
     "command",
     [
-        'agentflow state accept --reason "ok"',
-        "AGENTFLOW.EXE state accept --reason ok",
-        'uv run agentflow state accept --reason "ok"',
-        'python -m agentflow state accept --reason "ok"',
-        'cd .ThanhTan && agentflow state accept --reason "ok"',
-        'bash -c "agentflow state accept --reason ok"',
-        "timeout 5 agentflow state accept --reason ok",
-        "FOO=1 agentflow state accept --reason ok",
+        'thanhtan state accept --reason "ok"',
+        "THANHTAN.EXE state accept --reason ok",
+        'uv run thanhtan state accept --reason "ok"',
+        'python -m thanhtan state accept --reason "ok"',
+        'cd .ThanhTan && thanhtan state accept --reason "ok"',
+        'bash -c "thanhtan state accept --reason ok"',
+        "timeout 5 thanhtan state accept --reason ok",
+        "FOO=1 thanhtan state accept --reason ok",
     ],
 )
 @pytest.mark.parametrize("cli", [CliKind.CLAUDE, CliKind.ANTIGRAVITY])
@@ -178,15 +178,15 @@ def test_state_accept_is_a_command_for_a_person_in_every_form_the_guard_reads(re
 
 @pytest.mark.parametrize("cli", [CliKind.CLAUDE, CliKind.ANTIGRAVITY])
 def test_leaving_the_project_and_coming_back_does_not_hide_state_accept(repo, cli):
-    command = f'cd .. && cd "{repo.name}" && agentflow state accept --reason "ok"'
+    command = f'cd .. && cd "{repo.name}" && thanhtan state accept --reason "ok"'
     reply = json.loads(hook(command, repo, cli))
     decision = reply.get("hookSpecificOutput", {}).get("permissionDecision") or reply.get("decision")
     assert decision == "deny"
 
 
 def test_state_accept_is_not_confused_with_talk_about_it(repo):
-    assert hook('echo "agentflow state accept"', repo) == ""
-    assert hook("agentflow state", repo) == ""
+    assert hook('echo "thanhtan state accept"', repo) == ""
+    assert hook("thanhtan state", repo) == ""
 
 
 # ------------------------------------------------------------------ the checklist hash is kept too
@@ -212,7 +212,7 @@ def test_a_checklist_that_matches_its_own_header_but_not_integrity_json_is_refus
 
     lines = [line for line in text.splitlines(keepends=True) if " K2:" not in line]
     edited = "".join(lines)
-    from agentflow.checklist import skeleton_sha256
+    from thanhtan.checklist import skeleton_sha256
 
     fresh = skeleton_sha256(edited)
     path.write_text(re.sub(r"skeleton-sha256: [0-9a-f]{64}", f"skeleton-sha256: {fresh}", edited), encoding="utf-8")

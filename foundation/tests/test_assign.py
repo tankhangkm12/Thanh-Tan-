@@ -3,12 +3,12 @@ import io
 import pytest
 from conftest import SAMPLE_WORKFLOW, write_workflow
 
-from agentflow.assign import WorkflowAgentNames, assignment_lines
-from agentflow.cli import main
-from agentflow.constants import ExitCode
-from agentflow.interfaces import AgentNames
-from agentflow.plan import parse_plan
-from agentflow.workflow import parse_workflow
+from thanhtan.assign import WorkflowAgentNames, assignment_lines
+from thanhtan.cli import main
+from thanhtan.constants import ExitCode
+from thanhtan.interfaces import AgentNames
+from thanhtan.plan import parse_plan
+from thanhtan.workflow import parse_workflow
 
 
 def test_names_implement_the_protocol():

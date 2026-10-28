@@ -1,9 +1,9 @@
 import pytest
 
-from agentflow.constants import GateKind
-from agentflow.gates import CHECKS, GateContext, plan_report_path
-from agentflow.models import Step, StepStatus, Task, TaskStatus, Workflow
-from agentflow.projectcontext import ProjectContext, RoleSet
+from thanhtan.constants import GateKind
+from thanhtan.gates import CHECKS, GateContext, plan_report_path
+from thanhtan.models import Step, StepStatus, Task, TaskStatus, Workflow
+from thanhtan.projectcontext import ProjectContext, RoleSet
 
 CONVENTIONS = """### PC-01 - Constants
 - check: review

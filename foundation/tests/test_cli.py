@@ -2,20 +2,20 @@ from importlib.metadata import version
 
 import pytest
 
-from agentflow import cli
-from agentflow.cli import main
-from agentflow.constants import ExitCode, StepStatus, TaskStatus
-from agentflow.doctor import ENGINE_NOT_RUNNING
-from agentflow.models import ProbeResult, State, Task
-from agentflow.state import JsonStateStore
-from agentflow.workspace import WorkspacePaths, load_workspace_workflow
+from thanhtan import cli
+from thanhtan.cli import main
+from thanhtan.constants import ExitCode, StepStatus, TaskStatus
+from thanhtan.doctor import ENGINE_NOT_RUNNING
+from thanhtan.models import ProbeResult, State, Task
+from thanhtan.state import JsonStateStore
+from thanhtan.workspace import WorkspacePaths, load_workspace_workflow
 
 
 def test_version_prints_name_and_version(capsys):
     with pytest.raises(SystemExit) as exc:
         main(["--version"])
     assert exc.value.code == 0
-    assert capsys.readouterr().out.strip() == f"agentflow {version('agentflow')}"
+    assert capsys.readouterr().out.strip() == f"thanhtan {version('thanhtan')}"
 
 
 def test_no_command_prints_help_and_usage_code(capsys):
@@ -126,7 +126,7 @@ def make_task(task_id="T-001", step="check", step_status="in_progress", status="
 def test_status_and_next_need_a_workspace(git_repo, monkeypatch, capsys, command):
     monkeypatch.chdir(git_repo)
     assert main([command]) == ExitCode.NO_WORKSPACE
-    assert "agentflow init --workflow" in capsys.readouterr().err
+    assert "thanhtan init --workflow" in capsys.readouterr().err
 
 
 def test_status_without_tasks(workspace, capsys):
@@ -175,7 +175,7 @@ def test_next_reads_the_copy_and_warns_on_drift(workspace, workflow_file, capsys
     assert main(["next"]) == ExitCode.OK
     captured = capsys.readouterr()
     assert "(Confirm;" in captured.out  # still the copy
-    assert "agentflow workflow sync" in captured.err
+    assert "thanhtan workflow sync" in captured.err
 
 
 def test_next_uses_copy_when_source_is_gone(workspace, workflow_file, capsys):
@@ -239,4 +239,4 @@ def test_init_warns_when_source_changed_since_copy(git_repo, workflow_file, monk
     workflow_file.write_text(workflow_file.read_text(encoding="utf-8") + "\n# changed\n", encoding="utf-8")
     capsys.readouterr()
     assert main(["init", "--workflow", str(workflow_file)]) == ExitCode.OK
-    assert "agentflow workflow sync" in capsys.readouterr().err
+    assert "thanhtan workflow sync" in capsys.readouterr().err

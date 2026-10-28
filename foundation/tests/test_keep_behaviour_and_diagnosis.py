@@ -2,9 +2,9 @@
 
 - ``task new --type refactor|chore`` branches from develop, keeps the type in ``state.json`` and shows it in ``status``.
 - A workflow's ``types`` section gives a type ``test_spec: green``: at the test-spec step every block says
-  ``- green: pass`` and agentflow wants each command to PASS on the code as it is; the approval locks the tests and
+  ``- green: pass`` and thanhtan wants each command to PASS on the code as it is; the approval locks the tests and
   ``tests-pass`` wants them to pass again. An amended locked test must still pass on the old code.
-- ``agentflow diagnosis write|list|show`` and the MCP tool ``diagnosis_write`` keep a diagnosis: in the open task
+- ``thanhtan diagnosis write|list|show`` and the MCP tool ``diagnosis_write`` keep a diagnosis: in the open task
   (``diagnoses/round-<n>.md``), or with none open as ``diagnoses/D-001.md``.
 """
 
@@ -19,11 +19,11 @@ from lock_helpers import EXTRA_SCRIPTS, clean_scanner, commit_files, lock_record
 from sdd_helpers import PLAN, init_workspace, run, say
 from spec_helpers import EXE, GREEN, PLAN2, SCRIPTS, at_spec_step, block
 
-from agentflow import diagnosis
-from agentflow.constants import ExitCode, TestSpecMode
-from agentflow.errors import AgentflowError
-from agentflow.models import State, StepStatus, Task, TaskStatus
-from agentflow.workflow import load_workflow
+from thanhtan import diagnosis
+from thanhtan.constants import ExitCode, TestSpecMode
+from thanhtan.errors import ThanhTanError
+from thanhtan.models import State, StepStatus, Task, TaskStatus
+from thanhtan.workflow import load_workflow
 
 REAL_WORKFLOW = Path(__file__).resolve().parents[2] / "families" / "software-dev" / "core" / "workflow.yaml"
 KEEP = "tests/keep.py"  # passes until broken.marker exists: the behaviour the refactor must keep
@@ -113,7 +113,7 @@ def test_the_schema_refuses_a_bad_types_section(tmp_path, types):
     data = yaml.safe_load(path.read_text(encoding="utf-8"))
     data["types"] = types
     path.write_text(json.dumps(data), encoding="utf-8")
-    with pytest.raises(AgentflowError):
+    with pytest.raises(ThanhTanError):
         load_workflow(path)
 
 
@@ -255,7 +255,7 @@ def test_with_a_task_open_a_diagnosis_belongs_to_its_round(tmp_path):
 
 def test_a_bad_code_or_a_missing_diagnosis_is_refused(tmp_path):
     for code in ("../x", "D-9"):
-        with pytest.raises(AgentflowError):
+        with pytest.raises(ThanhTanError):
             diagnosis.read(tmp_path, code)
 
 

@@ -1,7 +1,7 @@
 """The branch a task starts from is the project's to choose.
 
-- ``git.base.default``, ``git.base.<type>``, ``git.main_branch`` and ``git.develop_branch`` (``agentflow config set``, a
-  person's command) and ``agentflow task new --base <branch>`` choose it; ``--base`` beats the type, the type beats
+- ``git.base.default``, ``git.base.<type>``, ``git.main_branch`` and ``git.develop_branch`` (``thanhtan config set``, a
+  person's command) and ``thanhtan task new --base <branch>`` choose it; ``--base`` beats the type, the type beats
   the default, and the built-in choice (develop; main for a hotfix) is what is left.
 - The task keeps its base: a later change of a setting does not move it, and ``scope``, ``review-map`` and the summary
   compare the work with that base, not with develop.
@@ -16,13 +16,13 @@ import yaml
 from conftest import git
 from sdd_helpers import init_workspace, run, sample_workflow, say
 
-from agentflow import gitconfig
-from agentflow.constants import ExitCode, GuardDecision, GuardRule
-from agentflow.guard import evaluate
-from agentflow.hook import protected_branches
-from agentflow.models import StepStatus, Task, TaskStatus
-from agentflow.seal import base_branch
-from agentflow.workspace import find_workspace
+from thanhtan import gitconfig
+from thanhtan.constants import ExitCode, GuardDecision, GuardRule
+from thanhtan.guard import evaluate
+from thanhtan.hook import protected_branches
+from thanhtan.models import StepStatus, Task, TaskStatus
+from thanhtan.seal import base_branch
+from thanhtan.workspace import find_workspace
 
 
 @pytest.fixture
