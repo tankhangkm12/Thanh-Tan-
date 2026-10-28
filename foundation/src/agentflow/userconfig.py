@@ -1,4 +1,4 @@
-"""Per-user settings, outside every repository: ``~/.agentflow/user.yaml`` (or under ``AGENTFLOW_HOME``)."""
+"""Per-user settings, outside every repository: ``~/.ThanhTan/user.yaml`` (or under ``AGENTFLOW_HOME``)."""
 
 from collections.abc import Mapping
 from pathlib import Path

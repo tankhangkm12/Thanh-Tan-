@@ -20,7 +20,17 @@ import re
 from dataclasses import dataclass
 from pathlib import Path
 
-from agentflow.constants import DOCS_HEADING, DOCS_PINNED_FILE, ENCODING, MARKDOWN_SUFFIX, REPORTS_DIR, TASKS_DIR, StepStatus, TaskStatus
+from agentflow.constants import (
+    DOCS_HEADING,
+    DOCS_PINNED_FILE,
+    ENCODING,
+    MARKDOWN_SUFFIX,
+    REPORTS_DIR,
+    TASKS_DIR,
+    WORKSPACE_DIR_NAMES,
+    StepStatus,
+    TaskStatus,
+)
 from agentflow.fsutil import write_text_atomic
 from agentflow.models import Task, Workflow
 
@@ -28,7 +38,7 @@ _HEADING = re.compile(r"^##\s+(?P<title>.+?)\s*$")
 _BULLET = re.compile(r"^\s*[-*]\s+(?P<text>.+?)\s*$")
 _SCHEME = re.compile(r"^[A-Za-z][A-Za-z0-9+.\-]*://")
 _NONE_WORDS = frozenset({"không có", "khong co", "none"})
-_SKIPPED_DIRS = frozenset({".git", ".agentflow", "node_modules", "__pycache__", ".venv"})
+_SKIPPED_DIRS = frozenset({".git", *WORKSPACE_DIR_NAMES, "node_modules", "__pycache__", ".venv"})
 MISSING = "missing"
 CHANGED = "changed"
 APPEARED = "appeared"

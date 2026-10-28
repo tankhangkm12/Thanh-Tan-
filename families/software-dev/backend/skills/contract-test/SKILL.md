@@ -10,7 +10,7 @@ Run every `agentflow` command on its own, as a single command line. Never join c
 
 1. Run `agentflow config get backend.openapi.spec` and `agentflow config get backend.openapi.url`. If either is not set, report that the contract test cannot run; a person sets them with `agentflow config set`.
 2. The service must be running at that URL with the branch's code and a database holding the schema (the migrations applied with the project's up command). Start it the way the project documents; do not change application code to make a test pass.
-3. Run `agentflow scan`. It runs Schemathesis in a container (pinned image, the repository read-only) that reaches the service on the host through the container host name, and stores the result in `.agentflow/tasks/<task>/scans/`.
+3. Run `agentflow scan`. It runs Schemathesis in a container (pinned image, the repository read-only) that reaches the service on the host through the container host name, and stores the result in `.ThanhTan/tasks/<task>/scans/`.
 4. Read the result. A failure means the service and the spec disagree: a status code or field the spec does not list, a response that does not match its schema, a crash on generated input, or a server error. Decide which side is wrong:
    - If the code is wrong, record the finding in the test report so the implementer fixes it.
    - If the spec is wrong, the spec changes in an implementer item; say so in the report.

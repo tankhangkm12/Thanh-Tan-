@@ -10,7 +10,13 @@ import re
 from collections.abc import Callable
 from pathlib import Path
 
-from agentflow.constants import CLAUDE_PROJECT_AGENTS_DIR, CONFIG_FILE, MARKDOWN_SUFFIX, PROJECT_AGENT_PREFIX, WORKSPACE_DIR
+from agentflow.constants import (
+    CLAUDE_PROJECT_AGENTS_DIR,
+    CONFIG_FILE,
+    MARKDOWN_SUFFIX,
+    PROJECT_AGENT_PREFIX,
+    WORKSPACE_DIR_NAMES,
+)
 
 # Both kinds of separator split a path: on Windows a model may write either, and elsewhere a backslash in a
 # name is rare enough that treating it as a separator only makes the check stricter.
@@ -18,7 +24,8 @@ _SEPARATORS = re.compile(r"[\\/]+")
 
 
 class WorkspaceWritePolicy:
-    """``WriteTargetPolicy`` that protects everything under a ``.agentflow/`` directory that holds a config file, and
+    """``WriteTargetPolicy`` that protects everything under a ``.ThanhTan/`` directory (or ``.agentflow/``, its name before
+    0.8.0) that holds a config file, and
     the ``project-*`` agents that ``agentflow role`` generates in a project that has such a workspace."""
 
     def __init__(self, normcase: Callable[[str], str] = os.path.normcase) -> None:
@@ -27,9 +34,9 @@ class WorkspaceWritePolicy:
     def is_protected(self, target: Path | str, cwd: Path) -> bool:
         resolved = self._resolve(target, cwd)
         parts = [part for part in _SEPARATORS.split(resolved) if part]
-        wanted = self._fold(WORKSPACE_DIR)
+        wanted = {self._fold(name) for name in WORKSPACE_DIR_NAMES}
         for index, part in enumerate(parts):
-            if self._fold(part) == wanted and self._is_workspace(resolved, parts[: index + 1]):
+            if self._fold(part) in wanted and self._is_workspace(resolved, parts[: index + 1]):
                 return True
         return self._is_project_agent(resolved, parts)
 
@@ -43,7 +50,7 @@ class WorkspaceWritePolicy:
             return False
         if [self._fold(part) for part in parts[-1 - len(folders) : -1]] != folders:
             return False
-        return self._is_workspace(resolved, [*parts[: -1 - len(folders)], WORKSPACE_DIR])
+        return any(self._is_workspace(resolved, [*parts[: -1 - len(folders)], name]) for name in WORKSPACE_DIR_NAMES)
 
     @staticmethod
     def _resolve(target: Path | str, cwd: Path) -> str:

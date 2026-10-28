@@ -151,7 +151,7 @@ def test_real_generated_agents_are_all_declared_in_the_manifest():
 
 def test_real_skills_use_only_portable_frontmatter():
     skills = {path.parent.name: path for path in (REAL_PLUGIN / "skills").glob("*/SKILL.md")}
-    assert set(skills) == {"start", "continue", "status", "approve", "setup", "replan", "debug"}
+    assert set(skills) == {"start", "start-small", "hotfix", "refactor", "chore", "continue", "status", "approve", "setup", "replan", "debug"}
     for name, path in skills.items():
         data = frontmatter(path)
         assert set(data) == {"name", "description"} and data["name"] == name

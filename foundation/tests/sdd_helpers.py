@@ -96,7 +96,7 @@ def say(monkeypatch, *argv: str, text: str | None = None) -> int:
 
 
 def project_dir(repo: Path) -> Path:
-    return repo / ".agentflow" / "project"
+    return repo / ".ThanhTan" / "project"
 
 
 def roadmap_text(repo: Path) -> str:

@@ -37,7 +37,7 @@ TASK = Task("T-001", "t", TaskStatus.OPEN, "review", StepStatus.IN_PROGRESS)
 
 @pytest.fixture
 def workspace(tmp_path):
-    root = tmp_path / ".agentflow"
+    root = tmp_path / ".ThanhTan"
     (root / "project").mkdir(parents=True)
     (root / "project" / "conventions.md").write_text(CONVENTIONS, encoding="utf-8")
     return root
@@ -99,6 +99,6 @@ def test_no_report_no_pass(workspace):
 
 
 def test_nothing_to_review_means_nothing_to_check(tmp_path):
-    root = tmp_path / ".agentflow"
+    root = tmp_path / ".ThanhTan"
     root.mkdir()
     assert check(root) == []

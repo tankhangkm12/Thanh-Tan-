@@ -132,13 +132,13 @@ REASONS[GuardRule.LOCKED_FILE] = (
     'only a person changes it, with `agentflow tests amend <file> --reason "..."`'
 )
 REASONS[GuardRule.WORKSPACE_WRITE] = (
-    "files under .agentflow/ (and the project-* agents in .claude/agents/ that `agentflow role` generates) are written by "
+    "files under .ThanhTan/ (and the project-* agents in .claude/agents/ that `agentflow role` generates) are written by "
     "agentflow only: use the `agentflow` commands (or its MCP tools), never edit or write there by hand"
 )
 
 ALLOW = GuardVerdict(GuardDecision.ALLOW)
 
-# ------------------------------------------------------- writes into .agentflow/
+# ------------------------------------------------------- writes into .ThanhTan/
 # Best effort: the commands people and models usually write files with. Scripts and interpreters (`python -c`,
 # `node -e`), aliases and variables are not followed; see docs/architecture.md.
 

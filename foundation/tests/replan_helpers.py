@@ -114,7 +114,7 @@ def run_task(
 
 
 def task_dir(repo: Path, task_id: str = "T-001") -> Path:
-    return repo / ".agentflow" / "tasks" / task_id
+    return repo / ".ThanhTan" / "tasks" / task_id
 
 
 def spec_delta(repo: Path, task_id: str = "T-001") -> str:
@@ -133,6 +133,6 @@ def section(text: str, heading: str) -> str:
 
 
 def write_project_file(repo: Path, name: str, text: str) -> None:
-    folder = repo / ".agentflow" / "project"
+    folder = repo / ".ThanhTan" / "project"
     folder.mkdir(parents=True, exist_ok=True)
     (folder / name).write_text(text, encoding="utf-8")

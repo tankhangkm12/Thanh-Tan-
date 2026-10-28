@@ -24,6 +24,22 @@ tools/                            build.py (sinh agent), smoke.py (thử end-to-
 docs/                             tài liệu kiến trúc
 ```
 
+## Cài nhanh (một lệnh)
+
+Cần `git`, [`uv`](https://docs.astral.sh/uv/getting-started/installation/) và Docker Desktop. Clone repo rồi, từ thư mục repo (PowerShell hay bash đều được):
+
+```
+uv run --python 3.12 tools/install.py              # agentflow + dev-core cho Claude Code và Antigravity
+uv run --python 3.12 tools/install.py --backend    # thêm dev-backend (--design: design-core, design-architecture)
+uv run --python 3.12 tools/install.py --check      # chỉ kiểm, không đổi gì
+```
+
+Script cài `agentflow` bằng Python 3.12 **do uv quản lý**, không dùng `python` trên PATH: trên Windows `python` thường chỉ là lối tắt Microsoft Store ("Python was not found"), hoặc môi trường tool cũ trỏ tới Python đã gỡ. Claude Code hay `agy` không có trên máy thì bỏ qua phần của nó (`--only claude` hoặc `--only agy` để chọn). Báo "Access is denied" hay "being used by another process": đóng các phiên Claude Code và Antigravity rồi chạy lại. Script không đụng tới dự án: sau mỗi `git pull` chỉ cần chạy lại nó, mở phiên mới, và ở dự án chạy `agentflow workflow sync` khi `agentflow doctor` nhắc.
+
+Từ agentflow 0.8.0 thư mục làm việc tên là `.ThanhTan/` (trước là `.agentflow/`), thư mục người dùng là `~/.ThanhTan/`. Lệnh `agentflow` đầu tiên trong dự án cũ tự đổi tên, giữ nguyên task.
+
+Các bước dưới đây là cách cài tay, làm đúng những gì script làm.
+
 ## Cài đặt từng bước
 
 ### Bước 0: yêu cầu
@@ -71,7 +87,7 @@ claude plugin marketplace add "<repo>"
 claude plugin install dev-core@thanh-tan-plugins
 ```
 
-Kiểm tra: `claude plugin list` phải thấy `dev-core@thanh-tan-plugins` ở trạng thái enabled. Mở lại Claude Code, gõ `/dev-core:` sẽ thấy `setup`, `start`, `continue`, `status`, `approve`, `replan`, `debug`. 9 agent (8 role, riêng implementer có hai biến thể) hiện dưới tên `dev-core:orchestrator`, `dev-core:planner`, `dev-core:implementer-fast`, `dev-core:implementer-deep`, `dev-core:tester`, `dev-core:security`, `dev-core:reviewer`, `dev-core:scout`, `dev-core:debugger`. (Lệnh `claude plugin details` hiện báo `Agents (0)` do cách đếm của nó; agent vẫn được nạp.) Cập nhật: `claude plugin update dev-core@thanh-tan-plugins`.
+Kiểm tra: `claude plugin list` phải thấy `dev-core@thanh-tan-plugins` ở trạng thái enabled. Mở lại Claude Code, gõ `/dev-core:` sẽ thấy `setup`, `start`, `start-small`, `hotfix`, `refactor`, `chore`, `continue`, `status`, `approve`, `replan`, `debug`. 9 agent (8 role, riêng implementer có hai biến thể) hiện dưới tên `dev-core:orchestrator`, `dev-core:planner`, `dev-core:implementer-fast`, `dev-core:implementer-deep`, `dev-core:tester`, `dev-core:security`, `dev-core:reviewer`, `dev-core:scout`, `dev-core:debugger`. (Lệnh `claude plugin details` hiện báo `Agents (0)` do cách đếm của nó; agent vẫn được nạp.) Cập nhật: `claude plugin update dev-core@thanh-tan-plugins`.
 
 ### Bước 2b: cài vào Antigravity CLI
 
@@ -114,10 +130,10 @@ Cần cả hai. Cách dùng, chạy không tương tác và bản Antigravity: [
 - **Gõ "làm R2" là đủ, mỗi yêu cầu có nguồn** (chưa phát hành, trên `develop`): `/dev-core:start làm R2` (hay `làm tiếp`); orchestrator đọc `goal` và tài liệu của mục roadmap (lệnh chỉ đọc mới `agentflow roadmap show R2`) rồi tự viết yêu cầu. Cổng mới `requirements-sourced` ở `confirm`: mỗi `- Y1: ...` kết thúc bằng `(nguồn: <tài liệu>:<dòng>)` trỏ vào tài liệu của mục `## Tài liệu` (có thật, dòng có thật), hoặc `(nguồn: người dùng)`. Khối permissions thêm `agentflow roadmap list` và `roadmap show`. Xem mục "Khuôn yêu cầu task" của [USAGE](families/software-dev/USAGE.md).
 - **Hotfix nhanh** (chưa phát hành, trên `develop`): task `hotfix` tự nhận cỡ `hotfix`: bỏ duyệt `plan`, tối đa 3 mục, chạy đủ bản quét; vẫn duyệt `confirm`, `test-spec`, `review`; không cảnh báo thiếu roadmap; xong thì in lệnh để bạn merge vào `main` và `develop`. Cần cài lại `agentflow` và `agentflow workflow sync`. Xem mục "Hotfix nhanh" của [USAGE](families/software-dev/USAGE.md).
 - **Nâng cấp lên bản này**: `git pull` ở bản clone (nhánh `develop`, nhánh mặc định của repo), rồi `uv tool install --force --reinstall ./foundation` (hook cũ không biết khóa), `claude plugin update dev-core@thanh-tan-plugins` (và `dev-backend@thanh-tan-plugins`) hoặc chạy lại `agy plugin install` cho Antigravity, rồi ở mỗi dự án đang dùng `agentflow workflow sync`. Task mở trước khi nâng cấp không có khóa.
-- Hook chặn mọi tool ghi file vào `.agentflow/` (Claude Code: `Write`, `Edit`, `NotebookEdit`; Antigravity: `write_to_file`, `replace_file_content`, `multi_replace_file_content`) và các lệnh shell phổ biến ghi vào đó (mức cố gắng tốt nhất, không phải sandbox: `python -c`, script, alias vẫn qua được).
+- Hook chặn mọi tool ghi file vào `.ThanhTan/` (Claude Code: `Write`, `Edit`, `NotebookEdit`; Antigravity: `write_to_file`, `replace_file_content`, `multi_replace_file_content`) và các lệnh shell phổ biến ghi vào đó (mức cố gắng tốt nhất, không phải sandbox: `python -c`, script, alias vẫn qua được).
 - Server MCP `agentflow mcp serve` (tool `status`, `next_step`, `plan_check`, `report_write`, `project_write`, `scan_summary`, `conventions`, `knowledge_search`, `knowledge_read`) khai báo sẵn trong dev-core; báo cáo không còn cần heredoc. `report_write` chỉ ghi báo cáo của bước hiện tại và không ghi đè báo cáo của bước đã qua.
 - Skill `setup` và role `scout` hồ sơ hóa dự án có sẵn; quy ước (`PC-`, `DC-`, `KC-`), câu hỏi "Chưa có quy ước", rule Semgrep của riêng bạn, gate review theo từng quy ước, kho kiến thức cá nhân và bài học đề xuất: xem [Quy ước và kho kiến thức](#quy-ước-và-kho-kiến-thức).
-- `agentflow` kéo thêm gói `mcp` (SDK chính thức). Antigravity chạy server MCP trong thư mục plugin nên tìm dự án qua `cwd`, `AGENTFLOW_PROJECT_DIR`, `PWD` rồi `~/.agentflow/active-project.txt` (xem [docs/mcp-notes.md](docs/mcp-notes.md)). Cập nhật `agentflow` khi có phiên `agy` đang mở có thể báo `Access is denied`: đóng phiên đó, hoặc `uv pip install --python <venv của tool>\Scripts\python.exe --reinstall ./foundation`.
+- `agentflow` kéo thêm gói `mcp` (SDK chính thức). Antigravity chạy server MCP trong thư mục plugin nên tìm dự án qua `cwd`, `AGENTFLOW_PROJECT_DIR`, `PWD` rồi `~/.ThanhTan/active-project.txt` (xem [docs/mcp-notes.md](docs/mcp-notes.md)). Cập nhật `agentflow` khi có phiên `agy` đang mở có thể báo `Access is denied`: đóng phiên đó, hoặc `uv pip install --python <venv của tool>\Scripts\python.exe --reinstall ./foundation`.
 
 ### Bước 3: dùng trong một dự án
 
@@ -128,7 +144,7 @@ cd <dự-án-của-bạn>
 agentflow init --workflow "<repo>/families/software-dev/core/workflow.yaml"
 ```
 
-`.agentflow/` được tạo ở local và tự thêm vào `.git/info/exclude` (không bị commit). Sau đó, trong Claude Code gõ `/dev-core:start` (Antigravity: nhờ agent dùng skill `start`) rồi làm theo hướng dẫn; hoặc tự chạy:
+`.ThanhTan/` được tạo ở local và tự thêm vào `.git/info/exclude` (không bị commit). Sau đó, trong Claude Code gõ `/dev-core:start` (Antigravity: nhờ agent dùng skill `start`) rồi làm theo hướng dẫn; hoặc tự chạy:
 
 ```
 agentflow task new "Tiêu đề" --type feature --roadmap R1   # tạo nhánh feature/T-001-..., gắn task với mục R1 của roadmap
@@ -141,7 +157,7 @@ agentflow workflow sync                        # khi workflow gốc của nhóm 
 
 **Nhánh gốc.** Mặc định mỗi task tách từ `develop` (`hotfix` từ `main`). Công ty bạn làm khác (nhánh `feature/login`, `release/2`, hay `master`/`dev` thay cho `main`/`develop`) thì đặt một lần: `agentflow config set git.base.default feature/login`, hoặc từng loại `git.base.bugfix ...`, hoặc từng task `agentflow task new "..." --base feature/login`; tên hai nhánh chính: `git.main_branch`, `git.develop_branch`. Xem mục "Nhánh gốc của task" của [USAGE](families/software-dev/USAGE.md).
 
-Hook chỉ hoạt động trong dự án đã có `.agentflow/`; ở dự án khác chúng không làm gì. Khi hook chạy, `git push`, `git commit` trực tiếp (chỉ cho commit qua `agentflow commit`), `reset --hard`, `clean -fd`, `branch -D`, xóa tag, và merge/rebase trên `main`/`develop` bị chặn với agent. Chi tiết: [docs/architecture.md](docs/architecture.md).
+Hook chỉ hoạt động trong dự án đã có `.ThanhTan/`; ở dự án khác chúng không làm gì. Khi hook chạy, `git push`, `git commit` trực tiếp (chỉ cho commit qua `agentflow commit`), `reset --hard`, `clean -fd`, `branch -D`, xóa tag, và merge/rebase trên `main`/`develop` bị chặn với agent. Chi tiết: [docs/architecture.md](docs/architecture.md).
 
 ### Bước 4 (BẮT BUỘC): quy tắc permissions của Claude Code
 
@@ -201,8 +217,8 @@ Dán vào `.claude/settings.json` của dự án (hoặc `~/.claude/settings.jso
     "deny": [
       "Edit(./.claude/settings.json)",
       "Edit(./.claude/settings.local.json)",
-      "Edit(./.agentflow/state.json)",
-      "Edit(./.agentflow/**/state.json)"
+      "Edit(./.ThanhTan/state.json)",
+      "Edit(./.ThanhTan/**/state.json)"
     ],
     "disableBypassPermissionsMode": "disable"
   }
@@ -225,7 +241,7 @@ Ghi chú:
 Antigravity CLI không có quy tắc `ask` kiểu `permissions` của Claude Code; chế độ phê duyệt lệnh của chính CLI đó là lớp duy nhất ở phía nó. Phần còn lại do hook `pre-tool` của dev-core đảm nhiệm:
 
 - Với `agentflow task approve` và `task cancel` (mọi dạng gọi như trên Claude Code), hook trả `force_ask`: theo tài liệu của Antigravity, nó bỏ qua bộ nhớ "Always Allow", nên bạn luôn thấy câu hỏi.
-- Hook từ chối ghi vào `.agentflow/` (tool file và lệnh shell) và các lệnh của người; `agentflow commit` từ chối commit khi quét ra secret hoặc khi sai nhánh.
+- Hook từ chối ghi vào `.ThanhTan/` (tool file và lệnh shell) và các lệnh của người; `agentflow commit` từ chối commit khi quét ra secret hoặc khi sai nhánh.
 - Đã thử thật (agy 1.4.0, 18/10/2026, kết quả ở [docs/architecture.md](docs/architecture.md), mục "Thử thật hook ask"): chế độ mặc định `request-review` hỏi đúng; với `--dangerously-skip-permissions` (tự duyệt mọi lệnh) lệnh vẫn chạy, nên khi dùng chế độ tự duyệt thì `force_ask` không giúp được và chỉ còn các hook deny cùng `agentflow commit`. **KHÔNG dùng `agy --dangerously-skip-permissions` với plugin này** (xem Bước 2b).
 
 ### Kiểm tra nhanh toàn bộ
@@ -245,13 +261,13 @@ uv run tools/trial_cli.py --modes --only agy          # Antigravity thật: agen
 
 ### Quy ước và kho kiến thức
 
-Lần đầu trên một dự án có sẵn: gọi skill `setup` (xem hướng dẫn dùng thử ở cuối). Scout đọc tài liệu bạn chỉ và code, rồi viết `.agentflow/project/{profile,architecture,sources,conventions,roadmap}.md`; mọi quy ước ban đầu là `unconfirmed`. Bạn đọc, trả lời câu hỏi mở (`S1`...) và xác nhận bằng `agentflow project confirm PC-01 PC-02` (hoặc `--all`, chỉ gồm quy ước). Scout cũng viết **mission** (mục `## Mission` của `profile.md`, lấy từ tài liệu bạn đưa) và đề xuất **roadmap** (`project/roadmap.md`, mục `R1`, `R2`...): bạn xác nhận bằng `agentflow project confirm mission` và `agentflow project confirm R1 R2`, xem tình trạng bằng `agentflow project status`, đổi trạng thái một mục bằng `agentflow roadmap set R3 dropped`. Tài liệu đã xác nhận mà agent sửa nội dung thì tự về `unconfirmed`. `agentflow task new --roadmap Rn` gắn task với một mục (chuyển sang `doing`; task xong không tự đóng mục, bạn đặt `done`) và cảnh báo khi còn quy ước, mission hoặc mục roadmap chưa xác nhận hay task không gắn mục nào.
+Lần đầu trên một dự án có sẵn: gọi skill `setup` (xem hướng dẫn dùng thử ở cuối). Scout đọc tài liệu bạn chỉ và code, rồi viết `.ThanhTan/project/{profile,architecture,sources,conventions,roadmap}.md`; mọi quy ước ban đầu là `unconfirmed`. Bạn đọc, trả lời câu hỏi mở (`S1`...) và xác nhận bằng `agentflow project confirm PC-01 PC-02` (hoặc `--all`, chỉ gồm quy ước). Scout cũng viết **mission** (mục `## Mission` của `profile.md`, lấy từ tài liệu bạn đưa) và đề xuất **roadmap** (`project/roadmap.md`, mục `R1`, `R2`...): bạn xác nhận bằng `agentflow project confirm mission` và `agentflow project confirm R1 R2`, xem tình trạng bằng `agentflow project status`, đổi trạng thái một mục bằng `agentflow roadmap set R3 dropped`. Tài liệu đã xác nhận mà agent sửa nội dung thì tự về `unconfirmed`. `agentflow task new --roadmap Rn` gắn task với một mục (chuyển sang `doing`; task xong không tự đóng mục, bạn đặt `done`) và cảnh báo khi còn quy ước, mission hoặc mục roadmap chưa xác nhận hay task không gắn mục nào.
 
-Mỗi quy ước có `check:` là `plan` (luật `item-order`: mục `kind: interface` đứng trước mục `kind: implement` đụng cùng file; luật `layer-order`: các mục theo thứ tự lớp của dự án, xem [Tier và thứ tự lớp](#tier-và-thứ-tự-lớp)), `semgrep` (rule do **bạn** viết, để trong `.agentflow/knowledge/semgrep/`, chạy cùng scan ở bước security) hoặc `review` (reviewer ghi `PC-01: đạt` hoặc `vi phạm PC-01 ở file:dòng` cho từng mã). Ưu tiên: `decisions/` > `project/conventions.md` > `knowledge/conventions.md`. Xem bằng `agentflow conventions`.
+Mỗi quy ước có `check:` là `plan` (luật `item-order`: mục `kind: interface` đứng trước mục `kind: implement` đụng cùng file; luật `layer-order`: các mục theo thứ tự lớp của dự án, xem [Tier và thứ tự lớp](#tier-và-thứ-tự-lớp)), `semgrep` (rule do **bạn** viết, để trong `.ThanhTan/knowledge/semgrep/`, chạy cùng scan ở bước security) hoặc `review` (reviewer ghi `PC-01: đạt` hoặc `vi phạm PC-01 ở file:dòng` cho từng mã). Ưu tiên: `decisions/` > `project/conventions.md` > `knowledge/conventions.md`. Xem bằng `agentflow conventions`.
 
 Khi dự án chưa có quy ước cho một điều planner cần quyết, plan có mục `## Chưa có quy ước` và bị chặn tới khi bạn trả lời: `agentflow decide --answer Q1 --text "Tên bảng số ít" --check review` (thêm `--global` để ghi cả vào kho cá nhân của bạn).
 
-Kho kiến thức cá nhân nằm ngoài mọi repo (mặc định `~/knowledge`, đường dẫn ở `~/.agentflow/user.yaml`): `agentflow knowledge init` tạo khung; `agentflow knowledge pull lessons/x.md semgrep/rule.yaml` chép file bạn chọn vào `.agentflow/knowledge/` cho agent đọc; sau task, `agentflow knowledge push .agentflow/tasks/T-001/lessons/L1.md` đưa một bài học về kho. Agent không bao giờ ghi vào kho.
+Kho kiến thức cá nhân nằm ngoài mọi repo (mặc định `~/knowledge`, đường dẫn ở `~/.ThanhTan/user.yaml`): `agentflow knowledge init` tạo khung; `agentflow knowledge pull lessons/x.md semgrep/rule.yaml` chép file bạn chọn vào `.ThanhTan/knowledge/` cho agent đọc; sau task, `agentflow knowledge push .ThanhTan/tasks/T-001/lessons/L1.md` đưa một bài học về kho. Agent không bao giờ ghi vào kho.
 
 ### Scan bảo mật
 
@@ -274,7 +290,7 @@ Bước `plan` bị chặn nếu kế hoạch không qua `agentflow plan check`.
 
 ### Chế độ nhẹ (task nhỏ)
 
-`agentflow task new "<tiêu đề>" --size small` (mặc định `normal`) dành cho thay đổi nhỏ, rõ ràng. Task `small`:
+`/dev-core:start-small` (hay `agentflow task new "<tiêu đề>" --size small`; `/dev-core:start` luôn là `normal`) dành cho thay đổi nhỏ, rõ ràng. Task `small`:
 
 - **bỏ duyệt ở bước plan**, nhưng `agentflow plan check` vẫn chạy và chặn như thường; kế hoạch tối đa **3 mục**;
 - vẫn cần bạn duyệt ở bước `confirm` và `review`;
@@ -298,7 +314,7 @@ Tên tool là tên MCP đầy đủ như Claude Code đặt: `mcp__<server>__<to
 
 **Role chỉ đọc** (`orchestrator`, `planner`, `security`, `reviewer`, `scout`, `debugger`, khai báo ở `read_only_roles` trong `workflow.yaml`) chỉ được cấp **tool đọc, đúng tên**: không dùng `*` hay tên server, và tên tool phải bắt đầu bằng `get`, `list`, `read`, `search`, `query`, `find`, `describe`, `view` hoặc `status`; tên khác (`write_…`, `create_…`, `update_…`, `getaway`…) bị từ chối. Đây là kiểm tra **theo tên**: agentflow không hỏi được server MCP khác xem tool làm gì, nên hãy tự xem tool đọc trước khi cấp.
 
-**Claude Code.** Tài liệu cho thấy `tools` của agent plugin cố định, `mcpServers` bị bỏ qua với agent plugin, và agent trong `.claude/agents/` của dự án được đọc thêm. Vì vậy `role grant` ghi vào `.agentflow/config.yaml` rồi sinh, cho từng agent của role, một bản sao cấp dự án `.claude/agents/project-<agent>.md` (ví dụ `project-implementer-fast.md`): cùng prompt, cùng model, `tools` được nối thêm tool đã cấp, kèm dòng ghi sha256 của file nguồn. Các file này chỉ ở local: `.claude/agents/project-*.md` được thêm vào `.git/info/exclude` (không sửa `.gitignore`), và hook chặn agent ghi vào chúng. Skill `continue` chạy `agentflow plan assign --cli claude`, lệnh này trả tên `project-…` khi role có grant. Sau khi cập nhật plugin, `agentflow role list` báo `stale` và `agentflow role sync` sinh lại. Muốn bỏ hẳn: `role revoke` (hết grant thì các file bị xóa; chỉ file do agentflow sinh mới bị xóa).
+**Claude Code.** Tài liệu cho thấy `tools` của agent plugin cố định, `mcpServers` bị bỏ qua với agent plugin, và agent trong `.claude/agents/` của dự án được đọc thêm. Vì vậy `role grant` ghi vào `.ThanhTan/config.yaml` rồi sinh, cho từng agent của role, một bản sao cấp dự án `.claude/agents/project-<agent>.md` (ví dụ `project-implementer-fast.md`): cùng prompt, cùng model, `tools` được nối thêm tool đã cấp, kèm dòng ghi sha256 của file nguồn. Các file này chỉ ở local: `.claude/agents/project-*.md` được thêm vào `.git/info/exclude` (không sửa `.gitignore`), và hook chặn agent ghi vào chúng. Skill `continue` chạy `agentflow plan assign --cli claude`, lệnh này trả tên `project-…` khi role có grant. Sau khi cập nhật plugin, `agentflow role list` báo `stale` và `agentflow role sync` sinh lại. Muốn bỏ hẳn: `role revoke` (hết grant thì các file bị xóa; chỉ file do agentflow sinh mới bị xóa).
 
 **Antigravity.** Role vốn thấy mọi server MCP đã cài ([docs/mcp-notes.md](docs/mcp-notes.md)), nên `role grant` chỉ **ghi nhận** để cấu hình hai CLI đồng bộ; không sinh file và `plan assign --cli antigravity` luôn trả agent của plugin. Luật dành cho role chỉ đọc vẫn áp dụng khi ghi nhận.
 
@@ -326,7 +342,7 @@ Giá trị nằm trong nguồn role (`families/software-dev/core/src/roles/imple
 
 Khi quy ước hiệu lực, mỗi mục kế hoạch phải có `layer:` thuộc danh sách, và **trên toàn bộ kế hoạch** một mục lớp sau không được đứng trước mục lớp trước (mỗi lớp có thể nằm ở thư mục riêng, nên luật không dựa vào thư mục). Muốn thu hẹp, thêm `- scope: src/**, lib/**`: khi đó luật chỉ xét các mục có file khớp một trong các glob đó (và các mục phải ghi `files`). Qua `decide`: `agentflow decide --answer Q1 --text "..." --check plan --rule layer-order --layers "interface, api, infra, service, domain" [--scope "src/**"]`.
 
-Khi bạn duyệt bước cuối, `agentflow` ghi `.agentflow/tasks/<task>/summary.md` (mục, commit, link docs, kết quả scan) và tạo **annotated tag** `agentflow/<task>/approved` (message có mã task, tiêu đề, người duyệt) trên commit cuối của nhánh task. `agentflow task new` từ chối nếu task xong gần nhất chưa có tag này; bạn tạo bù cho task cũ bằng `agentflow task seal <id>` (thêm `--commit <sha>` nếu nhánh đã bị xóa). Agent không bao giờ push, merge hay tạo PR: bạn tự làm.
+Khi bạn duyệt bước cuối, `agentflow` ghi `.ThanhTan/tasks/<task>/summary.md` (mục, commit, link docs, kết quả scan) và tạo **annotated tag** `agentflow/<task>/approved` (message có mã task, tiêu đề, người duyệt) trên commit cuối của nhánh task. `agentflow task new` từ chối nếu task xong gần nhất chưa có tag này; bạn tạo bù cho task cũ bằng `agentflow task seal <id>` (thêm `--commit <sha>` nếu nhánh đã bị xóa). Agent không bao giờ push, merge hay tạo PR: bạn tự làm.
 
 ## Phát triển
 
@@ -350,9 +366,9 @@ Hướng dẫn đầy đủ (chọn plugin, khuôn yêu cầu task, checklist du
 2. Cài plugin vào Claude Code (`claude plugin marketplace add "<repo>"`, `claude plugin install dev-core@thanh-tan-plugins`, `dev-backend@thanh-tan-plugins`) và/hoặc Antigravity (`agy plugin install "<repo>/families/software-dev/core"` và `.../backend`). Mở lại CLI để nạp skill, agent, hook và server MCP.
 3. Dán khối `permissions` ở **Bước 4** vào `.claude/settings.json` của dự án. Quy tắc `ask` là bắt buộc.
 4. Trong dự án (repo git có `main` và `develop`, cây làm việc sạch): `agentflow init --workflow "<repo>/families/software-dev/core/workflow.yaml"`. Với dev-backend, thêm bước của **bạn**: `agentflow ext add "<repo>/families/software-dev/backend/extension.yaml"`, `agentflow config set backend.*`, `agentflow config check`.
-5. **Hồ sơ hóa dự án:** gõ `/dev-core:setup` (Antigravity: nhờ agent dùng skill `setup`). Bạn đưa đường dẫn tài liệu; scout đọc rồi viết `.agentflow/project/*.md`. Mở các file đó, trả lời câu hỏi mở `S1...` bằng `agentflow decide --answer S1 --text "..." --check review`, rồi xác nhận quy ước đồng ý: `agentflow project confirm PC-01 PC-02` (hoặc `--all`), cùng mission và các mục roadmap: `agentflow project confirm mission R1 R2`.
+5. **Hồ sơ hóa dự án:** gõ `/dev-core:setup` (Antigravity: nhờ agent dùng skill `setup`). Bạn đưa đường dẫn tài liệu; scout đọc rồi viết `.ThanhTan/project/*.md`. Mở các file đó, trả lời câu hỏi mở `S1...` bằng `agentflow decide --answer S1 --text "..." --check review`, rồi xác nhận quy ước đồng ý: `agentflow project confirm PC-01 PC-02` (hoặc `--all`), cùng mission và các mục roadmap: `agentflow project confirm mission R1 R2`.
 6. **Kho kiến thức (tùy chọn):** `agentflow knowledge init`; đặt rule Semgrep của bạn vào `<kho>/semgrep/` và quy ước cá nhân vào `<kho>/conventions.md`; chép vào dự án bằng `agentflow knowledge pull semgrep/<rule>.yaml conventions.md`.
 7. **Làm việc:** `/dev-core:start` (chọn mục roadmap `Rn` cho task; `agentflow roadmap list` để xem), rồi `/dev-core:continue`. Agent tự chạy các bước không cần duyệt và dừng ở `confirm`, `plan`, `review` để bạn `agentflow task approve` (hoặc `/dev-core:approve`). Plan có mục `## Chưa có quy ước` thì bạn trả lời bằng `agentflow decide --answer Q1 ...` rồi để agent chạy tiếp. Phát hiện chặn của scan mà bạn xác nhận là báo nhầm: `agentflow decide --suppress <id> --reason "..."`.
-8. **Sau khi xong:** xem `.agentflow/tasks/<task>/summary.md` (mục, commit, scan, "Bài học đề xuất") và `spec-delta.md` (task thật sự đổi gì); gõ `/dev-core:replan` (Antigravity: nhờ agent dùng skill `replan`) để scout đề xuất cập nhật hồ sơ, bạn đọc `replan.md`, xác nhận và chốt bằng `agentflow replan done` (hoặc `agentflow replan skip <task> --reason "..."`) và tag `git tag -l "agentflow/*"`. Bài học đáng giữ: `agentflow knowledge push .agentflow/tasks/<task>/lessons/L1.md`. Merge và push là việc của bạn.
+8. **Sau khi xong:** xem `.ThanhTan/tasks/<task>/summary.md` (mục, commit, scan, "Bài học đề xuất") và `spec-delta.md` (task thật sự đổi gì); gõ `/dev-core:replan` (Antigravity: nhờ agent dùng skill `replan`) để scout đề xuất cập nhật hồ sơ, bạn đọc `replan.md`, xác nhận và chốt bằng `agentflow replan done` (hoặc `agentflow replan skip <task> --reason "..."`) và tag `git tag -l "agentflow/*"`. Bài học đáng giữ: `agentflow knowledge push .ThanhTan/tasks/<task>/lessons/L1.md`. Merge và push là việc của bạn.
 
 Các lệnh của người (`decide`, `project confirm`, `roadmap set`, `replan done|skip`, `knowledge init|pull|push`, `ext add|sync`, `config set`, `task seal`): trong Claude Code gõ với tiền tố `!`; agent tự chạy sẽ bị hook từ chối.

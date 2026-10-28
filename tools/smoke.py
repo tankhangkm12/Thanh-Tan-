@@ -53,7 +53,7 @@ def main() -> int:
     repo.mkdir()
     env = {"GIT_CEILING_DIRECTORIES": str(base)}
     os.environ.update(env)
-    os.environ["AGENTFLOW_HOME"] = str(base / "user-home")  # nothing here may touch the real ~/.agentflow
+    os.environ["AGENTFLOW_HOME"] = str(base / "user-home")  # nothing here may touch the real ~/.ThanhTan
     try:
         s = Session(repo)
         s.git("init", "-q", "-b", MAIN)
@@ -69,10 +69,10 @@ def main() -> int:
         branch = s.git("branch", "--show-current")
         expect(branch == f"feature/{TASK_ID}-add-a-greeting", "task branch name", branch)
 
-        s.af("report", "--step", "confirm", stdin="# Confirmed\n\n## Yêu cầu\n- Y1: a greeting is shown\n- Y2: it can be changed\n")
+        s.af("report", "--step", "confirm", stdin="# Confirmed\n\n## Yêu cầu\n- Y1: a greeting is shown (nguồn: người dùng)\n- Y2: it can be changed (nguồn: người dùng)\n")
         s.af("task", "advance", "--result", "pass")
         s.af("task", "advance", "--result", "pass", ok=False)  # confirm now waits for approval
-        checklist = repo / ".agentflow" / "tasks" / TASK_ID / "approve-confirm.md"
+        checklist = repo / ".ThanhTan" / "tasks" / TASK_ID / "approve-confirm.md"
         expect(checklist.is_file(), "the confirm checklist is written when the step waits for approval", str(checklist))
         refused = s.af("task", "approve", ok=False)  # nothing is ticked yet
         expect("K1" in refused.stderr, "approve names the boxes still open", refused.stderr)
@@ -105,7 +105,7 @@ def main() -> int:
         expect("step 'implement'" in status and "rework rounds: 1/3" in status, "fail goes back to implement", status)
         for _ in range(2):  # implement, test
             s.af("task", "advance", "--result", "pass")
-        record = json.loads((repo / ".agentflow" / "tasks" / TASK_ID / "tests-pass.json").read_text(encoding=ENCODING))
+        record = json.loads((repo / ".ThanhTan" / "tasks" / TASK_ID / "tests-pass.json").read_text(encoding=ENCODING))
         expect(record["status"] == "pass" and record["spec_results"]["C1"]["status"] == "green", "agentflow ran the project tests and the test-spec command again", str(record))
         s.af("task", "advance", "--result", "pass", ok=False)  # security: no scan results yet, the scans-clean gate refuses
         scan = s.af("scan")  # Semgrep, Trivy, Gitleaks in containers
@@ -115,17 +115,17 @@ def main() -> int:
         whole = s.af("scope").stdout
         expect("scope: whole task" in whole, "the first review round has the whole task in scope", whole)
         s.af("task", "advance", "--result", "pass")  # review passes -> awaiting approval
-        marks = json.loads((repo / ".agentflow" / "tasks" / TASK_ID / "review-marks.json").read_text(encoding=ENCODING))
+        marks = json.loads((repo / ".ThanhTan" / "tasks" / TASK_ID / "review-marks.json").read_text(encoding=ENCODING))
         expect({"security", "review"} <= set(marks), "the security and review rounds left a mark", str(marks))
-        expect((repo / ".agentflow" / "tasks" / TASK_ID / "review-map.md").is_file(), "the review map is written when the review waits for approval")
+        expect((repo / ".ThanhTan" / "tasks" / TASK_ID / "review-map.md").is_file(), "the review map is written when the review waits for approval")
         s.approve()
-        state = json.loads((repo / ".agentflow" / "state.json").read_text(encoding=ENCODING))
+        state = json.loads((repo / ".ThanhTan" / "state.json").read_text(encoding=ENCODING))
         expect(state["tasks"][0]["status"] == "done" and state["active_task_id"] is None, "task is done after review approval")
         tag = f"agentflow/{TASK_ID}/approved"
         expect(s.git("tag", "-l", tag) == tag and s.git("cat-file", "-t", tag) == "tag", "approval tag is annotated")
-        summary = (repo / ".agentflow" / "tasks" / TASK_ID / "summary.md").read_text(encoding=ENCODING)
+        summary = (repo / ".ThanhTan" / "tasks" / TASK_ID / "summary.md").read_text(encoding=ENCODING)
         expect("### C1 - Add a greeting" in summary, "summary.md lists the plan item")
-        delta = (repo / ".agentflow" / "tasks" / TASK_ID / "spec-delta.md").read_text(encoding=ENCODING)
+        delta = (repo / ".ThanhTan" / "tasks" / TASK_ID / "spec-delta.md").read_text(encoding=ENCODING)
         expect("- A greeting.txt" in delta and "T-001: add greeting" in delta, "the seal wrote a spec delta from git")
         expect(s.af("replan", "status").stdout.splitlines()[0] == "replan: pending", "a finished task waits for its replan")
         s.af("replan", "write", stdin=REPLAN)
@@ -197,7 +197,7 @@ def main() -> int:
         bare.mkdir()
         run(["git", "init", "-q"], bare)
         silent = run([AGENTFLOW, "hook", "pre-tool", "--cli", "claude"], bare, json.dumps({"cwd": str(bare), "tool_input": {"command": "git push"}}))
-        expect(silent.returncode == 0 and silent.stdout == "", "hooks do nothing without .agentflow/")
+        expect(silent.returncode == 0 and silent.stdout == "", "hooks do nothing without .ThanhTan/")
 
         print("\nsmoke test passed")
         return 0

@@ -259,7 +259,7 @@ def test_finishing_a_hotfix_prints_the_merge_commands(ws, monkeypatch, capsys):
 
 def test_finishing_a_hotfix_writes_the_merge_commands_to_the_summary(ws, monkeypatch, capsys):
     finish_hotfix(ws, monkeypatch, capsys)
-    summary = (ws / ".agentflow" / "tasks" / "T-001" / "summary.md").read_text(encoding="utf-8")
+    summary = (ws / ".ThanhTan" / "tasks" / "T-001" / "summary.md").read_text(encoding="utf-8")
     assert "## Merge the hotfix" in summary and "git merge --no-ff hotfix/T-001-fix-login" in summary
 
 

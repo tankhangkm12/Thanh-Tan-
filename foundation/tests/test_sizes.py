@@ -180,7 +180,7 @@ def test_task_new_takes_a_size_and_says_which(ws, capsys):
     assert "(size small)" in capsys.readouterr().out
     main(["status"])
     assert "size: small" in capsys.readouterr().out
-    assert "- Size: small" in (ws / ".agentflow" / "STATE.md").read_text(encoding="utf-8")
+    assert "- Size: small" in (ws / ".ThanhTan" / "STATE.md").read_text(encoding="utf-8")
 
 
 def test_the_default_size_is_the_workflows(ws, capsys):

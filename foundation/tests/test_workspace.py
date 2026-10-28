@@ -35,14 +35,14 @@ def test_init_creates_full_tree(git_repo, workflow_file):
         assert (ws / name / ".gitkeep").is_file(), name
     assert (ws / "workflow.yaml").read_bytes() == workflow_file.read_bytes()
     assert result.workflow_copied and result.exclude_added
-    assert ".agentflow/state.json" in result.created
+    assert ".ThanhTan/state.json" in result.created
 
 
 def test_init_keeps_workspace_out_of_git(git_repo, workflow_file):
     init_workspace(git_repo, workflow_file)
     assert git_status(git_repo) == ""
     exclude = git_exclude_file(git_repo).read_text(encoding="utf-8")
-    assert exclude.splitlines().count(".agentflow/") == 1
+    assert exclude.splitlines().count(".ThanhTan/") == 1
     assert not (git_repo / ".gitignore").exists()
 
 
@@ -67,7 +67,7 @@ def test_init_outside_git_fails_and_writes_nothing(tmp_path, workflow_file):
     with pytest.raises(AgentflowError) as exc:
         init_workspace(plain, workflow_file)
     assert exc.value.code is ExitCode.NOT_GIT_REPO
-    assert not (plain / ".agentflow").exists()
+    assert not (plain / ".ThanhTan").exists()
 
 
 def test_invalid_workflow_fails_before_writing(git_repo, tmp_path, workflow_data):
@@ -76,7 +76,7 @@ def test_invalid_workflow_fails_before_writing(git_repo, tmp_path, workflow_data
     with pytest.raises(AgentflowError) as exc:
         init_workspace(git_repo, bad)
     assert exc.value.code is ExitCode.INVALID_WORKFLOW
-    assert not (git_repo / ".agentflow").exists()
+    assert not (git_repo / ".ThanhTan").exists()
 
 
 def test_rerun_preserves_state_and_copy(git_repo, workflow_file, workflow_data):
@@ -94,7 +94,7 @@ def test_rerun_preserves_state_and_copy(git_repo, workflow_file, workflow_data):
     assert not result.exclude_added and not result.workflow_copied
     assert store.load() == saved
     assert paths.workflow_copy.read_bytes() == copy_before
-    assert git_exclude_file(git_repo).read_text(encoding="utf-8").splitlines().count(".agentflow/") == 1
+    assert git_exclude_file(git_repo).read_text(encoding="utf-8").splitlines().count(".ThanhTan/") == 1
 
 
 def test_rerun_restores_deleted_files(git_repo, workflow_file):
@@ -102,7 +102,7 @@ def test_rerun_restores_deleted_files(git_repo, workflow_file):
     paths.state_md.unlink()
     (paths.dir / "tasks" / ".gitkeep").unlink()
     result = init_workspace(git_repo, workflow_file)
-    assert ".agentflow/STATE.md" in result.created
+    assert ".ThanhTan/STATE.md" in result.created
     assert paths.state_md.is_file()
     assert (paths.dir / "tasks" / ".gitkeep").is_file()
 
@@ -128,11 +128,11 @@ def test_rerun_with_new_location_updates_source_path(git_repo, workflow_file, tm
 def test_ensure_excluded_respects_existing_forms(tmp_path):
     exclude = tmp_path / "info" / "exclude"
     exclude.parent.mkdir()
-    exclude.write_text("# comment\n/.agentflow", encoding="utf-8")
+    exclude.write_text("# comment\n/.ThanhTan", encoding="utf-8")
     assert ensure_excluded(exclude) is False
     exclude.write_text("*.log", encoding="utf-8")  # no trailing newline
     assert ensure_excluded(exclude) is True
-    assert exclude.read_text(encoding="utf-8") == "*.log\n.agentflow/\n"
+    assert exclude.read_text(encoding="utf-8") == "*.log\n.ThanhTan/\n"
 
 
 def test_find_workspace(git_repo, workflow_file):

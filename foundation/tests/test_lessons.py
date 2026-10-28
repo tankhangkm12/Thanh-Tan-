@@ -107,7 +107,7 @@ def test_sealing_a_task_writes_the_lessons_of_its_last_report(ws, monkeypatch):
     say(monkeypatch, "report", "--step", "check", text=REPORT)
     assert say(monkeypatch, "task", "advance", "--result", "pass") == ExitCode.OK
     assert say(monkeypatch, "task", "approve") == ExitCode.OK
-    base = ws / ".agentflow" / "tasks" / "T-001"
+    base = ws / ".ThanhTan" / "tasks" / "T-001"
     assert (base / "lessons" / "L1.md").is_file() and (base / "lessons" / "L2.md").is_file()
     summary = (base / SUMMARY).read_text(encoding="utf-8")
     assert "L1: Back off before retrying" in summary

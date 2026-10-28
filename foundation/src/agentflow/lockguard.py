@@ -2,7 +2,7 @@
 
 ``LockPolicy`` answers for a path: is it a locked file (not open to a person's window), or a test configuration file the
 lock does not hold? It reads the locks of the tasks that are still going (``lockfiles.active_locks``), so a project with no
-lock costs one directory listing. ``GuardedPaths`` puts it next to the policy for ``.agentflow/`` that the guard always had.
+lock costs one directory listing. ``GuardedPaths`` puts it next to the policy for the workspace (``.ThanhTan/``) that the guard always had.
 """
 
 import os
@@ -10,17 +10,18 @@ from pathlib import Path
 from typing import Any
 
 from agentflow import lockfiles
-from agentflow.constants import CONFIG_FILE, WORKSPACE_DIR
+from agentflow.constants import CONFIG_FILE, WORKSPACE_DIR_NAMES
 from agentflow.pathguard import WorkspaceWritePolicy
 
 
 def _workspace_of(resolved: str) -> Path | None:
-    """The ``.agentflow`` directory of the project the path is in (a directory with a config file), if any."""
+    """The workspace directory (``.ThanhTan``, or ``.agentflow`` before 0.8.0) of the project the path is in, if any."""
     folder = Path(resolved).parent
     for candidate in (folder, *folder.parents):
-        workspace = candidate / WORKSPACE_DIR
-        if (workspace / CONFIG_FILE).is_file():
-            return workspace
+        for name in WORKSPACE_DIR_NAMES:
+            workspace = candidate / name
+            if (workspace / CONFIG_FILE).is_file():
+                return workspace
     return None
 
 

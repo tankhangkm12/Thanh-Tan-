@@ -2,7 +2,7 @@
 
 Các bước dưới đây do **bạn** chạy. Agent không merge vào `main`, không tạo tag, không push `main`. Ví dụ dùng bản `1.0.0`; thay số khi phát hành bản khác.
 
-Số phiên bản hiện tại: agentflow 0.7.0 (`foundation/pyproject.toml`), dev-core 0.6.0, dev-backend 0.3.0 (`.claude-plugin/plugin.json` của từng plugin). Chưa nâng lên 1.0.0.
+Số phiên bản hiện tại: agentflow 0.8.0 (`foundation/pyproject.toml`), dev-core 0.7.0, dev-backend 0.4.0 (`.claude-plugin/plugin.json` của từng plugin). Chưa nâng lên 1.0.0.
 
 ## 0. Chuẩn bị
 
@@ -65,7 +65,7 @@ Quét secret (Docker đang chạy):
 docker run --rm -v "${PWD}:/repo" zricethezav/gitleaks:v8.24.0 git --redact --no-banner /repo
 ```
 
-Commit phần nâng phiên bản: `git add -A` rồi `git commit -m "release 1.0.0: versions and changelog"` (trong repo plugin này không có `.agentflow/` nên hook chặn commit trực tiếp không áp dụng).
+Commit phần nâng phiên bản: `git add -A` rồi `git commit -m "release 1.0.0: versions and changelog"` (trong repo plugin này không có `.ThanhTan/` nên hook chặn commit trực tiếp không áp dụng).
 
 ## 4. Merge vào main và gắn tag
 

@@ -39,7 +39,7 @@ def repo(gitflow_repo, tmp_path, monkeypatch, capsys):
 def state_task(repo: Path) -> dict:
     import json
 
-    return json.loads((repo / ".agentflow" / "state.json").read_text(encoding="utf-8"))["tasks"][-1]
+    return json.loads((repo / ".ThanhTan" / "state.json").read_text(encoding="utf-8"))["tasks"][-1]
 
 
 def config(capsys, key: str, value: str) -> tuple[int, str, str]:
@@ -127,7 +127,7 @@ def test_a_bad_git_setting_is_refused_and_nothing_is_written(repo, capsys, key, 
 
 
 def test_the_check_reports_a_git_section_written_by_hand(repo, capsys):
-    path = repo / ".agentflow" / "config.yaml"
+    path = repo / ".ThanhTan" / "config.yaml"
     data = yaml.safe_load(path.read_text(encoding="utf-8"))
     data["settings"] = {"git": {"base": {"default": "a b"}}}
     path.write_text(yaml.safe_dump(data), encoding="utf-8")
@@ -195,7 +195,7 @@ def test_a_base_that_does_not_exist_is_refused_with_the_way_out(repo, capsys):
     assert "feature/none" in err and "--base" in err and "git.base.default" in err
     import json
 
-    assert json.loads((repo / ".agentflow" / "state.json").read_text(encoding="utf-8"))["tasks"] == []
+    assert json.loads((repo / ".ThanhTan" / "state.json").read_text(encoding="utf-8"))["tasks"] == []
 
 
 def test_a_bad_flag_value_is_refused_before_anything_is_created(repo, capsys):
@@ -210,7 +210,7 @@ def test_changing_a_setting_later_does_not_move_a_running_task(repo, capsys):
     assert state_task(repo)["base"] == "feature/login"
     _code, out, _err = run(capsys, "status")
     assert "base: feature/login" in out
-    assert "- Base: feature/login" in (repo / ".agentflow" / "STATE.md").read_text(encoding="utf-8")
+    assert "- Base: feature/login" in (repo / ".ThanhTan" / "STATE.md").read_text(encoding="utf-8")
 
 
 def test_a_base_that_is_behind_origin_is_warned_about(repo, tmp_path, capsys):
@@ -302,5 +302,5 @@ def test_the_guard_command_reads_the_project_too(repo, monkeypatch, capsys):
 
 def test_a_workspace_that_cannot_be_read_keeps_the_two_built_in_protected_branches(repo):
     paths = find_workspace(repo)
-    (repo / ".agentflow" / "config.yaml").write_text("{ not: [valid", encoding="utf-8")
+    (repo / ".ThanhTan" / "config.yaml").write_text("{ not: [valid", encoding="utf-8")
     assert protected_branches(paths) == {"main", "develop"}

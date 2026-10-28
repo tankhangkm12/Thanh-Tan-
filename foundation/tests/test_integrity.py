@@ -1,6 +1,6 @@
 """Chặng D-checklist (D4): state.json is hashed on every save, and a hand edit is caught before `advance` / `approve`.
 
-`.agentflow/integrity.json` holds `state_sha256` (the sha256 of the bytes agentflow last wrote) and, once a person has
+`.ThanhTan/integrity.json` holds `state_sha256` (the sha256 of the bytes agentflow last wrote) and, once a person has
 accepted something, `accepted_at`. A mismatch ends `task advance` and `task approve` with exit 37. `agentflow state
 accept --reason "..."` is a person's command: it records a decision and takes the file as it is.
 """
@@ -163,7 +163,7 @@ def hook(command: str, repo, cli=CliKind.CLAUDE) -> str:
         "AGENTFLOW.EXE state accept --reason ok",
         'uv run agentflow state accept --reason "ok"',
         'python -m agentflow state accept --reason "ok"',
-        'cd .agentflow && agentflow state accept --reason "ok"',
+        'cd .ThanhTan && agentflow state accept --reason "ok"',
         'bash -c "agentflow state accept --reason ok"',
         "timeout 5 agentflow state accept --reason ok",
         "FOO=1 agentflow state accept --reason ok",

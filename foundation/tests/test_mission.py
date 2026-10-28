@@ -1,6 +1,6 @@
 """Phase B1: the mission of a project, written by the scout into profile.md and confirmed by a person.
 
-The mission is the `## Mission` section of `.agentflow/project/profile.md`: why, for whom, scope, out of scope and
+The mission is the `## Mission` section of `.ThanhTan/project/profile.md`: why, for whom, scope, out of scope and
 the source it came from. Confirmation is not a flag inside the file: agentflow keeps the sha256 of what a person
 confirmed, so a document that an agent rewrites is unconfirmed again without anyone remembering to say so.
 `agentflow project status` shows `mission:`, `profile:`, `architecture:` and `roadmap:` as missing, unconfirmed or confirmed.
@@ -265,24 +265,24 @@ def test_regression_the_file_tools_cannot_write_the_mission_files(ws, name):
 
 
 def test_regression_a_shell_redirect_into_the_confirmation_store_is_blocked(ws):
-    command = "echo {} > .agentflow/project/confirmations.json"
+    command = "echo {} > .ThanhTan/project/confirmations.json"
     out = json.loads(handle_hook(HookEvent.PRE_TOOL, CliKind.CLAUDE, hook_payload(ws, "Bash", command=command), GitBranchLookup()))
     assert out["hookSpecificOutput"]["permissionDecision"] == "deny"
 
 
 FILES = ["confirmations.json", "roadmap.md", "profile.md"]
 SHELL_WRITES = [
-    "echo {{}} > .agentflow/project/{name}",
-    "echo {{}} >> .agentflow/project/{name}",
-    "echo {{}}>.agentflow/project/{name}",
-    "cat forged.json | tee .agentflow/project/{name}",
-    "cp forged.json .agentflow/project/{name}",
-    "mv forged.json .agentflow/project/{name}",
-    "sed -i s/a/b/ .agentflow/project/{name}",
-    "rm .agentflow/project/{name}",
-    "truncate -s 0 .agentflow/project/{name}",
-    "cd .agentflow/project && echo {{}} > {name}",
-    "bash -c 'echo {{}} > .agentflow/project/{name}'",
+    "echo {{}} > .ThanhTan/project/{name}",
+    "echo {{}} >> .ThanhTan/project/{name}",
+    "echo {{}}>.ThanhTan/project/{name}",
+    "cat forged.json | tee .ThanhTan/project/{name}",
+    "cp forged.json .ThanhTan/project/{name}",
+    "mv forged.json .ThanhTan/project/{name}",
+    "sed -i s/a/b/ .ThanhTan/project/{name}",
+    "rm .ThanhTan/project/{name}",
+    "truncate -s 0 .ThanhTan/project/{name}",
+    "cd .ThanhTan/project && echo {{}} > {name}",
+    "bash -c 'echo {{}} > .ThanhTan/project/{name}'",
 ]
 
 
@@ -295,12 +295,12 @@ def test_a_shell_command_cannot_write_delete_or_replace_the_mission_roadmap_or_c
 
 
 POWERSHELL_WRITES = [
-    "Set-Content -Path .agentflow\\project\\{name} -Value x",
-    "Add-Content .agentflow/project/{name} x",
-    "'x' | Out-File .agentflow/project/{name}",
-    "Remove-Item .agentflow\\project\\{name}",
-    "Copy-Item forged.json .agentflow\\project\\{name}",
-    "New-Item .agentflow/project/{name} -Force",
+    "Set-Content -Path .ThanhTan\\project\\{name} -Value x",
+    "Add-Content .ThanhTan/project/{name} x",
+    "'x' | Out-File .ThanhTan/project/{name}",
+    "Remove-Item .ThanhTan\\project\\{name}",
+    "Copy-Item forged.json .ThanhTan\\project\\{name}",
+    "New-Item .ThanhTan/project/{name} -Force",
 ]
 
 

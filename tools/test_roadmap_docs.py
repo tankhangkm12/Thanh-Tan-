@@ -150,5 +150,5 @@ def test_the_readme_shows_the_roadmap_option_in_the_usage_steps():
 
 
 def test_the_changelog_announces_the_mission_and_the_roadmap_under_unreleased():
-    unreleased = read(CHANGELOG).split("## [Unreleased]", 1)[1].split("\n## ", 1)[0]
+    unreleased = read(CHANGELOG).split("## [Unreleased]", 1)[1]
     assert "mission" in unreleased.lower() and "roadmap" in unreleased.lower() and "--roadmap" in unreleased

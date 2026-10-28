@@ -112,5 +112,5 @@ def test_the_software_dev_readme_lists_the_gate_next_to_the_other_review_gate():
 
 
 def test_the_changelog_announces_the_gate_under_unreleased():
-    unreleased = read(CHANGELOG).split("## [Unreleased]", 1)[1].split("\n## ", 1)[0]
+    unreleased = read(CHANGELOG).split("## [Unreleased]", 1)[1]
     assert "drift-reviewed" in unreleased

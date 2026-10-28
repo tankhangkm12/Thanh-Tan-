@@ -1,6 +1,6 @@
 """The approval checklist: a file a person ticks before ``task approve`` moves a step on.
 
-``.agentflow/tasks/<task>/approve-<step>.md`` is written when a step passes into ``awaiting_approval``:
+``.ThanhTan/tasks/<task>/approve-<step>.md`` is written when a step passes into ``awaiting_approval``:
 
     # Duyệt bước <step> của <task>
     - task: T-001

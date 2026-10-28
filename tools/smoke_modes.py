@@ -168,9 +168,9 @@ def small_task(s: Session, repo: Path) -> None:
     waiting = s.af("task", "advance", "--result", "pass")  # review
     expect("awaiting_approval" in waiting.stdout, "review of a small task still waits for a person", waiting.stdout)
     s.approve()
-    latest = sorted((repo / ".agentflow" / "tasks").glob("T-*/summary.md"))[-1].read_text(encoding=ENCODING)
+    latest = sorted((repo / ".ThanhTan" / "tasks").glob("T-*/summary.md"))[-1].read_text(encoding=ENCODING)
     expect("- Size: small" in latest, "summary.md records the size", latest[:200])
-    state = json.loads((repo / ".agentflow" / "state.json").read_text(encoding=ENCODING))
+    state = json.loads((repo / ".ThanhTan" / "state.json").read_text(encoding=ENCODING))
     expect(state["tasks"][-1]["size"] == "small" and state["tasks"][-1]["status"] == "done", "state.json records the size")
 
 
@@ -182,7 +182,7 @@ def main() -> int:
     repo = base / "sample"
     repo.mkdir()
     os.environ["GIT_CEILING_DIRECTORIES"] = str(base)
-    os.environ["AGENTFLOW_HOME"] = str(base / "user-home")  # nothing here may touch the real ~/.agentflow
+    os.environ["AGENTFLOW_HOME"] = str(base / "user-home")  # nothing here may touch the real ~/.ThanhTan
     try:
         s = Session(repo)
         s.git("init", "-q", "-b", MAIN)

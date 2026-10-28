@@ -34,7 +34,7 @@ from agentflow.constants import (
     IN_FLIGHT_TASK_STATUSES,
     STATE_FILE,
     TASKS_DIR,
-    WORKSPACE_DIR,
+    WORKSPACE_DIR_NAMES,
     ExitCode,
 )
 from agentflow.errors import AgentflowError
@@ -189,7 +189,7 @@ def _listing(root: Path, *args: str) -> list[str]:
 def project_files(root: Path) -> list[str]:
     """Tracked files and untracked files that git does not ignore."""
     names = dict.fromkeys([*_listing(root), *_listing(root, "--others", "--exclude-standard")])
-    return [name for name in names if not name.startswith(WORKSPACE_DIR + "/")]
+    return [name for name in names if not name.startswith(tuple(f"{folder}/" for folder in WORKSPACE_DIR_NAMES))]
 
 
 def is_committed(root: Path, path: str) -> bool:

@@ -1,6 +1,6 @@
 """``agentflow role``: tools a person grants a role for this project, and the Claude Code agents that carry them.
 
-Grants live in ``.agentflow/config.yaml``. For Claude Code each grant becomes a project-level copy of the role's plugin
+Grants live in ``.ThanhTan/config.yaml``. For Claude Code each grant becomes a project-level copy of the role's plugin
 agents (see ``overlay.py``). Antigravity needs none: its agents already see every MCP server that is installed, so a
 grant is only recorded there, to keep the two CLIs' settings the same.
 """

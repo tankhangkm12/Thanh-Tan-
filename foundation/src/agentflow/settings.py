@@ -1,4 +1,4 @@
-"""Project settings: the ``settings`` section of ``.agentflow/config.yaml``, which extensions read."""
+"""Project settings: the ``settings`` section of ``.ThanhTan/config.yaml``, which extensions read."""
 
 import copy
 from collections.abc import Mapping, Sequence

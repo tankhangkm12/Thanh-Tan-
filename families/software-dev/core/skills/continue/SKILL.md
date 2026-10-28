@@ -4,7 +4,7 @@ description: Continue the active software-dev task with agentflow. Use when a ta
 ---
 # Continue the active task
 
-Use `agentflow` for everything below. Never create or edit files under `.agentflow/` by hand.
+Use `agentflow` for everything below. Never create or edit files under `.ThanhTan/` by hand.
 
 Run every `agentflow` command on its own, as a single command line. Never join commands with `&&`, `;` or `|`. Reports are saved with the `report_write` tool; only when the tool is not available, send the Markdown to `agentflow report --step <step>` on standard input with a quoted heredoc (`<<'EOF'`), not a pipe.
 
@@ -16,8 +16,8 @@ Repeat these until one of the stop conditions below:
 
 1. Run `agentflow next`. Its first word tells you what to do:
    - `start_task`: there is no active task; use the start skill.
-   - `await_approval`: a person has to approve the step. Tell them which step, where its report is and where its checklist is (`.agentflow/tasks/<task>/approve-<step>.md`, written when the step passed; they tick it before approving), then stop. The approve skill handles it. Never approve a step yourself.
-   - `blocked`: the task failed too many times. Show the person the latest reports in `.agentflow/tasks/<task>/reports/`, say the options (approve to resume, or cancel) and stop.
+   - `await_approval`: a person has to approve the step. Tell them which step, where its report is and where its checklist is (`.ThanhTan/tasks/<task>/approve-<step>.md`, written when the step passed; they tick it before approving), then stop. The approve skill handles it. Never approve a step yourself.
+   - `blocked`: the task failed too many times. Show the person the latest reports in `.ThanhTan/tasks/<task>/reports/`, say the options (approve to resume, or cancel) and stop.
    - `continue`: work on the named step, as below, then go back to 1.
 2. Make sure you are on the task's branch (shown by `agentflow status`). If not, switch with `git switch <branch>`.
 3. Hand the step to the role that owns it, in Claude Code by calling the agent of that name and in Antigravity by using the agent of the same name:
@@ -40,7 +40,7 @@ Repeat these until one of the stop conditions below:
 
    **Back at implement after a failure:** when `agentflow status` shows the task at `implement` with `rework rounds:` 2 or more (the task failed at test, security or review at least twice), call the `debugger` agent first. Give it the task code and tell it to read the latest failing report. It saves a diagnosis for this round (`agentflow diagnosis list` shows it). Then give the implementer agents the diagnosis as well as the failing report, and tell them to fix the cause it names rather than the symptom. In round 1 skip the debugger: the failing report is usually enough.
 
-   **implement:** read the conventions (`conventions` tool or `agentflow conventions`) and the approved plan (`.agentflow/tasks/<task>/reports/plan.md`). Take its items in order. Run `agentflow plan assign --cli claude` in Claude Code (`--cli antigravity` in Antigravity): it prints one line per item, `<code> <role> <tier> <agent>`, and the agent is the one to call for that item. The `implementer` role has two agents, `implementer-fast` (a quicker, cheaper setting: Sonnet at low effort in Claude Code, the flash model in Antigravity) for items with `tier: fast` and `implementer-deep` (the stronger setting: Sonnet at high effort in Claude Code, the pro model in Antigravity) for `tier: deep` or no tier; a role without tiers (plugins add roles of their own) has just one agent, with the model and effort its plugin gave it, whatever the item's tier. In Claude Code the agent may be a `project-…` copy of the plugin agent, made by `agentflow role grant`: it has the extra tools the person granted the role for this project, so call exactly the name printed. Where the CLI lets you choose the model when you call an agent, do not override the agent's own: the tier is already in the agent. Tell the agent the item code, so it commits with `--item <code>`. Keep going through all the items without stopping; the tier only decides which agent does an item. Give the last item's agent the extra job of saving the implement summary and recording the step as passed. If a skill of an installed plugin fits an item, tell the agent to use it.
+   **implement:** read the conventions (`conventions` tool or `agentflow conventions`) and the approved plan (`.ThanhTan/tasks/<task>/reports/plan.md`). Take its items in order. Run `agentflow plan assign --cli claude` in Claude Code (`--cli antigravity` in Antigravity): it prints one line per item, `<code> <role> <tier> <agent>`, and the agent is the one to call for that item. The `implementer` role has two agents, `implementer-fast` (a quicker, cheaper setting: Sonnet at low effort in Claude Code, the flash model in Antigravity) for items with `tier: fast` and `implementer-deep` (the stronger setting: Sonnet at high effort in Claude Code, the pro model in Antigravity) for `tier: deep` or no tier; a role without tiers (plugins add roles of their own) has just one agent, with the model and effort its plugin gave it, whatever the item's tier. In Claude Code the agent may be a `project-…` copy of the plugin agent, made by `agentflow role grant`: it has the extra tools the person granted the role for this project, so call exactly the name printed. Where the CLI lets you choose the model when you call an agent, do not override the agent's own: the tier is already in the agent. Tell the agent the item code, so it commits with `--item <code>`. Keep going through all the items without stopping; the tier only decides which agent does an item. Give the last item's agent the extra job of saving the implement summary and recording the step as passed. If a skill of an installed plugin fits an item, tell the agent to use it.
 4. After the role finishes, run `agentflow status`. A pass that needs no approval means: go back to 1 straight away. Do not ask the person whether to continue.
 
 ## Stop conditions
@@ -50,7 +50,7 @@ Stop and tell the person where things stand only when:
 - the next action is `await_approval` or `blocked`;
 - a question is genuinely theirs to decide (do not guess);
 - a command was refused for a reason you cannot fix (for example a gate or an unavailable container engine);
-- the task is done. Say that `.agentflow/tasks/<task>/summary.md` has the summary, that `.agentflow/tasks/<task>/spec-delta.md` shows what the task changed in the specification, and that the approval tag `agentflow/<task>/approved` is on the task branch. Offer the replan skill (`replan`) before the next task. Merging and pushing are the person's job.
+- the task is done. Say that `.ThanhTan/tasks/<task>/summary.md` has the summary, that `.ThanhTan/tasks/<task>/spec-delta.md` shows what the task changed in the specification, and that the approval tag `agentflow/<task>/approved` is on the task branch. Offer the replan skill (`replan`) before the next task. Merging and pushing are the person's job.
 
 A failing test, security or review step sends the task back to `implement` by itself; after 3 rounds the task is blocked.
 

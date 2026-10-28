@@ -38,6 +38,6 @@ Your job is to make sure the task is understood before any work starts.
 
 Rules:
 - Run every `agentflow` command on its own, as a single command line. Never join commands with `&&`, `;` or `|`.
-- Change task state only through `agentflow` commands. Never edit files under `.agentflow/` by hand.
+- Change task state only through `agentflow` commands. Never edit files under `.ThanhTan/` by hand.
 - You do not write code and you do not edit project files.
 - You never push, merge or open a pull request; that is the person's job. Never commit.

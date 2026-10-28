@@ -241,7 +241,7 @@ def test_other_agentflow_commands_are_allowed():
         assert in_project(command).decision is GuardDecision.ALLOW, command
 
 
-# ----------------------------------------------------- shell writes into .agentflow/
+# ----------------------------------------------------- shell writes into .ThanhTan/
 
 
 class AnyBranch:
@@ -254,8 +254,8 @@ class AnyBranch:
 
 @pytest.fixture
 def repo(tmp_path):
-    (tmp_path / ".agentflow").mkdir()
-    (tmp_path / ".agentflow" / "config.yaml").write_text("x", encoding="utf-8")
+    (tmp_path / ".ThanhTan").mkdir()
+    (tmp_path / ".ThanhTan" / "config.yaml").write_text("x", encoding="utf-8")
     return tmp_path
 
 
@@ -264,45 +264,45 @@ def shell(repo, command):
 
 
 WRITES_DENIED = [
-    "echo x > .agentflow/decisions/a.md",
-    "echo x>.agentflow/decisions/a.md",
-    "echo x >> .agentflow/decisions/a.md",
-    "echo x >| .agentflow/decisions/a.md",
-    "echo x &> .agentflow/log",
-    "echo x 2> .agentflow/err",
-    "printf 'a' >\".agentflow/decisions/a.md\"",
-    "cat notes.txt | tee .agentflow/decisions/a.md",
-    "tee -a .agentflow/decisions/a.md < notes.txt",
-    "cp notes.txt .agentflow/decisions/a.md",
-    "cp -r notes .agentflow/decisions/",
-    "cp -t .agentflow/decisions notes.txt",
-    "mv notes.txt .agentflow/decisions/a.md",
-    "mv .agentflow/state.json /tmp/stolen",
-    "rm .agentflow/state.json",
-    "rm -rf .agentflow",
-    "touch .agentflow/decisions/a.md",
-    "truncate -s 0 .agentflow/state.json",
-    "sed -i s/a/b/ .agentflow/state.json",
-    "dd if=/dev/zero of=.agentflow/state.json",
-    "ls && echo x > ./.agentflow/../.agentflow/decisions/a.md",
-    "cd .agentflow && echo x > decisions/a.md",
-    "cd src; echo x > ../.agentflow/decisions/a.md",
-    "bash -c 'echo x > .agentflow/decisions/a.md'",
-    'powershell -Command "Set-Content .agentflow/decisions/a.md x"',
-    r"Set-Content -Path .agentflow\decisions\a.md -Value x",
+    "echo x > .ThanhTan/decisions/a.md",
+    "echo x>.ThanhTan/decisions/a.md",
+    "echo x >> .ThanhTan/decisions/a.md",
+    "echo x >| .ThanhTan/decisions/a.md",
+    "echo x &> .ThanhTan/log",
+    "echo x 2> .ThanhTan/err",
+    "printf 'a' >\".ThanhTan/decisions/a.md\"",
+    "cat notes.txt | tee .ThanhTan/decisions/a.md",
+    "tee -a .ThanhTan/decisions/a.md < notes.txt",
+    "cp notes.txt .ThanhTan/decisions/a.md",
+    "cp -r notes .ThanhTan/decisions/",
+    "cp -t .ThanhTan/decisions notes.txt",
+    "mv notes.txt .ThanhTan/decisions/a.md",
+    "mv .ThanhTan/state.json /tmp/stolen",
+    "rm .ThanhTan/state.json",
+    "rm -rf .ThanhTan",
+    "touch .ThanhTan/decisions/a.md",
+    "truncate -s 0 .ThanhTan/state.json",
+    "sed -i s/a/b/ .ThanhTan/state.json",
+    "dd if=/dev/zero of=.ThanhTan/state.json",
+    "ls && echo x > ./.ThanhTan/../.ThanhTan/decisions/a.md",
+    "cd .ThanhTan && echo x > decisions/a.md",
+    "cd src; echo x > ../.ThanhTan/decisions/a.md",
+    "bash -c 'echo x > .ThanhTan/decisions/a.md'",
+    'powershell -Command "Set-Content .ThanhTan/decisions/a.md x"',
+    r"Set-Content -Path .ThanhTan\decisions\a.md -Value x",
 
-    "Add-Content -Path .agentflow/decisions/a.md -Value x",
-    "Out-File -FilePath .agentflow/decisions/a.md",
-    "'x' | Out-File .agentflow/decisions/a.md",
-    "echo x > .agentflow/decisions/a.md",
-    "New-Item -ItemType File .agentflow/decisions/a.md",
-    "ni .agentflow/decisions/a.md",
-    "Remove-Item -Recurse -Force .agentflow",
-    "ri .agentflow/state.json",
-    "Clear-Content .agentflow/state.json",
-    "Copy-Item notes.txt -Destination .agentflow/decisions/a.md",
-    "Move-Item .agentflow/state.json elsewhere",
-    r"del .agentflow\state.json",
+    "Add-Content -Path .ThanhTan/decisions/a.md -Value x",
+    "Out-File -FilePath .ThanhTan/decisions/a.md",
+    "'x' | Out-File .ThanhTan/decisions/a.md",
+    "echo x > .ThanhTan/decisions/a.md",
+    "New-Item -ItemType File .ThanhTan/decisions/a.md",
+    "ni .ThanhTan/decisions/a.md",
+    "Remove-Item -Recurse -Force .ThanhTan",
+    "ri .ThanhTan/state.json",
+    "Clear-Content .ThanhTan/state.json",
+    "Copy-Item notes.txt -Destination .ThanhTan/decisions/a.md",
+    "Move-Item .ThanhTan/state.json elsewhere",
+    r"del .ThanhTan\state.json",
 ]
 
 
@@ -313,27 +313,27 @@ def test_shell_writes_into_the_workspace_are_denied(repo, command):
 
 
 WRITES_ALLOWED = [
-    "cat .agentflow/state.json",
-    "ls .agentflow/decisions",
-    "grep -r x .agentflow",
-    "cp .agentflow/state.json /tmp/copy.json",
-    "Copy-Item .agentflow/state.json -Destination copy.json",
+    "cat .ThanhTan/state.json",
+    "ls .ThanhTan/decisions",
+    "grep -r x .ThanhTan",
+    "cp .ThanhTan/state.json /tmp/copy.json",
+    "Copy-Item .ThanhTan/state.json -Destination copy.json",
     "echo x > notes.txt",
     "echo x > /dev/null",
     "make 2>&1 | tee build.log",
     "tee build.log < notes.txt",
     "rm notes.txt",
     "mv a.txt b.txt",
-    "echo .agentflow > ignore.txt",
+    "echo .ThanhTan > ignore.txt",
 
-    "cp a.txt src/.agentflow-notes/a.txt",
+    "cp a.txt src/.ThanhTan-notes/a.txt",
     "agentflow report --step plan",
     "agentflow status",
     "git status",
     "Set-Content notes.txt x",
     # A heredoc body is data for the command that reads it, whatever characters it holds.
-    "agentflow report --step plan <<'EOF'\n### C1 - a > .agentflow/x\n- done-when: `echo y > .agentflow/z`\nEOF",
-    "agentflow report --step plan <<-EOF\n\tcp a .agentflow/b\n\tEOF\necho done",
+    "agentflow report --step plan <<'EOF'\n### C1 - a > .ThanhTan/x\n- done-when: `echo y > .ThanhTan/z`\nEOF",
+    "agentflow report --step plan <<-EOF\n\tcp a .ThanhTan/b\n\tEOF\necho done",
 ]
 
 
@@ -343,9 +343,9 @@ def test_other_shell_commands_are_allowed(repo, command):
 
 
 def test_a_command_after_a_heredoc_is_still_checked(repo):
-    command = "agentflow report --step plan <<'EOF'\nbody\nEOF\necho x > .agentflow/decisions/a.md"
+    command = "agentflow report --step plan <<'EOF'\nbody\nEOF\necho x > .ThanhTan/decisions/a.md"
     assert shell(repo, command).rule == GuardRule.WORKSPACE_WRITE
 
 
 def test_without_a_workspace_nothing_is_protected(tmp_path):
-    assert not evaluate("echo x > .agentflow/decisions/a.md", tmp_path, AnyBranch()).denied
+    assert not evaluate("echo x > .ThanhTan/decisions/a.md", tmp_path, AnyBranch()).denied

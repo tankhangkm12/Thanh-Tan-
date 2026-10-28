@@ -70,10 +70,10 @@ class Session:
 
     def approve(self, *extra: str, ok: bool = True) -> subprocess.CompletedProcess[str]:
         """What a person does: tick the checklist of the step that waits (when agentflow wrote one), then approve."""
-        state = json.loads((self.repo / ".agentflow" / "state.json").read_text(encoding="utf-8"))
+        state = json.loads((self.repo / ".ThanhTan" / "state.json").read_text(encoding="utf-8"))
         task = next((t for t in state["tasks"] if t["id"] == state["active_task_id"]), None)
         if task is not None and task["step_status"] == "awaiting_approval":
-            path = self.repo / ".agentflow" / "tasks" / task["id"] / f"approve-{task['current_step']}.md"
+            path = self.repo / ".ThanhTan" / "tasks" / task["id"] / f"approve-{task['current_step']}.md"
             if path.is_file():
                 lines = path.read_text(encoding="utf-8").splitlines(keepends=True)
                 ticked = [line.replace("- [ ]", "- [x]", 1) if re.match(r"- \[ \] (?!\(tùy chọn\))", line) else line for line in lines]
@@ -83,9 +83,9 @@ class Session:
     def test_first(self) -> None:
         """What the tester does at the test-spec step: a check that fails until a planned file exists, committed, reported,
         run again by agentflow (it must fail), then approved by a person. Sets the project's test command on the way."""
-        state = json.loads((self.repo / ".agentflow" / "state.json").read_text(encoding="utf-8"))
+        state = json.loads((self.repo / ".ThanhTan" / "state.json").read_text(encoding="utf-8"))
         task = next(t for t in state["tasks"] if t["id"] == state["active_task_id"])
-        plan = (self.repo / ".agentflow" / "tasks" / task["id"] / "reports" / "plan.md").read_text(encoding="utf-8")
+        plan = (self.repo / ".ThanhTan" / "tasks" / task["id"] / "reports" / "plan.md").read_text(encoding="utf-8")
         codes = re.findall(r"^### (C\d+)\b", plan, flags=re.M)
         files = re.findall(r"^- files:\s*(.+)$", plan, flags=re.M)
         planned = [name.strip() for line in files for name in line.split(",") if name.strip()]

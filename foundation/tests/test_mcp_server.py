@@ -98,7 +98,7 @@ def test_plan_check_returns_problems_as_data(server, repo):
 
 def test_project_write_takes_only_the_known_sections(server, repo):
     ok = call(server, "project_write", section="profile", content="# Profile")
-    assert not ok.is_error and (repo / ".agentflow" / "project" / "profile.md").is_file()
+    assert not ok.is_error and (repo / ".ThanhTan" / "project" / "profile.md").is_file()
     assert call(server, "project_write", section="secrets", content="x").is_error
     assert call(server, "project_write", section="profile", content=" ").is_error
     main(["task", "new", "t"])
@@ -107,7 +107,7 @@ def test_project_write_takes_only_the_known_sections(server, repo):
 
 
 def test_knowledge_tools(server, repo):
-    folder = repo / ".agentflow" / "knowledge"
+    folder = repo / ".ThanhTan" / "knowledge"
     folder.mkdir(exist_ok=True)
     (folder / "tips.md").write_text("Use constants.\nNo magic strings.\n", encoding="utf-8")
     hits = call(server, "knowledge_search", query="magic").structured_content["result"]

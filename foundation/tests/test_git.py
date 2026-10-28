@@ -32,9 +32,9 @@ def test_is_clean_counts_untracked_modified_and_staged(client, gitflow_repo):
 
 
 def test_ignored_files_do_not_make_the_tree_dirty(client, gitflow_repo):
-    (gitflow_repo / ".git" / "info" / "exclude").write_text(".agentflow/\n", encoding="utf-8")
-    (gitflow_repo / ".agentflow").mkdir()
-    (gitflow_repo / ".agentflow" / "state.json").write_text("{}", encoding="utf-8")
+    (gitflow_repo / ".git" / "info" / "exclude").write_text(".ThanhTan/\n", encoding="utf-8")
+    (gitflow_repo / ".ThanhTan").mkdir()
+    (gitflow_repo / ".ThanhTan" / "state.json").write_text("{}", encoding="utf-8")
     assert client.is_clean()
 
 

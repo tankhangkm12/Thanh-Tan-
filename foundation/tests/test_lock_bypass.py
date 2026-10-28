@@ -8,7 +8,7 @@ that runs the tests. Every move below is tried twice:
    ``git mv``, ``agentflow config set``) it must deny;
 2. whatever the hook said, the move is then carried out directly (this is what a script or a program the hook cannot read
    does), and the step must notice: ``agentflow tests check`` and ``task advance`` fail with exit 25 naming the file, or
-   (for the test command, which lives in ``.agentflow/config.yaml``) ``task advance`` fails with exit 37.
+   (for the test command, which lives in ``.ThanhTan/config.yaml``) ``task advance`` fails with exit 37.
 
 The honest part: the hook reads a fixed list of commands. ``python -c``, ``node -e``, ``perl -pi``, ``patch``,
 ``git apply``, a script the agent wrote, and anything else that writes a file are not read, so for them only the second
@@ -108,7 +108,7 @@ def create(name: str, text: str = CONFTEST_SKIP) -> Callable[[Path], None]:
 
 
 def edit_setting(key: str, value) -> Callable[[Path], None]:
-    """What a script does to ``.agentflow/config.yaml``: read it, change a setting, write it back."""
+    """What a script does to ``.ThanhTan/config.yaml``: read it, change a setting, write it back."""
 
     def effect(repo: Path) -> None:
         path = workspace(repo) / "config.yaml"
@@ -176,11 +176,11 @@ WAYS = [
     Way("a new jest.config.js", {"tool": "Write", "path": "jest.config.js"}, create("jest.config.js", "module.exports = {testMatch: []};\n"), ("jest.config.js",), True),
     Way("a new vitest.config.ts", {"command": "touch vitest.config.ts"}, create("vitest.config.ts", "export default {};\n"), ("vitest.config.ts",), True),
     Way("a new package.json whose test script does nothing", {"tool": "Write", "path": "sub/package.json"}, create("sub/package.json", '{"scripts": {"test": "true"}}\n'), ("sub/package.json",)),
-    # --- the test command lives in .agentflow/config.yaml
+    # --- the test command lives in .ThanhTan/config.yaml
     Way("agentflow config set test_command", {"command": 'agentflow config set test_command "true"'}, edit_setting("test_command", "true"), ("config.yaml",), True, "settings"),
     Way("uv run agentflow config set test_command", {"command": 'uv run agentflow config set test_command "true"'}, edit_setting("test_command", "true"), ("config.yaml",), True, "settings"),
-    Way("Write on config.yaml", {"tool": "Write", "path": ".agentflow/config.yaml"}, edit_setting("test_command", "true"), ("config.yaml",), True, "settings"),
-    Way("sed -i on config.yaml", {"command": "sed -i 's/tests\\/green.py/-c pass/' .agentflow/config.yaml"}, edit_setting("test_command", f"{EXE} -c pass"), ("config.yaml",), True, "settings"),
+    Way("Write on config.yaml", {"tool": "Write", "path": ".ThanhTan/config.yaml"}, edit_setting("test_command", "true"), ("config.yaml",), True, "settings"),
+    Way("sed -i on config.yaml", {"command": "sed -i 's/tests\\/green.py/-c pass/' .ThanhTan/config.yaml"}, edit_setting("test_command", f"{EXE} -c pass"), ("config.yaml",), True, "settings"),
     # --- the moves the hook cannot read: only the hashes see them
     Way("python -c empties the test", {"command": f"python -c \"open('{LOCKED}','w').write('')\""}, empty(LOCKED), (LOCKED,)),
     Way("python -c deletes the test", {"command": f"python -c \"import os; os.remove('{LOCKED}')\""}, delete(LOCKED), (LOCKED,)),
@@ -194,7 +194,7 @@ WAYS = [
     Way("git apply softens the test", {"command": "git apply soften.diff"}, WEAKEN_FLIP, (LOCKED,)),
     Way("a hard link writes through to the test", {"command": "echo x > link.py"}, hard_link_write(LOCKED), (LOCKED,)),
     Way("a script the agent wrote softens the test", {"command": "python tests/hack.py"}, WEAKEN_FLIP, (LOCKED,)),
-    Way("python -c edits config.yaml", {"command": "python -c \"import yaml; yaml.safe_dump({}, open('.agentflow/config.yaml','w'))\""}, edit_setting("test_command", "true"), ("config.yaml",), False, "settings"),
+    Way("python -c edits config.yaml", {"command": "python -c \"import yaml; yaml.safe_dump({}, open('.ThanhTan/config.yaml','w'))\""}, edit_setting("test_command", "true"), ("config.yaml",), False, "settings"),
     Way("a script edits config.yaml", {"command": "python tests/hack.py"}, edit_setting("test_command", f"{EXE} -c pass"), ("config.yaml",), False, "settings"),
 ]
 

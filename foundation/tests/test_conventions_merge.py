@@ -45,7 +45,7 @@ PERSONAL = """### KC-01 - Small commits
 
 @pytest.fixture
 def workspace(tmp_path):
-    root = tmp_path / ".agentflow"
+    root = tmp_path / ".ThanhTan"
     (root / "decisions").mkdir(parents=True)
     (root / "project").mkdir()
     (root / "knowledge").mkdir()

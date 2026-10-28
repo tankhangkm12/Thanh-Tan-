@@ -27,7 +27,7 @@ Nhóm plugin phục vụ phát triển phần mềm. `dev-core` giữ chuẩn ch
 | 6 | `security`: kiểm tra bảo mật | security | không | quay về `implement` |
 | 7 | `review`: review | reviewer | có | quay về `implement` |
 
-Không có bước "loop" riêng: fail ở `test`/`security`/`review` quay thẳng về `implement` và đếm vòng. Hết 3 vòng (`max_rounds`) task chuyển `blocked`, chỉ người mới cho làm tiếp (`agentflow task approve`, được ghi lại trong `.agentflow/decisions/`) hoặc hủy (`agentflow task cancel`).
+Không có bước "loop" riêng: fail ở `test`/`security`/`review` quay thẳng về `implement` và đếm vòng. Hết 3 vòng (`max_rounds`) task chuyển `blocked`, chỉ người mới cho làm tiếp (`agentflow task approve`, được ghi lại trong `.ThanhTan/decisions/`) hoặc hủy (`agentflow task cancel`).
 
 Chỉ role `implementer` sửa code. `tester` chỉ ghi vào thư mục test; `orchestrator`, `planner`, `security`, `reviewer` không có tool sửa file và ghi báo cáo qua tool MCP `report_write` (dự phòng: `agentflow report`).
 

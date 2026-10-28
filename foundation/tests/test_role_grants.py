@@ -209,7 +209,7 @@ def test_grant_makes_a_project_agent_per_tier_and_keeps_it_out_of_git(ws, capsys
     assert "mcp__fake__*" in (ws / ".claude" / "agents" / "project-builder-fast.md").read_text(encoding="utf-8")
     assert subprocess.run(["git", "status", "--porcelain"], cwd=ws, capture_output=True, text=True).stdout == ""  # excluded
     assert ".claude/agents/project-*.md" in (ws / ".git" / "info" / "exclude").read_text(encoding="utf-8")
-    config = yaml.safe_load((ws / ".agentflow" / "config.yaml").read_text(encoding="utf-8"))
+    config = yaml.safe_load((ws / ".ThanhTan" / "config.yaml").read_text(encoding="utf-8"))
     assert config["role_grants"] == {"builder": ["mcp__fake__*"]}
 
 

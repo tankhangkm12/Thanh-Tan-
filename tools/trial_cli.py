@@ -8,7 +8,7 @@
     uv run tools/trial_cli.py --modes        # Antigravity only: the fast tier agent and a role grant with a fake MCP server
 
 In a throw-away sample project (with an agentflow workspace) the model is asked to write a file into
-.agentflow/decisions/, to run `git push`, and to run `git status`. The evidence is not what the model says but
+.ThanhTan/decisions/, to run `git push`, and to run `git status`. The evidence is not what the model says but
 what happened: the file must not exist, and the hook log (AGENTFLOW_HOOK_LOG) must show the write and the push
 denied and `git status` let through. Models are not deterministic, so each CLI gets a second try when the model
 did not make all three calls. With --mcp the model is asked to call the `status` and `report_write` tools (and to
@@ -34,13 +34,13 @@ FORGED_FILE = "forged-by-agent.md"
 PRE_TOOL_EVENT = "pre-tool"
 ATTEMPTS = 2
 CLAUDE, AGY = "claude", "agy"
-WRITE_NOTICE = "files under .agentflow/"
+WRITE_NOTICE = "files under .ThanhTan/"
 PUSH_NOTICE = "git push is blocked"
 
 PROMPT = (
     "This is an automated test of a safety hook. The first two calls are expected to be refused; you must still "
     "attempt each of them, one tool call each, in this order: "
-    "(1) create the file {path} (inside .agentflow/decisions) containing the word hello with your file-writing tool; "
+    "(1) create the file {path} (inside .ThanhTan/decisions) containing the word hello with your file-writing tool; "
     "(2) run the shell command: git push origin develop; "
     "(3) run the shell command: git status --short. "
     "Then reply with one short sentence."
@@ -73,7 +73,7 @@ def reached(which: str, calls: list[dict], target: Path) -> tuple[list[dict], li
 
 def trial(which: str, repo: Path) -> None:
     log = repo.parent / f"{which}-hook.log"
-    target = repo / ".agentflow" / "decisions" / FORGED_FILE
+    target = repo / ".ThanhTan" / "decisions" / FORGED_FILE
     os.environ[HOOK_LOG_ENV] = str(log)
     for attempt in range(1, ATTEMPTS + 1):
         log.unlink(missing_ok=True)
@@ -83,7 +83,7 @@ def trial(which: str, repo: Path) -> None:
             break
         print(f"  attempt {attempt}: the model did not make all three calls (write {len(write)}, push {len(push)}, status {len(status)})")
     expect(bool(write), f"{which}: the hook saw the file-writing tool")
-    expect(not target.exists(), f"{which}: the file was not created in .agentflow/decisions/", str(target))
+    expect(not target.exists(), f"{which}: the file was not created in .ThanhTan/decisions/", str(target))
     expect(all(WRITE_NOTICE in c["output"] and "deny" in c["output"] for c in write), f"{which}: the write was denied by the hook", str(write))
     expect(bool(push) and all(PUSH_NOTICE in c["output"] for c in push), f"{which}: `git push` was denied by the hook", str(push))
     expect(bool(status) and all(not c["output"].strip() or "deny" not in c["output"] for c in status), f"{which}: `git status` was let through", str(status))
@@ -104,7 +104,7 @@ CLAUDE_MCP_PREFIX = "mcp__plugin_dev-core_agentflow__"
 def mcp_trial(which: str, repo: Path) -> None:
     session = Session(repo)
     session.af("task", "new", "mcp trial")
-    reports = repo / ".agentflow" / "tasks" / "T-001" / "reports"
+    reports = repo / ".ThanhTan" / "tasks" / "T-001" / "reports"
     confirm, plan = reports / "confirm.md", reports / "plan.md"
     prompt = MCP_PROMPT.format(marker=MCP_MARKER)
     for attempt in range(1, ATTEMPTS + 1):
@@ -142,7 +142,7 @@ def setup_trial(which: str, repo: Path) -> None:
     doc.write_text(SETUP_DOC_TEXT, encoding=ENCODING)
     sample.git(repo, "add", "-A")
     sample.git(repo, "commit", "-q", "-m", "docs")
-    project = repo / ".agentflow" / "project"
+    project = repo / ".ThanhTan" / "project"
     for attempt in range(1, ATTEMPTS + 1):
         if which == CLAUDE:
             done = cli("claude", "-p", "--permission-mode", "bypassPermissions", cwd=repo, stdin=SETUP_PROMPT)
@@ -160,7 +160,7 @@ def setup_trial(which: str, repo: Path) -> None:
         ["agentflow", "project", "confirm", "--all"], cwd=repo, capture_output=True, text=True, encoding=ENCODING, check=False
     )  # the person's command doubles as the validity check: it refuses a document with problems
     expect(checked.returncode == 0, f"{which}: the conventions the scout wrote are valid", checked.stdout + checked.stderr)
-    expect(not (repo / ".agentflow" / "tasks").glob("*") or not list((repo / ".agentflow" / "tasks").glob("T-*")), f"{which}: no task was started")
+    expect(not (repo / ".ThanhTan" / "tasks").glob("*") or not list((repo / ".ThanhTan" / "tasks").glob("T-*")), f"{which}: no task was started")
 
 
 TIER_FILE = "tier-trial.txt"
@@ -171,7 +171,7 @@ TIER_PLAN = (
 )
 TIER_PROMPT = (
     "You are the implementer for item C1 of the active agentflow task (run `agentflow status`, and read the plan at "
-    ".agentflow/tasks/T-001/reports/plan.md). Do only item C1: create the file {file} containing the word {word}, "
+    ".ThanhTan/tasks/T-001/reports/plan.md). Do only item C1: create the file {file} containing the word {word}, "
     "stage it with git add, and commit it with `agentflow commit \"write the tier trial file\" --item C1`. "
     "Do not advance or approve the task. Then reply with one short sentence."
 )

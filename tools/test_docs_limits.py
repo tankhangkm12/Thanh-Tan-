@@ -68,7 +68,7 @@ def test_the_antigravity_section_says_there_is_no_ask_rule_and_what_remains_when
 def test_the_antigravity_section_lists_the_other_layers_that_still_hold(name):
     body = find(name, "Antigravity", "giới hạn")
     assert "agentflow commit" in body
-    assert re.search(r"\.agentflow/", body)
+    assert re.search(r"\.ThanhTan/", body)
     assert re.search(r"secret|bí mật", body, flags=re.I)
 
 

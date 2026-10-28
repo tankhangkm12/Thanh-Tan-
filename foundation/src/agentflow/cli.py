@@ -178,7 +178,7 @@ def build_parser() -> argparse.ArgumentParser:
     ext_sync.add_argument("name", nargs="?", help="only this extension")
     ext_sync.add_argument(FORCE_OPTION, action="store_true", help="sync even while tasks are in progress")
 
-    config = commands.add_parser(Command.CONFIG, help="project settings that extensions read (.agentflow/config.yaml)")
+    config = commands.add_parser(Command.CONFIG, help="project settings that extensions read (.ThanhTan/config.yaml)")
     config_commands = config.add_subparsers(dest="config_command", metavar="<config command>", required=True)
     config_get = config_commands.add_parser(ConfigCommand.GET, help="print a setting (exit 29 when it is not set)")
     config_get.add_argument("key", help="dotted key, for example area.group.name")
@@ -237,7 +237,7 @@ def build_parser() -> argparse.ArgumentParser:
 
     commands.add_parser(Command.CONVENTIONS, help="the conventions to work to: decisions, project and personal store, merged")
 
-    project = commands.add_parser(Command.PROJECT, help="the project documents a scout wrote (.agentflow/project/)")
+    project = commands.add_parser(Command.PROJECT, help="the project documents a scout wrote (.ThanhTan/project/)")
     project_commands = project.add_subparsers(dest="project_command", metavar="<project command>", required=True)
     confirm = project_commands.add_parser(
         ProjectCommand.CONFIRM, help="for a person: confirm conventions (PC-01 ...), the mission, profile, architecture or roadmap items (R1 ...)"
@@ -246,7 +246,7 @@ def build_parser() -> argparse.ArgumentParser:
     confirm.add_argument("--all", action="store_true", dest="everything", help="confirm every convention (not the mission, profile, architecture or roadmap)")
     project_commands.add_parser(ProjectCommand.STATUS, help="which project documents exist and which a person has confirmed")
 
-    roadmap = commands.add_parser(Command.ROADMAP, help="the project's roadmap (.agentflow/project/roadmap.md)")
+    roadmap = commands.add_parser(Command.ROADMAP, help="the project's roadmap (.ThanhTan/project/roadmap.md)")
     roadmap_commands = roadmap.add_subparsers(dest="roadmap_command", metavar="<roadmap command>", required=True)
     roadmap_commands.add_parser(RoadmapCommand.LIST, help="the items with their status")
     roadmap_show = roadmap_commands.add_parser(RoadmapCommand.SHOW, help="one item with its goal and its documents (read-only)")
@@ -293,7 +293,7 @@ def build_parser() -> argparse.ArgumentParser:
     knowledge_commands = knowledge.add_subparsers(dest="knowledge_command", metavar="<knowledge command>", required=True)
     k_init = knowledge_commands.add_parser(KnowledgeCommand.INIT, help="for a person: create the store's folders and files")
     k_init.add_argument("--dir", type=Path, default=None, help="the store's folder (default: the one in the user config, else ~/knowledge)")
-    k_pull = knowledge_commands.add_parser(KnowledgeCommand.PULL, help="for a person: copy files of the store into .agentflow/knowledge/")
+    k_pull = knowledge_commands.add_parser(KnowledgeCommand.PULL, help="for a person: copy files of the store into .ThanhTan/knowledge/")
     k_pull.add_argument("files", nargs="+", metavar="FILE", help="paths inside the store")
     k_push = knowledge_commands.add_parser(KnowledgeCommand.PUSH, help="for a person: copy a lesson from the workspace into the store")
     k_push.add_argument("file", type=Path)
@@ -625,7 +625,7 @@ def _warn_replan(before: ReplanStatus) -> None:
         )
     elif before.state is ReplanState.PROPOSED:
         _err(
-            f"{WARNING_PREFIX}the replan of task {task} is only proposed: a person reads .agentflow/tasks/{task}/replan.md "
+            f"{WARNING_PREFIX}the replan of task {task} is only proposed: a person reads .ThanhTan/tasks/{task}/replan.md "
             f'and runs `agentflow replan done` (or `agentflow replan skip {task} --reason "..."`)'
         )
 
@@ -1072,7 +1072,7 @@ def cmd_project(args: argparse.Namespace) -> ExitCode:
     if conventions is not None and conventions.unconfirmed:
         print(f"still unconfirmed: {', '.join(conventions.unconfirmed)}")
     if conventions is not None and conventions.open_questions:
-        print(f"open questions: {', '.join(conventions.open_questions)} (see .agentflow/project/conventions.md)")
+        print(f"open questions: {', '.join(conventions.open_questions)} (see .ThanhTan/project/conventions.md)")
     return ExitCode.OK
 
 

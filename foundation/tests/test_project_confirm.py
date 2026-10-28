@@ -35,7 +35,7 @@ def ws(gitflow_repo, workflow_file, monkeypatch, capsys):
 
 
 def doc_path(ws):
-    return ws / ".agentflow" / "project" / "conventions.md"
+    return ws / ".ThanhTan" / "project" / "conventions.md"
 
 
 def put(ws, text=DOC):

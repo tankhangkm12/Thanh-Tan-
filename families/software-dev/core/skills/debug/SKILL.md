@@ -4,7 +4,7 @@ description: Find the root cause of a bug in a software-dev project before fixin
 ---
 # Debug a failure
 
-Use `agentflow` for everything below. Never create or edit files under `.agentflow/` by hand.
+Use `agentflow` for everything below. Never create or edit files under `.ThanhTan/` by hand.
 
 Run every `agentflow` command on its own, as a single command line. Never join commands with `&&`, `;` or `|`.
 

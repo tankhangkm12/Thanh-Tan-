@@ -1,7 +1,7 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "title": "agentflow state",
-  "description": "Content of .agentflow/state.json, the source of truth for workspace state. STATE.md is generated from it.",
+  "description": "Content of .ThanhTan/state.json, the source of truth for workspace state. STATE.md is generated from it.",
   "type": "object",
   "additionalProperties": false,
   "required": ["schema_version", "updated_at", "active_task_id", "tasks"],

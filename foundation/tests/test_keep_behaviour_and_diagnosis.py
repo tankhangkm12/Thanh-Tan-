@@ -75,11 +75,11 @@ def keep_repo(gitflow_repo, tmp_path, monkeypatch, capsys):
 
 
 def state(repo: Path) -> dict:
-    return json.loads((repo / ".agentflow" / "state.json").read_text(encoding="utf-8"))
+    return json.loads((repo / ".ThanhTan" / "state.json").read_text(encoding="utf-8"))
 
 
 def verify_record(repo: Path) -> dict:
-    return json.loads((repo / ".agentflow" / "tasks" / "T-001" / "verify-red.json").read_text(encoding="utf-8"))
+    return json.loads((repo / ".ThanhTan" / "tasks" / "T-001" / "verify-red.json").read_text(encoding="utf-8"))
 
 
 def spec_advance(repo, monkeypatch, capsys, *blocks: str) -> tuple[int, str, str]:
@@ -132,7 +132,7 @@ def test_a_refactor_or_chore_task_branches_from_develop_and_keeps_its_type(keep_
     assert state(keep_repo)["tasks"][0]["type"] == kind
     _code, out, _err = run(capsys, "status")
     assert f"type: {kind} (keeps the behaviour" in out
-    assert f"- Type: {kind}" in (keep_repo / ".agentflow" / "STATE.md").read_text(encoding="utf-8")
+    assert f"- Type: {kind}" in (keep_repo / ".ThanhTan" / "STATE.md").read_text(encoding="utf-8")
 
 
 def test_a_feature_task_keeps_its_type_too_and_says_nothing_more(keep_repo, monkeypatch, capsys):
@@ -144,7 +144,7 @@ def test_a_feature_task_keeps_its_type_too_and_says_nothing_more(keep_repo, monk
 
 def test_a_task_recorded_before_types_were_kept_still_loads(keep_repo, monkeypatch, capsys):
     assert say(monkeypatch, "task", "new", "Old one") == ExitCode.OK
-    path = keep_repo / ".agentflow" / "state.json"
+    path = keep_repo / ".ThanhTan" / "state.json"
     data = json.loads(path.read_text(encoding="utf-8"))
     del data["tasks"][0]["type"]
     path.write_text(json.dumps(data), encoding="utf-8")
@@ -278,4 +278,4 @@ def test_a_diagnosis_never_changes_the_task(keep_repo, monkeypatch, capsys):
     assert say(monkeypatch, "diagnosis", "write", text=DIAGNOSIS) == ExitCode.OK
     after = state(keep_repo)["tasks"][0]
     assert before == after
-    assert (keep_repo / ".agentflow" / "tasks" / "T-001" / "diagnoses" / "round-0.md").is_file()
+    assert (keep_repo / ".ThanhTan" / "tasks" / "T-001" / "diagnoses" / "round-0.md").is_file()

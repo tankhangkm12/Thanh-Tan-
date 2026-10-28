@@ -492,7 +492,7 @@ def test_the_hook_command_exits_zero_when_it_asks(project, capsys, monkeypatch):
 
 
 def test_regression_file_tools_are_judged_as_before(project):
-    write = {"cwd": str(project), "tool_name": "Write", "tool_input": {"file_path": str(project / ".agentflow" / "state.json")}}
+    write = {"cwd": str(project), "tool_name": "Write", "tool_input": {"file_path": str(project / ".ThanhTan" / "state.json")}}
     assert claude_decision(hook(CliKind.CLAUDE, write)) == "deny"
     plain = {"cwd": str(project), "tool_name": "Write", "tool_input": {"file_path": str(project / "src" / "a.py")}}
     assert hook(CliKind.CLAUDE, plain) == ""
@@ -695,11 +695,11 @@ def test_shell_text_inside_the_text_is_followed_into_nested_shells():
 
 
 def test_the_interpreter_text_is_also_checked_for_writes_into_the_workspace(tmp_path):
-    (tmp_path / ".agentflow").mkdir()
-    (tmp_path / ".agentflow" / "config.yaml").write_text("x", encoding="utf-8")
-    verdict = evaluate("bash <<'EOF'\necho x > .agentflow/decisions/a.md\nEOF", tmp_path, OnFeature(), Workspaces(tmp_path))
+    (tmp_path / ".ThanhTan").mkdir()
+    (tmp_path / ".ThanhTan" / "config.yaml").write_text("x", encoding="utf-8")
+    verdict = evaluate("bash <<'EOF'\necho x > .ThanhTan/decisions/a.md\nEOF", tmp_path, OnFeature(), Workspaces(tmp_path))
     assert verdict.denied and verdict.rule is GuardRule.WORKSPACE_WRITE
-    data = evaluate("cat <<'EOF'\necho x > .agentflow/decisions/a.md\nEOF", tmp_path, OnFeature(), Workspaces(tmp_path))
+    data = evaluate("cat <<'EOF'\necho x > .ThanhTan/decisions/a.md\nEOF", tmp_path, OnFeature(), Workspaces(tmp_path))
     assert data.decision is GuardDecision.ALLOW
 
 

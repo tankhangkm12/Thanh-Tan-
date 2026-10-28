@@ -32,7 +32,7 @@ def store(tmp_path):
 
 @pytest.fixture
 def workspace(tmp_path):
-    folder = tmp_path / "project" / ".agentflow"
+    folder = tmp_path / "project" / ".ThanhTan"
     (folder / "knowledge").mkdir(parents=True)
     (folder / "tasks" / "T-001" / "lessons").mkdir(parents=True)
     return folder
@@ -174,8 +174,8 @@ def test_pull_and_push_through_the_cli(project, capsys):
     repo, kb = project
     (kb / "lessons" / "x.md").write_text("learned", encoding="utf-8")
     assert main(["knowledge", "pull", "lessons/x.md"]) == ExitCode.OK
-    assert (repo / ".agentflow" / "knowledge" / "lessons" / "x.md").read_text(encoding="utf-8") == "learned"
-    mine = repo / ".agentflow" / "tasks" / "note.md"
+    assert (repo / ".ThanhTan" / "knowledge" / "lessons" / "x.md").read_text(encoding="utf-8") == "learned"
+    mine = repo / ".ThanhTan" / "tasks" / "note.md"
     mine.parent.mkdir(exist_ok=True)
     mine.write_text("note", encoding="utf-8")
     assert main(["knowledge", "push", str(mine)]) == ExitCode.OK

@@ -1,7 +1,7 @@
 """Phase C2 and C3: the replan, the step between one task and the next.
 
 After a task is done and sealed, the scout updates the project documents from what the task really did and writes
-`.agentflow/tasks/<task>/replan.md` (through `agentflow replan write` or the MCP tool `replan_write`). A person confirms
+`.ThanhTan/tasks/<task>/replan.md` (through `agentflow replan write` or the MCP tool `replan_write`). A person confirms
 the documents and moves roadmap items (`agentflow roadmap set R1 done`); the replan only PROPOSES which items are done.
 
     agentflow replan status                  read-only: replan: no-finished-task | task-open | not-sealed | pending | proposed | done | skipped
@@ -80,12 +80,12 @@ def confirm_replan(capsys):
 
 
 def history_of_replan(repo, task_id="T-001"):
-    folder = repo / ".agentflow" / "project" / "history"
+    folder = repo / ".ThanhTan" / "project" / "history"
     return sorted(folder.glob(f"replan-{task_id}-*.md")) if folder.is_dir() else []
 
 
 def state_task(repo, index=0):
-    return json.loads((repo / ".agentflow" / "state.json").read_text(encoding="utf-8"))["tasks"][index]
+    return json.loads((repo / ".ThanhTan" / "state.json").read_text(encoding="utf-8"))["tasks"][index]
 
 
 # ----------------------------------------------------------------------- status
@@ -155,9 +155,9 @@ def test_a_cancelled_task_does_not_hide_the_finished_one(finished, monkeypatch, 
 
 
 def test_status_changes_nothing(finished, capsys):
-    before = {path: path.read_bytes() for path in (finished / ".agentflow").rglob("*") if path.is_file()}
+    before = {path: path.read_bytes() for path in (finished / ".ThanhTan").rglob("*") if path.is_file()}
     status_lines(capsys)
-    assert {path: path.read_bytes() for path in (finished / ".agentflow").rglob("*") if path.is_file()} == before
+    assert {path: path.read_bytes() for path in (finished / ".ThanhTan").rglob("*") if path.is_file()} == before
 
 
 # ------------------------------------------------------------------ writing it
@@ -188,7 +188,7 @@ def test_confirming_marks_the_task_replanned_in_its_state(finished, monkeypatch,
 
 def test_a_task_not_replanned_has_no_replanned_at_in_its_state(finished):
     """Regression: the state of a task stays as before until something replans it."""
-    task = json.loads((finished / ".agentflow" / "state.json").read_text(encoding="utf-8"))["tasks"][0]
+    task = json.loads((finished / ".ThanhTan" / "state.json").read_text(encoding="utf-8"))["tasks"][0]
     assert "replanned_at" not in task
 
 
@@ -302,10 +302,10 @@ def test_a_failed_write_leaves_the_removed_lines_and_the_state_alone(finished, m
     run(capsys, "project", "confirm", "R2")
     service = WorkspaceServices(find_workspace(finished))
     service.write_project("roadmap", ROADMAP.split("### R2")[0] + "### R3" + ROADMAP.split("### R3")[1])
-    state_before = (finished / ".agentflow" / "state.json").read_bytes()
+    state_before = (finished / ".ThanhTan" / "state.json").read_bytes()
     assert write_replan(capsys, monkeypatch, "# Replan\n\nno sections\n")[0] == REPORT_REFUSED
     assert "removed: R2 (confirmed)" in run(capsys, "project", "status")[1]
-    assert (finished / ".agentflow" / "state.json").read_bytes() == state_before
+    assert (finished / ".ThanhTan" / "state.json").read_bytes() == state_before
     assert not (task_dir(finished) / "replan.md").exists()
 
 
@@ -313,10 +313,10 @@ def test_a_failed_write_leaves_the_removed_lines_and_the_state_alone(finished, m
 
 
 def test_done_needs_a_proposed_replan_and_changes_nothing_otherwise(finished, capsys):
-    before = {path: path.read_bytes() for path in (finished / ".agentflow").rglob("*") if path.is_file()}
+    before = {path: path.read_bytes() for path in (finished / ".ThanhTan").rglob("*") if path.is_file()}
     code, _, err = confirm_replan(capsys)
     assert code == INVALID_INPUT and "pending" in err
-    assert {path: path.read_bytes() for path in (finished / ".agentflow").rglob("*") if path.is_file()} == before
+    assert {path: path.read_bytes() for path in (finished / ".ThanhTan").rglob("*") if path.is_file()} == before
 
 
 def test_done_says_which_task_it_closed(finished, monkeypatch, capsys):
@@ -472,13 +472,13 @@ def test_any_item_of_the_roadmap_can_be_named_not_only_the_one_the_task_served(f
 
 
 def test_naming_an_item_when_the_project_has_no_roadmap_is_refused(finished, monkeypatch, capsys):
-    (finished / ".agentflow" / "project" / "roadmap.md").unlink()
+    (finished / ".ThanhTan" / "project" / "roadmap.md").unlink()
     code, _, err = write_replan(capsys, monkeypatch)
     assert code == REPORT_REFUSED and "R1" in err and "roadmap" in err
 
 
 def test_without_a_roadmap_nothing_finished_is_still_a_valid_replan(finished, monkeypatch, capsys):
-    (finished / ".agentflow" / "project" / "roadmap.md").unlink()
+    (finished / ".ThanhTan" / "project" / "roadmap.md").unlink()
     assert write_replan(capsys, monkeypatch, NOTHING_DONE)[0] == ExitCode.OK
 
 
@@ -541,7 +541,7 @@ def test_the_replan_tool_keeps_the_older_version_when_it_writes_again(server, fi
 def test_skipping_records_the_reason_as_a_decision(finished, capsys):
     code, out, _ = run(capsys, "replan", "skip", "T-001", "--reason", "only a typo fix, nothing to learn")
     assert code == ExitCode.OK
-    text = (finished / ".agentflow" / "decisions" / "T-001-replan-skip.md").read_text(encoding="utf-8")
+    text = (finished / ".ThanhTan" / "decisions" / "T-001-replan-skip.md").read_text(encoding="utf-8")
     assert "T-001" in text and "only a typo fix, nothing to learn" in text
 
 
@@ -561,7 +561,7 @@ def test_skipping_needs_a_reason(finished, capsys):
 @pytest.mark.parametrize("reason", ["", "   "])
 def test_a_blank_reason_is_refused(finished, capsys, reason):
     assert run(capsys, "replan", "skip", "T-001", "--reason", reason)[0] == INVALID_INPUT
-    assert not (finished / ".agentflow" / "decisions" / "T-001-replan-skip.md").exists()
+    assert not (finished / ".ThanhTan" / "decisions" / "T-001-replan-skip.md").exists()
 
 
 def test_only_a_finished_task_can_be_skipped(finished, monkeypatch, capsys):
@@ -681,7 +681,7 @@ def test_a_task_started_after_a_replan_does_not_get_the_field(finished, monkeypa
 
 
 def test_a_finished_task_from_before_the_field_existed_is_simply_pending(finished, capsys):
-    state_path = finished / ".agentflow" / "state.json"
+    state_path = finished / ".ThanhTan" / "state.json"
     data = json.loads(state_path.read_text(encoding="utf-8"))
     data["tasks"][0].pop("replanned_at", None)
     state_path.write_text(json.dumps(data, indent=2), encoding="utf-8")

@@ -94,7 +94,7 @@ def test_last_approval_writes_summary_and_an_annotated_tag(ws, monkeypatch, caps
     message = git(ws, "tag", "-l", "--format=%(contents)", tag)
     assert "T-001" in message and "t" in message and "Test <test@example.invalid>" in message
     assert git(ws, "rev-parse", f"{tag}^{{commit}}") == git(ws, "rev-parse", "feature/T-001-t")
-    summary = (ws / ".agentflow" / "tasks" / "T-001" / "summary.md").read_text(encoding="utf-8")
+    summary = (ws / ".ThanhTan" / "tasks" / "T-001" / "summary.md").read_text(encoding="utf-8")
     assert "### C1 - Build it" in summary and "https://docs.example/a" in summary and "T-001: add a" in summary
     assert "scans were not run" in summary
 

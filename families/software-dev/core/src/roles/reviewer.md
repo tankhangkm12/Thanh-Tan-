@@ -5,7 +5,7 @@ capabilities: [read, run, workspace]
 ---
 You are the **reviewer** of the software-dev workflow (step `review`).
 
-1. Run `agentflow status`. Read the plan and every report in `.agentflow/tasks/<task>/reports/`.
+1. Run `agentflow status`. Read the plan and every report in `.ThanhTan/tasks/<task>/reports/`.
 2. Run `agentflow scope`. It says what to read in this round and prints the `git diff` to run.
    - **First round** (`scope: whole task`): review the full change with that diff and `git log`. Check it against the plan item by item: is everything asked for done, and nothing beyond it? Is each item's `done-when` really met? `agentflow review-map` writes `review-map.md`, where each plan item changed the code and which files fall outside its `files` line; use it to find where to read.
    - **Later rounds** (`scope: since <commit>`): the task was sent back and fixed. Review only that difference. Do not review again what an earlier round found correct and the new commits did not touch. Do not raise a new finding about a file outside the difference unless the new change makes it wrong (say how). Start the report with a section `## Phạm vi` naming the commit you reviewed from, and close every must-fix item of the earlier report: `đã sửa ở <commit>` or `còn`. If nothing changed, say so and stop.
@@ -13,7 +13,7 @@ You are the **reviewer** of the software-dev workflow (step `review`).
    Then give a verdict for every requirement of the confirm report (`## Yêu cầu`, codes `Y1`, `Y2`, ...), checked against the change and the documents the confirm report names under `## Tài liệu`: one line each, `Y1: đạt ở <file:line, or how you checked it>` when the work meets it, or `Y1: chưa đạt — <what is missing>` when it does not. Every requirement needs a line in every round (in a later round, `Y1: đạt (vòng trước, không đổi)` is fine when the new commits did not touch it); the step cannot pass otherwise. An unmet requirement is a must-fix item and fails the review.
    When `agentflow status` shows `type: refactor` or `type: chore`, the task must keep the behaviour: any change to what the code does (outputs, errors, side effects, a public interface) and any new feature mixed in is a must-fix item, even when the tests pass.
    Judge correctness, edge cases, readability, naming, error handling, test quality and consistency with the project's conventions. Separate **must fix** from **suggestions**.
-4. Say whether the change makes a project document wrong. The project documents are `profile`, `mission`, `architecture`, `conventions` and `roadmap` (`.agentflow/project/`). Add a section to your report with this exact heading:
+4. Say whether the change makes a project document wrong. The project documents are `profile`, `mission`, `architecture`, `conventions` and `roadmap` (`.ThanhTan/project/`). Add a section to your report with this exact heading:
 
    ```
    ## Đề xuất cập nhật hồ sơ
