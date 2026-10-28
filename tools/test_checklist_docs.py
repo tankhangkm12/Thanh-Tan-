@@ -85,7 +85,7 @@ def test_only_steps_that_need_a_person_declare_a_checklist():
         assert step.get("requires_approval") is True, step["id"]
 
 
-def test_the_roadmap_box_is_made_by_agentflow_not_written_in_the_workflow():
+def test_the_roadmap_box_is_made_by_thanhtan_not_written_in_the_workflow():
     questions = [q for s in steps_with_checklist() for q in s.get("approval_checklist", [])]
     assert not [q for q in questions if "Mục R" in q]
 
@@ -175,7 +175,7 @@ def test_the_approve_skill_sends_the_person_to_the_checklist_before_the_command(
     text = skill("approve")
     assert "approve-" in text and ".ThanhTan/tasks/<task>" in text
     assert re.search(r"\[x\]|tick", text)
-    assert text.index("approve-") < text.index("agentflow task approve")
+    assert text.index("approve-") < text.index("thanhtan task approve")
 
 
 def test_the_approve_skill_forbids_the_agent_to_tick_or_edit_the_checklist():
@@ -194,7 +194,7 @@ def test_the_continue_skill_stops_at_the_checklist_and_names_the_file():
 
 def test_usage_lists_state_accept_among_the_commands_of_the_person():
     body = section(read(USAGE), "Lệnh của người")
-    assert "agentflow state accept" in body and "--reason" in body
+    assert "thanhtan state accept" in body and "--reason" in body
 
 
 def test_usage_troubleshooting_names_each_reason_an_approval_is_refused():
@@ -212,7 +212,7 @@ def protection_model() -> str:
 
 @pytest.mark.parametrize(
     "layer",
-    ["permissions", "hook", "ask", "approve-", "state.json", "integrity.json", "audit.jsonl", "agentflow commit", "sandbox"],
+    ["permissions", "hook", "ask", "approve-", "state.json", "integrity.json", "audit.jsonl", "thanhtan commit", "sandbox"],
 )
 def test_architecture_describes_each_layer_of_the_approval_protection(layer):
     assert layer in protection_model()
@@ -233,7 +233,7 @@ def test_architecture_has_a_table_with_one_row_per_layer():
 
 def test_readme_tells_the_person_to_run_doctor_after_updating_and_what_it_reports():
     text = read(README)
-    assert re.search(r"agentflow doctor.{0,400}(lệch|khác).{0,40}phiên bản|(lệch|khác).{0,40}phiên bản.{0,400}agentflow doctor", text, flags=re.S)
+    assert re.search(r"thanhtan doctor.{0,400}(lệch|khác).{0,40}phiên bản|(lệch|khác).{0,40}phiên bản.{0,400}thanhtan doctor", text, flags=re.S)
     assert "uv tool install --force --reinstall ./foundation" in text
 
 
@@ -245,7 +245,7 @@ def unreleased() -> str:
 
 @pytest.mark.parametrize(
     "needle",
-    ["approve-<", "approval_checklist", "integrity.json", "audit.jsonl", "state accept", "agentflow doctor", "(tùy chọn)"],
+    ["approve-<", "approval_checklist", "integrity.json", "audit.jsonl", "state accept", "thanhtan doctor", "(tùy chọn)"],
 )
 def test_the_changelog_records_the_new_behaviour(needle):
     assert needle in unreleased()

@@ -5,9 +5,9 @@ An agent that wants a green test run without the work has a few moves: edit the 
 that runs the tests. Every move below is tried twice:
 
 1. the hook gets the call the agent would make; for the moves it can read (a file tool, ``sed -i``, ``rm``, ``mv``,
-   ``git mv``, ``agentflow config set``) it must deny;
+   ``git mv``, ``thanhtan config set``) it must deny;
 2. whatever the hook said, the move is then carried out directly (this is what a script or a program the hook cannot read
-   does), and the step must notice: ``agentflow tests check`` and ``task advance`` fail with exit 25 naming the file, or
+   does), and the step must notice: ``thanhtan tests check`` and ``task advance`` fail with exit 25 naming the file, or
    (for the test command, which lives in ``.ThanhTan/config.yaml``) ``task advance`` fails with exit 37.
 
 The honest part: the hook reads a fixed list of commands. ``python -c``, ``node -e``, ``perl -pi``, ``patch``,
@@ -44,7 +44,7 @@ from lock_helpers import (
 )
 from sdd_helpers import run, say
 
-from agentflow.constants import ExitCode
+from thanhtan.constants import ExitCode
 
 CONFTEST_SKIP = "import pytest\n\ndef pytest_collection_modifyitems(items):\n    for item in items:\n        item.add_marker(pytest.mark.skip)\n"
 
@@ -177,8 +177,8 @@ WAYS = [
     Way("a new vitest.config.ts", {"command": "touch vitest.config.ts"}, create("vitest.config.ts", "export default {};\n"), ("vitest.config.ts",), True),
     Way("a new package.json whose test script does nothing", {"tool": "Write", "path": "sub/package.json"}, create("sub/package.json", '{"scripts": {"test": "true"}}\n'), ("sub/package.json",)),
     # --- the test command lives in .ThanhTan/config.yaml
-    Way("agentflow config set test_command", {"command": 'agentflow config set test_command "true"'}, edit_setting("test_command", "true"), ("config.yaml",), True, "settings"),
-    Way("uv run agentflow config set test_command", {"command": 'uv run agentflow config set test_command "true"'}, edit_setting("test_command", "true"), ("config.yaml",), True, "settings"),
+    Way("thanhtan config set test_command", {"command": 'thanhtan config set test_command "true"'}, edit_setting("test_command", "true"), ("config.yaml",), True, "settings"),
+    Way("uv run thanhtan config set test_command", {"command": 'uv run thanhtan config set test_command "true"'}, edit_setting("test_command", "true"), ("config.yaml",), True, "settings"),
     Way("Write on config.yaml", {"tool": "Write", "path": ".ThanhTan/config.yaml"}, edit_setting("test_command", "true"), ("config.yaml",), True, "settings"),
     Way("sed -i on config.yaml", {"command": "sed -i 's/tests\\/green.py/-c pass/' .ThanhTan/config.yaml"}, edit_setting("test_command", f"{EXE} -c pass"), ("config.yaml",), True, "settings"),
     # --- the moves the hook cannot read: only the hashes see them
@@ -286,7 +286,7 @@ def test_a_person_who_has_looked_takes_the_edited_command(locked, monkeypatch, c
 
 
 def test_the_runner_drops_the_environment_variables_that_change_what_pytest_runs(gitflow_repo, tmp_path, monkeypatch, capsys):
-    """`PYTEST_ADDOPTS="-k nothing" agentflow task advance ...` must not reach the tests agentflow runs."""
+    """`PYTEST_ADDOPTS="-k nothing" thanhtan task advance ...` must not reach the tests thanhtan runs."""
     repo = start_lock(gitflow_repo, tmp_path, monkeypatch, capsys)
     assert run(capsys, "config", "set", "test_command", f"{EXE} tests/envcheck.py")[0] == ExitCode.OK
     lock_tests(repo, monkeypatch, capsys)
@@ -321,7 +321,7 @@ def test_a_new_test_file_next_to_the_locked_ones_is_nothing(locked, capsys):
 
 
 def test_a_build_script_that_runs_the_tests_is_locked_only_when_the_tester_declares_it(gitflow_repo, tmp_path, monkeypatch, capsys):
-    """`make test`, `npm test` and `tox` go through a file agentflow cannot know is test configuration. Declared, it is
+    """`make test`, `npm test` and `tox` go through a file thanhtan cannot know is test configuration. Declared, it is
     locked like the rest; not declared, it is not (the documents say so and ask the tester to declare it)."""
     repo = start_lock(gitflow_repo, tmp_path, monkeypatch, capsys)
     commit_files(repo, {"Makefile": "test:\n\t$(PY) -m pytest\n", "scripts.mk": "all:\n"})

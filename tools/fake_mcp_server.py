@@ -2,7 +2,7 @@
 # requires-python = ">=3.12"
 # dependencies = ["mcp>=2.3,<3"]
 # ///
-"""A tiny MCP server with one tool that reads and one that writes, for trying `agentflow role grant`.
+"""A tiny MCP server with one tool that reads and one that writes, for trying `thanhtan role grant`.
 
     uv run tools/fake_mcp_server.py                        # speaks MCP on stdio
     uv run tools/fake_mcp_server.py --notes-file notes.txt # also appends every written note to that file
@@ -26,7 +26,7 @@ NEWLINE = "\n"
 
 
 def build_server(notes_file: Path | None = None) -> MCPServer:
-    server = MCPServer(SERVER_NAME, instructions="Notes kept in memory, for trying agentflow role grant.")
+    server = MCPServer(SERVER_NAME, instructions="Notes kept in memory, for trying thanhtan role grant.")
 
     def get_note(name: str) -> str:
         return NOTES.get(name, "")

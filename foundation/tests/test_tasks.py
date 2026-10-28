@@ -1,12 +1,12 @@
 import pytest
 from conftest import git
 
-from agentflow.constants import ExitCode, StepStatus, TaskEvent, TaskStatus, TaskType
-from agentflow.errors import AgentflowError
-from agentflow.git import SubprocessGit
-from agentflow.models import State, Task
-from agentflow.state import JsonStateStore
-from agentflow.tasks import (
+from thanhtan.constants import ExitCode, StepStatus, TaskEvent, TaskStatus, TaskType
+from thanhtan.errors import ThanhTanError
+from thanhtan.git import SubprocessGit
+from thanhtan.models import State, Task
+from thanhtan.state import JsonStateStore
+from thanhtan.tasks import (
     advance_task,
     approve_task,
     branch_name,
@@ -17,7 +17,7 @@ from agentflow.tasks import (
     slugify,
     write_report,
 )
-from agentflow.workspace import init_workspace, load_workspace_workflow
+from thanhtan.workspace import init_workspace, load_workspace_workflow
 
 AT = "2026-10-10T10:00:00Z"
 
@@ -87,7 +87,7 @@ def test_new_task_branches_from_gitflow_base(ws, gitflow_repo, task_type, base):
 def test_new_task_refuses_dirty_tree(ws, gitflow_repo):
     paths, workflow, store, client = ws
     (gitflow_repo / "stray.txt").write_text("x", encoding="utf-8")
-    with pytest.raises(AgentflowError) as exc:
+    with pytest.raises(ThanhTanError) as exc:
         new_task(store, workflow, client, "x", TaskType.FEATURE, clock)
     assert exc.value.code is ExitCode.DIRTY_WORKING_TREE
     assert client.current_branch() == "develop"
@@ -98,7 +98,7 @@ def test_new_task_refuses_missing_base(ws, gitflow_repo):
     paths, workflow, store, client = ws
     git(gitflow_repo, "switch", "-q", "main")
     git(gitflow_repo, "branch", "-q", "-D", "develop")
-    with pytest.raises(AgentflowError) as exc:
+    with pytest.raises(ThanhTanError) as exc:
         new_task(store, workflow, client, "x", TaskType.FEATURE, clock)
     assert exc.value.code is ExitCode.BRANCH_PROBLEM
     assert "'develop'" in str(exc.value)
@@ -107,7 +107,7 @@ def test_new_task_refuses_missing_base(ws, gitflow_repo):
 def test_new_task_refuses_existing_branch(ws, gitflow_repo):
     paths, workflow, store, client = ws
     git(gitflow_repo, "branch", "feature/T-001-x")
-    with pytest.raises(AgentflowError) as exc:
+    with pytest.raises(ThanhTanError) as exc:
         new_task(store, workflow, client, "x", TaskType.FEATURE, clock)
     assert exc.value.code is ExitCode.BRANCH_PROBLEM
 
@@ -117,7 +117,7 @@ def test_new_task_refuses_while_a_task_is_in_flight(ws, gitflow_repo, finish):
     paths, workflow, store, client = ws
     new_task(store, workflow, client, "first", TaskType.FEATURE, clock)
     if finish is None:
-        with pytest.raises(AgentflowError) as exc:
+        with pytest.raises(ThanhTanError) as exc:
             new_task(store, workflow, client, "second", TaskType.FEATURE, clock)
         assert exc.value.code is ExitCode.TASK_CONFLICT
         assert "T-001 (open)" in str(exc.value)
@@ -128,7 +128,7 @@ def test_new_task_refuses_while_a_task_is_in_flight(ws, gitflow_repo, finish):
 
 def test_new_task_refuses_empty_title(ws):
     paths, workflow, store, client = ws
-    with pytest.raises(AgentflowError) as exc:
+    with pytest.raises(ThanhTanError) as exc:
         new_task(store, workflow, client, "   ", TaskType.FEATURE, clock)
     assert exc.value.code is ExitCode.INVALID_INPUT
 
@@ -148,7 +148,7 @@ def test_lifecycle_through_the_store(ws):
     state = store.load()
     assert state.active_task_id is None
     assert state.tasks[0].status is TaskStatus.DONE
-    with pytest.raises(AgentflowError) as exc:
+    with pytest.raises(ThanhTanError) as exc:
         advance_task(store, workflow, TaskEvent.PASS, clock)
     assert exc.value.code is ExitCode.NO_ACTIVE_TASK
 
@@ -200,7 +200,7 @@ def test_write_report(ws):
 def test_write_report_rejects(ws, step, content, code):
     paths, workflow, store, client = ws
     task = new_task(store, workflow, client, "t", TaskType.FEATURE, clock)
-    with pytest.raises(AgentflowError) as exc:
+    with pytest.raises(ThanhTanError) as exc:
         write_report(paths.dir, workflow, task, step, content)
     assert exc.value.code is code
 
@@ -209,7 +209,7 @@ def test_a_report_can_only_be_written_for_the_current_step(ws):
     paths, workflow, store, client = ws
     task = new_task(store, workflow, client, "t", TaskType.FEATURE, clock)
     for other in ("build", "check"):
-        with pytest.raises(AgentflowError) as exc:
+        with pytest.raises(ThanhTanError) as exc:
             write_report(paths.dir, workflow, task, other, "x")
         assert exc.value.code is ExitCode.REPORT_REFUSED and "confirm" in str(exc.value)
     assert not (paths.dir / "tasks" / "T-001" / "reports").exists()
@@ -220,12 +220,12 @@ def test_a_report_of_a_step_that_passed_is_final(ws):
     task = new_task(store, workflow, client, "t", TaskType.FEATURE, clock)
     write_report(paths.dir, workflow, task, "confirm", "the confirmation")
     task = advance_task(store, workflow, TaskEvent.PASS, clock)  # confirm needs approval: awaiting_approval
-    with pytest.raises(AgentflowError) as exc:
+    with pytest.raises(ThanhTanError) as exc:
         write_report(paths.dir, workflow, task, "confirm", "rewritten after the pass")
     assert exc.value.code is ExitCode.REPORT_REFUSED
     assert (paths.dir / "tasks" / "T-001" / "reports" / "confirm.md").read_text(encoding="utf-8") == "the confirmation\n"
     task = approve_task(store, workflow, paths.dir, clock).task  # now at build
-    with pytest.raises(AgentflowError) as exc:
+    with pytest.raises(ThanhTanError) as exc:
         write_report(paths.dir, workflow, task, "confirm", "still final")
     assert exc.value.code is ExitCode.REPORT_REFUSED
     assert write_report(paths.dir, workflow, task, "build", "fine").name == "build.md"
@@ -235,12 +235,12 @@ def test_no_report_for_a_task_that_is_not_open(ws):
     paths, workflow, store, client = ws
     new_task(store, workflow, client, "t", TaskType.FEATURE, clock)
     task = cancel_task(store, workflow, clock)
-    with pytest.raises(AgentflowError) as exc:
+    with pytest.raises(ThanhTanError) as exc:
         write_report(paths.dir, workflow, task, "confirm", "x")
     assert exc.value.code is ExitCode.REPORT_REFUSED
 
 
 def test_require_active_task():
-    with pytest.raises(AgentflowError) as exc:
+    with pytest.raises(ThanhTanError) as exc:
         require_active_task(State())
     assert exc.value.code is ExitCode.NO_ACTIVE_TASK

@@ -7,7 +7,7 @@ with the same character and at least as many of them, and an unclosed fence runs
 import pytest
 from test_gates_drift import HEADING, at_review, review_with, save_review, try_pass  # noqa: F401 (at_review is a fixture)
 
-from agentflow.constants import ExitCode
+from thanhtan.constants import ExitCode
 
 SECTION_OK = HEADING + "\n\nkhông có\n"
 

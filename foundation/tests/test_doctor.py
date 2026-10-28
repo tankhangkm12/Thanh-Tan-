@@ -2,10 +2,10 @@ from collections.abc import Sequence
 
 import pytest
 
-from agentflow.constants import Tool, ToolStatus
-from agentflow.doctor import ENGINE_NOT_RUNNING, SystemToolProbe, check_tool, run_doctor
-from agentflow.interfaces import ToolProbe
-from agentflow.models import ProbeResult
+from thanhtan.constants import Tool, ToolStatus
+from thanhtan.doctor import ENGINE_NOT_RUNNING, SystemToolProbe, check_tool, run_doctor
+from thanhtan.interfaces import ToolProbe
+from thanhtan.models import ProbeResult
 
 
 class FakeProbe:
@@ -80,5 +80,5 @@ def test_failing_version_is_a_warning():
 
 
 def test_system_probe_reports_unrunnable_command():
-    result = SystemToolProbe().run(["agentflow-surely-not-installed-xyz"])
+    result = SystemToolProbe().run(["thanhtan-surely-not-installed-xyz"])
     assert result.returncode != 0

@@ -1,6 +1,6 @@
-"""Chặng E-spec: the gate `tests-pass`. agentflow runs the project's test command itself; the agent cannot say "pass".
+"""Chặng E-spec: the gate `tests-pass`. thanhtan runs the project's test command itself; the agent cannot say "pass".
 
-The command: setting `test_command` (`agentflow config set test_command "..."`) wins; else the line
+The command: setting `test_command` (`thanhtan config set test_command "..."`) wins; else the line
 `- test-command: <command>` of `project/profile.md`, but only while a person has confirmed the profile. Timeout:
 setting `test_timeout_minutes`, default 15. No command: the step is blocked with instructions, except for a task whose
 plan items are all `kind: other` (then a warning). The result goes to `tasks/<task>/tests-pass.json`.
@@ -33,7 +33,7 @@ from spec_helpers import (
     write_profile,
 )
 
-from agentflow.constants import ExitCode
+from thanhtan.constants import ExitCode
 
 
 @pytest.fixture
@@ -85,7 +85,7 @@ def test_a_profile_nobody_confirmed_gives_no_command(repo, monkeypatch, capsys):
     write_profile(repo, profile_with(GREEN), confirm=False)
     code, _out, err = passing(capsys)
     assert code == GATE_FAILED
-    assert "agentflow project confirm profile" in err
+    assert "thanhtan project confirm profile" in err
 
 
 def test_a_profile_changed_after_it_was_confirmed_gives_no_command(repo, monkeypatch, capsys):
@@ -139,8 +139,8 @@ def test_without_any_command_the_step_is_blocked_with_the_two_ways_to_give_one(r
     at_test_step(repo, monkeypatch, capsys)
     code, _out, err = passing(capsys)
     assert code == GATE_FAILED
-    assert "agentflow config set test_command" in err
-    assert "test-command" in err and "agentflow project confirm profile" in err
+    assert "thanhtan config set test_command" in err
+    assert "test-command" in err and "thanhtan project confirm profile" in err
     assert step_now(repo) == ("check", "in_progress")
 
 
@@ -303,7 +303,7 @@ def test_a_green_project_suite_is_not_enough_if_the_command_of_an_item_was_swapp
 
 
 def test_the_default_timeout_is_fifteen_minutes():
-    from agentflow import testrun
+    from thanhtan import testrun
 
     assert testrun.DEFAULT_TIMEOUT_MINUTES == 15
 
@@ -345,7 +345,7 @@ def test_only_the_tail_of_a_long_output_is_kept(repo, monkeypatch, capsys):
 
 
 def test_the_two_gates_share_one_runner(repo, monkeypatch, capsys):
-    from agentflow import testrun
+    from thanhtan import testrun
     from spec_helpers import at_spec_step, block, write_spec
 
     calls = []
@@ -355,7 +355,7 @@ def test_the_two_gates_share_one_runner(repo, monkeypatch, capsys):
         calls.append(command)
         return real(command, *args, **kwargs)
 
-    monkeypatch.setattr("agentflow.testrun.run_command", spy)
+    monkeypatch.setattr("thanhtan.testrun.run_command", spy)
     at_spec_step(repo, monkeypatch, capsys)
     write_spec(monkeypatch, block("C1", "Build it"), block("C2", "Test it"))
     assert passing(capsys)[0] == ExitCode.OK  # test-spec: verify-red
@@ -371,7 +371,7 @@ def test_the_two_gates_share_one_runner(repo, monkeypatch, capsys):
 
 
 def test_the_runner_reports_exit_code_output_timeout_and_a_missing_program():
-    from agentflow import testrun
+    from thanhtan import testrun
 
     done = testrun.run_command(f'{EXE} -c "print(5); raise SystemExit(3)"', ".", 30)
     assert done.exit_code == 3 and "5" in done.output and not done.timed_out

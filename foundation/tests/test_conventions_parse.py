@@ -1,7 +1,7 @@
 import pytest
 
-from agentflow.constants import CheckKind, ConventionStatus, PlanRuleKind
-from agentflow.conventions import (
+from thanhtan.constants import CheckKind, ConventionStatus, PlanRuleKind
+from thanhtan.conventions import (
     Convention,
     parse_conventions,
     render_conventions,

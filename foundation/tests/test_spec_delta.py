@@ -1,6 +1,6 @@
 """Phase C1: a finished task leaves `spec-delta.md`, the difference it made to the specification.
 
-agentflow writes it when it seals the task (next to `summary.md`), so the agent that did the work cannot shape it:
+thanhtan writes it when it seals the task (next to `summary.md`), so the agent that did the work cannot shape it:
 
     ## Đề xuất của reviewer     the reviewer's `## Đề xuất cập nhật hồ sơ` section, as written
     ## Thay đổi thật của task   plan items, commits and the files changed, from the plan and from git
@@ -27,8 +27,8 @@ from replan_helpers import (
 )
 from sdd_helpers import PROFILE, ROADMAP
 
-from agentflow.constants import ExitCode
-from agentflow.seal import approval_tag
+from thanhtan.constants import ExitCode
+from thanhtan.seal import approval_tag
 
 PROPOSALS = "- profile: thêm lệnh build mới\n- roadmap: R2 xong, thêm R5"
 

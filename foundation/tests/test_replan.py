@@ -1,17 +1,17 @@
 """Phase C2 and C3: the replan, the step between one task and the next.
 
 After a task is done and sealed, the scout updates the project documents from what the task really did and writes
-`.ThanhTan/tasks/<task>/replan.md` (through `agentflow replan write` or the MCP tool `replan_write`). A person confirms
-the documents and moves roadmap items (`agentflow roadmap set R1 done`); the replan only PROPOSES which items are done.
+`.ThanhTan/tasks/<task>/replan.md` (through `thanhtan replan write` or the MCP tool `replan_write`). A person confirms
+the documents and moves roadmap items (`thanhtan roadmap set R1 done`); the replan only PROPOSES which items are done.
 
-    agentflow replan status                  read-only: replan: no-finished-task | task-open | not-sealed | pending | proposed | done | skipped
-    agentflow replan write                   (stdin) the replan of the latest finished task: it is only PROPOSED
-    agentflow replan done                    for a person, after reading replan.md: the replan is done
-    agentflow replan skip T-001 --reason ..  for a person: decide not to replan, on purpose
+    thanhtan replan status                  read-only: replan: no-finished-task | task-open | not-sealed | pending | proposed | done | skipped
+    thanhtan replan write                   (stdin) the replan of the latest finished task: it is only PROPOSED
+    thanhtan replan done                    for a person, after reading replan.md: the replan is done
+    thanhtan replan skip T-001 --reason ..  for a person: decide not to replan, on purpose
 
 A replan that an agent wrote stays `proposed` until a person runs `replan done`: only then is the task marked replanned
 (`replanned_at`), the summary says done and the `removed:` lines of `project status` go.
-`agentflow task new` warns (never blocks) while the latest finished task is `pending` or `proposed`.
+`thanhtan task new` warns (never blocks) while the latest finished task is `pending` or `proposed`.
 """
 
 import json
@@ -35,13 +35,13 @@ from replan_helpers import (
 )
 from sdd_helpers import PROFILE, ROADMAP, statuses
 
-from agentflow.constants import STATE_SCHEMA_FILE, ExitCode, GuardDecision, GuardRule
-from agentflow.guard import evaluate
-from agentflow.mcp_server import build_server
-from agentflow.seal import approval_tag
-from agentflow.services import WorkspaceServices
-from agentflow.validation import schema_errors
-from agentflow.workspace import find_workspace
+from thanhtan.constants import STATE_SCHEMA_FILE, ExitCode, GuardDecision, GuardRule
+from thanhtan.guard import evaluate
+from thanhtan.mcp_server import build_server
+from thanhtan.seal import approval_tag
+from thanhtan.services import WorkspaceServices
+from thanhtan.validation import schema_errors
+from thanhtan.workspace import find_workspace
 
 INVALID_INPUT = 22
 REPORT_REFUSED = 30
@@ -216,7 +216,7 @@ def test_the_first_write_leaves_no_history(finished, monkeypatch, capsys):
 
 
 def test_every_older_version_is_kept_even_when_written_within_the_same_second(finished, monkeypatch, capsys):
-    monkeypatch.setattr("agentflow.project.utc_now", lambda: "2026-10-17T10:00:00Z")
+    monkeypatch.setattr("thanhtan.project.utc_now", lambda: "2026-10-17T10:00:00Z")
     versions = [REPLAN, NOTHING_DONE, REPLAN.replace("smoke", "lint")]
     for text in versions:
         write_replan(capsys, monkeypatch, text)
@@ -607,7 +607,7 @@ def test_starting_a_task_after_an_unreplanned_one_warns_and_still_starts(finishe
     assert code == ExitCode.OK
     lines = replan_lines(err)
     assert len(lines) == 1 and lines[0].startswith("warning: ")
-    assert "T-001" in lines[0] and "agentflow replan skip T-001" in lines[0]
+    assert "T-001" in lines[0] and "thanhtan replan skip T-001" in lines[0]
 
 
 def test_the_very_first_task_gets_no_replan_warning(ws, monkeypatch, capsys):
@@ -621,7 +621,7 @@ def test_a_proposed_replan_still_warns_and_says_what_the_person_does(finished, m
     code, err = new_task_stderr(monkeypatch, capsys)
     lines = replan_lines(err)
     assert code == ExitCode.OK and len(lines) == 1 and lines[0].startswith("warning: ")
-    assert "T-001" in lines[0] and "agentflow replan done" in lines[0]
+    assert "T-001" in lines[0] and "thanhtan replan done" in lines[0]
 
 
 def test_there_is_no_warning_once_a_person_confirmed_the_replan(finished, monkeypatch, capsys):
@@ -709,7 +709,7 @@ class OnFeature:
 
 @pytest.mark.parametrize(
     "command",
-    ["agentflow replan skip T-001 --reason x", "agentflow replan skip T-001 --reason 'no need'", "cd . && agentflow replan skip T-001 --reason x"],
+    ["thanhtan replan skip T-001 --reason x", "thanhtan replan skip T-001 --reason 'no need'", "cd . && thanhtan replan skip T-001 --reason x"],
 )
 def test_skipping_a_replan_is_a_persons_command(ws, command):
     verdict = evaluate(command, ws, OnFeature(), Workspaces(ws))
@@ -717,18 +717,18 @@ def test_skipping_a_replan_is_a_persons_command(ws, command):
 
 
 # The forms the guard recognises for every command that is a person's (`roadmap set`, `project confirm`, ...).
-# `timeout 5 ...`, `FOO=1 ...`, `uv run ...` and `python -m agentflow ...` get past it for all of them today.
+# `timeout 5 ...`, `FOO=1 ...`, `uv run ...` and `python -m thanhtan ...` get past it for all of them today.
 PERSON_FORMS = [
-    "agentflow {c}",
-    "AGENTFLOW.EXE {c}",
-    "agentflow  {c}",
-    "cd . && agentflow {c}",
-    "echo x; agentflow {c}",
-    "echo x | agentflow {c}",
-    "(agentflow {c})",
-    "/usr/bin/agentflow {c}",
-    'bash -c "agentflow {c}"',
-    'powershell -Command "agentflow {c}"',
+    "thanhtan {c}",
+    "THANHTAN.EXE {c}",
+    "thanhtan  {c}",
+    "cd . && thanhtan {c}",
+    "echo x; thanhtan {c}",
+    "echo x | thanhtan {c}",
+    "(thanhtan {c})",
+    "/usr/bin/thanhtan {c}",
+    'bash -c "thanhtan {c}"',
+    'powershell -Command "thanhtan {c}"',
 ]
 
 
@@ -744,7 +744,7 @@ def test_skipping_a_replan_is_a_persons_command_in_every_form_the_guard_knows(ws
     assert verdict.decision is GuardDecision.DENY and verdict.rule is GuardRule.PERSON_ONLY
 
 
-@pytest.mark.parametrize("command", ["agentflow replan status", "agentflow replan write"])
+@pytest.mark.parametrize("command", ["thanhtan replan status", "thanhtan replan write"])
 def test_the_agent_may_read_the_replan_state_and_write_the_replan(ws, command):
     """Regression: allowed today, and the person-only rule for `replan skip` must not sweep these up."""
     assert evaluate(command, ws, OnFeature(), Workspaces(ws)).decision is GuardDecision.ALLOW
@@ -752,7 +752,7 @@ def test_the_agent_may_read_the_replan_state_and_write_the_replan(ws, command):
 
 def test_the_mission_stays_a_persons_to_confirm_after_a_replan(ws):
     """Regression: the replan writes documents as unconfirmed; confirming them stays a person's command."""
-    assert evaluate("agentflow project confirm profile", ws, OnFeature(), Workspaces(ws)).rule is GuardRule.PERSON_ONLY
+    assert evaluate("thanhtan project confirm profile", ws, OnFeature(), Workspaces(ws)).rule is GuardRule.PERSON_ONLY
 
 
 def test_documents_the_scout_rewrote_after_the_task_are_unconfirmed_until_a_person_confirms(finished, capsys):

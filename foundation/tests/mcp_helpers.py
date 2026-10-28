@@ -1,4 +1,4 @@
-"""Call the tools of an agentflow MCP server from a test (the same helper test_mcp_server.py uses, shared)."""
+"""Call the tools of an thanhtan MCP server from a test (the same helper test_mcp_server.py uses, shared)."""
 
 import asyncio
 

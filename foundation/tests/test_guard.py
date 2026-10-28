@@ -3,9 +3,9 @@ from pathlib import Path
 
 import pytest
 
-from agentflow.constants import ExitCode, GuardDecision, GuardRule
-from agentflow.errors import AgentflowError
-from agentflow.guard import evaluate, parse_request, split_commands, verdict_to_dict
+from thanhtan.constants import ExitCode, GuardDecision, GuardRule
+from thanhtan.errors import ThanhTanError
+from thanhtan.guard import evaluate, parse_request, split_commands, verdict_to_dict
 
 CWD = Path("/work/repo")
 OTHER = Path("/work/other")
@@ -126,7 +126,7 @@ ALLOWED = [
     ("git checkout -- src/app.py", "feature/x"),
     ("git checkout src/app.py && git commit -m x", "feature/x"),
     ("grep -r 'git push' docs", "main"),
-    ("agentflow commit 'msg'", "feature/x"),
+    ("thanhtan commit 'msg'", "feature/x"),
     ("uv run pytest", "main"),
     ("git", "main"),
     ("", "main"),
@@ -167,7 +167,7 @@ def test_parse_request_and_output():
 
 @pytest.mark.parametrize("text", ["not json", "[]", '{"cwd": "/x"}', '{"command": 1}', '{"command": "ls", "cwd": 3}'])
 def test_parse_request_rejects_bad_input(text):
-    with pytest.raises(AgentflowError) as exc:
+    with pytest.raises(ThanhTanError) as exc:
         parse_request(text)
     assert exc.value.code is ExitCode.INVALID_INPUT
 
@@ -209,15 +209,15 @@ def test_direct_commit_is_denied_in_a_workspace(command):
     assert verdict.decision is GuardDecision.DENY and verdict.rule is GuardRule.DIRECT_COMMIT
 
 
-def test_direct_commit_is_allowed_without_a_workspace_and_agentflow_commit_always():
+def test_direct_commit_is_allowed_without_a_workspace_and_thanhtan_commit_always():
     assert in_project("git commit -m x", roots=()).decision is GuardDecision.ALLOW
-    assert in_project("agentflow commit 'fix git commit'").decision is GuardDecision.ALLOW
+    assert in_project("thanhtan commit 'fix git commit'").decision is GuardDecision.ALLOW
     assert in_project("git -C /elsewhere commit -m x").decision is GuardDecision.ALLOW
 
 
 @pytest.mark.parametrize(
     "command",
-    ["git tag agentflow/T-001/approved", "git tag -a agentflow/T-001/approved -m x", "git update-ref refs/tags/agentflow/T-001/approved HEAD"],
+    ["git tag thanhtan/T-001/approved", "git tag -a thanhtan/T-001/approved -m x", "git update-ref refs/tags/thanhtan/T-001/approved HEAD"],
 )
 def test_forging_an_approval_tag_is_denied(command):
     assert in_project(command, roots=()).rule is GuardRule.APPROVAL_TAG
@@ -229,15 +229,15 @@ def test_ordinary_tags_are_fine():
 
 @pytest.mark.parametrize(
     "command",
-    ["agentflow decide --suppress x --reason y", "agentflow ext add e.yaml", "agentflow ext sync", "agentflow config set a.b c", "cd /proj && agentflow decide --suppress x", "agentflow project confirm --all", "agentflow project confirm PC-01"],
+    ["thanhtan decide --suppress x --reason y", "thanhtan ext add e.yaml", "thanhtan ext sync", "thanhtan config set a.b c", "cd /proj && thanhtan decide --suppress x", "thanhtan project confirm --all", "thanhtan project confirm PC-01"],
 )
 def test_person_only_commands_are_denied_in_a_workspace(command):
     assert in_project(command).rule is GuardRule.PERSON_ONLY
     assert in_project(command, roots=()).decision is GuardDecision.ALLOW
 
 
-def test_other_agentflow_commands_are_allowed():
-    for command in ("agentflow status", "agentflow task advance", "agentflow config get a.b", "agentflow ext list", "agentflow project", "agentflow commit decide"):
+def test_other_thanhtan_commands_are_allowed():
+    for command in ("thanhtan status", "thanhtan task advance", "thanhtan config get a.b", "thanhtan ext list", "thanhtan project", "thanhtan commit decide"):
         assert in_project(command).decision is GuardDecision.ALLOW, command
 
 
@@ -327,13 +327,13 @@ WRITES_ALLOWED = [
     "echo .ThanhTan > ignore.txt",
 
     "cp a.txt src/.ThanhTan-notes/a.txt",
-    "agentflow report --step plan",
-    "agentflow status",
+    "thanhtan report --step plan",
+    "thanhtan status",
     "git status",
     "Set-Content notes.txt x",
     # A heredoc body is data for the command that reads it, whatever characters it holds.
-    "agentflow report --step plan <<'EOF'\n### C1 - a > .ThanhTan/x\n- done-when: `echo y > .ThanhTan/z`\nEOF",
-    "agentflow report --step plan <<-EOF\n\tcp a .ThanhTan/b\n\tEOF\necho done",
+    "thanhtan report --step plan <<'EOF'\n### C1 - a > .ThanhTan/x\n- done-when: `echo y > .ThanhTan/z`\nEOF",
+    "thanhtan report --step plan <<-EOF\n\tcp a .ThanhTan/b\n\tEOF\necho done",
 ]
 
 
@@ -343,7 +343,7 @@ def test_other_shell_commands_are_allowed(repo, command):
 
 
 def test_a_command_after_a_heredoc_is_still_checked(repo):
-    command = "agentflow report --step plan <<'EOF'\nbody\nEOF\necho x > .ThanhTan/decisions/a.md"
+    command = "thanhtan report --step plan <<'EOF'\nbody\nEOF\necho x > .ThanhTan/decisions/a.md"
     assert shell(repo, command).rule == GuardRule.WORKSPACE_WRITE
 
 

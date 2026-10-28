@@ -3,12 +3,12 @@ import io
 import pytest
 from conftest import SAMPLE_WORKFLOW, git, write_workflow
 
-from agentflow.cli import main
-from agentflow.constants import ExitCode, StepStatus, TaskStatus
-from agentflow.lessons import Lesson, parse_lessons, write_lessons
-from agentflow.models import Task
-from agentflow.seal import approval_tag
-from agentflow.summary import build_summary
+from thanhtan.cli import main
+from thanhtan.constants import ExitCode, StepStatus, TaskStatus
+from thanhtan.lessons import Lesson, parse_lessons, write_lessons
+from thanhtan.models import Task
+from thanhtan.seal import approval_tag
+from thanhtan.summary import build_summary
 
 REPORT = """# Review
 
@@ -76,7 +76,7 @@ def ws(gitflow_repo, tmp_path, monkeypatch, capsys):
 
 @pytest.fixture(autouse=True)
 def _no_container(monkeypatch):
-    from agentflow.models import ScanResult
+    from thanhtan.models import ScanResult
 
     class Clean:
         def __init__(self, runner):
@@ -85,7 +85,7 @@ def _no_container(monkeypatch):
         def scan_staged(self, repo):
             return ScanResult(True, "")
 
-    monkeypatch.setattr("agentflow.cli.ContainerGitleaksScanner", Clean)
+    monkeypatch.setattr("thanhtan.cli.ContainerGitleaksScanner", Clean)
 
 
 def say(monkeypatch, *argv, text=None):

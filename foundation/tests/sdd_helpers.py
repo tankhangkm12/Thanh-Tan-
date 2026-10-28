@@ -9,8 +9,8 @@ from pathlib import Path
 
 from conftest import SAMPLE_WORKFLOW, git, write_workflow
 
-from agentflow.cli import main
-from agentflow.constants import ExitCode
+from thanhtan.cli import main
+from thanhtan.constants import ExitCode
 
 # Exit codes the phase B design adds or reuses, spelled as numbers so a test about the feature does not need the
 # feature to import: 22 INVALID_INPUT, 31 PROJECT_WRITE_REFUSED, 35 ROADMAP_INVALID (new).

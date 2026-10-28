@@ -4,13 +4,13 @@ import json
 import pytest
 from conftest import git
 
-from agentflow.cli import main
-from agentflow.constants import CliKind, ExitCode, HookEvent, ReplyKind
-from agentflow.git import GitBranchLookup
-from agentflow.hook import handle_hook
-from agentflow.hook_adapters import ADAPTERS, AntigravityAdapter, ClaudeAdapter
-from agentflow.interfaces import HookAdapter
-from agentflow.models import HookReply
+from thanhtan.cli import main
+from thanhtan.constants import CliKind, ExitCode, HookEvent, ReplyKind
+from thanhtan.git import GitBranchLookup
+from thanhtan.hook import handle_hook
+from thanhtan.hook_adapters import ADAPTERS, AntigravityAdapter, ClaudeAdapter
+from thanhtan.interfaces import HookAdapter
+from thanhtan.models import HookReply
 
 # ----------------------------------------------------------------- adapters
 
@@ -112,7 +112,7 @@ def test_pre_tool_denies_push_for_both_clis(project):
 
 def test_pre_tool_denies_direct_commit_in_the_project(project):
     out = json.loads(hook(HookEvent.PRE_TOOL, CliKind.CLAUDE, claude_pre(project, "git commit -m x")))
-    assert "agentflow commit" in out["hookSpecificOutput"]["permissionDecisionReason"]
+    assert "thanhtan commit" in out["hookSpecificOutput"]["permissionDecisionReason"]
 
 
 def test_pre_tool_stays_silent_for_safe_commands(project):
@@ -161,7 +161,7 @@ def test_session_start_without_task_points_to_start(project):
 def test_antigravity_summary_only_on_first_invocation(project):
     first = {"workspacePaths": [str(project)], "invocationNum": 0}
     steps = json.loads(hook(HookEvent.SESSION_START, CliKind.ANTIGRAVITY, first))["injectSteps"]
-    assert "agentflow workspace found" in steps[0]["ephemeralMessage"]
+    assert "thanhtan workspace found" in steps[0]["ephemeralMessage"]
     later = json.loads(hook(HookEvent.SESSION_START, CliKind.ANTIGRAVITY, {**first, "invocationNum": 3}))
     assert later == {}
     assert json.loads(hook(HookEvent.SESSION_START, CliKind.ANTIGRAVITY, {"workspacePaths": [str(project)]})) == {}
@@ -179,7 +179,7 @@ def test_stop_reminder_only_while_a_step_is_in_progress(project, capsys):
     assert hook(HookEvent.STOP, CliKind.CLAUDE, stop) == ""  # step just began, nothing done yet
     _save_report(project, "T-001", "confirm")
     message = json.loads(hook(HookEvent.STOP, CliKind.CLAUDE, stop))["systemMessage"]
-    assert "T-001" in message and "agentflow task advance" in message
+    assert "T-001" in message and "thanhtan task advance" in message
     assert hook(HookEvent.STOP, CliKind.CLAUDE, {**stop, "stop_hook_active": True}) == ""
     main(["task", "advance", "--result", "pass"])  # now awaiting approval
     assert hook(HookEvent.STOP, CliKind.CLAUDE, stop) == ""
@@ -223,7 +223,7 @@ def test_hook_command_is_silent_without_workspace(tmp_path, capsys, monkeypatch)
 
 
 def test_hook_command_never_fails_the_agent(project, capsys, monkeypatch):
-    monkeypatch.setattr("agentflow.cli.handle_hook", lambda *args: 1 / 0)
+    monkeypatch.setattr("thanhtan.cli.handle_hook", lambda *args: 1 / 0)
     monkeypatch.setattr("sys.stdin", io.StringIO("{}"))
     assert main(["hook", "stop", "--cli", "claude"]) == ExitCode.OK
     assert "hook failed" in capsys.readouterr().err
@@ -287,7 +287,7 @@ def test_file_tools_may_write_everywhere_else(project):
 
 def test_antigravity_hooks_leave_a_pointer_to_the_project_and_claude_hooks_do_not(project, monkeypatch, tmp_path):
     home = tmp_path / "pointer-home"
-    monkeypatch.setenv("AGENTFLOW_HOME", str(home))
+    monkeypatch.setenv("THANHTAN_HOME", str(home))
     hook(HookEvent.PRE_TOOL, CliKind.CLAUDE, claude_pre(project, "git status"))
     assert not (home / "active-project.txt").exists()
     hook(HookEvent.PRE_TOOL, CliKind.ANTIGRAVITY, agy_pre(project, "git status"))

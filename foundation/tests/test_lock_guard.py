@@ -9,7 +9,7 @@ Once ``locked-files.json`` exists for a task that is still going, the hook denie
 - the creation of a test configuration file that is not in the lock (``conftest.py``, ``pytest.ini``, ``tox.ini``,
   ``jest.config.*``, ``vitest.config.*``...), and any change to such a file that exists.
 Reading a locked file, running it, and creating an ordinary new test file stay free. The lock ends when the task is done or
-cancelled, and it starts at the approval. The reason of a denial names ``agentflow tests amend``, the person's way in.
+cancelled, and it starts at the approval. The reason of a denial names ``thanhtan tests amend``, the person's way in.
 What the hook cannot see (a script that writes the file) is found by the hashes: see test_lock_bypass.py.
 """
 
@@ -38,7 +38,7 @@ from lock_helpers import (
 )
 from sdd_helpers import run, say
 
-from agentflow.constants import CliKind, ExitCode
+from thanhtan.constants import CliKind, ExitCode
 
 LOCKED_NAMES = [LOCKED, LOCKED2, "conftest.py", "pytest.ini"]
 
@@ -219,9 +219,9 @@ def test_a_command_run_from_a_subdirectory_is_held_to_the_lock_too(locked):
         "git restore tests/flip.py",
         "git restore --staged tests/flip.py",
         "git checkout -- tests/flip.py",
-        "agentflow tests check",
-        "agentflow tests verify-red",
-        "agentflow status",
+        "thanhtan tests check",
+        "thanhtan tests verify-red",
+        "thanhtan status",
     ],
 )
 def test_reading_running_and_copying_from_a_locked_file_stay_free(locked, command):
@@ -420,27 +420,27 @@ def test_a_call_with_nothing_to_judge_is_let_through(locked):
 # ------------------------------------------------------------------ the person's commands are the person's
 
 
-AMEND = "agentflow tests amend tests/flip.py --reason 'the expected value was wrong'"
+AMEND = "thanhtan tests amend tests/flip.py --reason 'the expected value was wrong'"
 AMEND_FORMS = [
     AMEND,
-    "AGENTFLOW.EXE tests amend tests/flip.py --reason x",
-    "uv run agentflow tests amend tests/flip.py --reason x",
-    "agentflow tests amend tests/flip.py --accept-green --reason 'the test is meant to pass now'",
-    "uv run agentflow tests amend tests/flip.py --reason x --accept-green",
-    "uv run --project foundation agentflow tests amend tests/flip.py --reason x",
-    "uvx agentflow tests amend tests/flip.py --reason x",
-    "python -m agentflow tests amend tests/flip.py --reason x",
-    "py -3 -m agentflow tests amend tests/flip.py --reason x",
-    "timeout 5 agentflow tests amend tests/flip.py --reason x",
-    "FOO=1 agentflow tests amend tests/flip.py --reason x",
-    "cd tests && agentflow tests amend flip.py --reason x",
-    "bash -c \"agentflow tests amend tests/flip.py --reason x\"",
-    "powershell -Command \"agentflow tests amend tests/flip.py --reason x\"",
-    r"C:\Users\x\.local\bin\agentflow.exe tests amend tests/flip.py --reason x",
-    "/home/x/.local/bin/agentflow tests amend tests/flip.py --reason x",
-    "cat <<EOF | bash\nagentflow tests amend tests/flip.py --reason x\nEOF",
-    "echo 'agentflow tests amend tests/flip.py --reason x' | sh",
-    "Start-Process agentflow -ArgumentList 'tests amend tests/flip.py --reason x'",
+    "THANHTAN.EXE tests amend tests/flip.py --reason x",
+    "uv run thanhtan tests amend tests/flip.py --reason x",
+    "thanhtan tests amend tests/flip.py --accept-green --reason 'the test is meant to pass now'",
+    "uv run thanhtan tests amend tests/flip.py --reason x --accept-green",
+    "uv run --project foundation thanhtan tests amend tests/flip.py --reason x",
+    "uvx thanhtan tests amend tests/flip.py --reason x",
+    "python -m thanhtan tests amend tests/flip.py --reason x",
+    "py -3 -m thanhtan tests amend tests/flip.py --reason x",
+    "timeout 5 thanhtan tests amend tests/flip.py --reason x",
+    "FOO=1 thanhtan tests amend tests/flip.py --reason x",
+    "cd tests && thanhtan tests amend flip.py --reason x",
+    "bash -c \"thanhtan tests amend tests/flip.py --reason x\"",
+    "powershell -Command \"thanhtan tests amend tests/flip.py --reason x\"",
+    r"C:\Users\x\.local\bin\thanhtan.exe tests amend tests/flip.py --reason x",
+    "/home/x/.local/bin/thanhtan tests amend tests/flip.py --reason x",
+    "cat <<EOF | bash\nthanhtan tests amend tests/flip.py --reason x\nEOF",
+    "echo 'thanhtan tests amend tests/flip.py --reason x' | sh",
+    "Start-Process thanhtan -ArgumentList 'tests amend tests/flip.py --reason x'",
 ]
 
 
@@ -458,11 +458,11 @@ def test_antigravity_cannot_amend_an_approved_test_either(locked, command):
 @pytest.mark.parametrize(
     "command",
     [
-        "agentflow tests check",
-        "uv run agentflow tests check",
-        "python -m agentflow tests check",
-        "agentflow tests verify-red",
-        "echo 'run agentflow tests amend later'",
+        "thanhtan tests check",
+        "uv run thanhtan tests check",
+        "python -m thanhtan tests check",
+        "thanhtan tests verify-red",
+        "echo 'run thanhtan tests amend later'",
         "grep -rn 'tests amend' docs",
     ],
 )
@@ -473,11 +473,11 @@ def test_checking_the_tests_and_talking_about_amending_are_not_amending(locked, 
 @pytest.mark.parametrize(
     "command",
     [
-        'agentflow config set test_command "true"',
-        'uv run agentflow config set test_command "true"',
-        'agentflow config set test_timeout_minutes 1',
-        "agentflow state accept --reason ok",
-        "agentflow project confirm profile",
+        'thanhtan config set test_command "true"',
+        'uv run thanhtan config set test_command "true"',
+        'thanhtan config set test_timeout_minutes 1',
+        "thanhtan state accept --reason ok",
+        "thanhtan project confirm profile",
     ],
 )
 def test_the_commands_that_change_what_the_tests_run_or_accept_a_change_stay_the_persons(locked, command):

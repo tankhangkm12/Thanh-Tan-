@@ -2,9 +2,34 @@
 
 Mọi thay đổi đáng chú ý của repo này được ghi ở đây. Định dạng theo [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
-Repo chứa nhiều thành phần có số phiên bản riêng: `agentflow` (foundation), `dev-core`, `dev-backend`. Số phiên bản hiện tại: agentflow 0.8.0, dev-core 0.7.0, dev-backend 0.4.0. Tag `v0.7.0` đánh dấu bản đã dùng ổn định trước 0.8.0; cách phát hành: [docs/release.md](docs/release.md).
+Repo chứa nhiều thành phần có số phiên bản riêng: `thanhtan` (foundation), `dev-core`, `dev-backend`. Số phiên bản hiện tại: thanhtan 1.0.0, dev-core 1.0.0, dev-backend 1.0.0 (trước 1.0.0 động cơ tên là `agentflow`). Tag `v0.7.0` đánh dấu bản đã dùng ổn định trước 0.8.0; cách phát hành: [docs/release.md](docs/release.md).
 
 ## [Unreleased]
+
+## [1.0.0] - 2026-10-29
+
+thanhtan 1.0.0, dev-core 1.0.0, dev-backend 1.0.0.
+
+### Changed
+
+- **`agentflow` đổi tên thành `thanhtan`**: lệnh, package Python, server MCP (tool thành `mcp__plugin_dev-core_thanhtan__*`), biến môi trường (`THANHTAN_HOME`, `THANHTAN_PROJECT_DIR`, `THANHTAN_HOOK_LOG`, `THANHTAN_CACHE_DIR`), hook, skill, agent, workflow và tài liệu. Ví dụ: `thanhtan status`, `thanhtan doctor`, `thanhtan task approve`, `thanhtan tests check`, `thanhtan tests amend`, `thanhtan workflow sync`.
+  - `agentflow` vẫn chạy như **bí danh** của cùng chương trình (in một dòng nhắc tên mới; hook, `mcp`, `guard` thì không), sẽ bỏ ở bản sau. Biến `AGENTFLOW_*` vẫn được đọc khi `THANHTAN_*` chưa đặt.
+  - Guard coi `agentflow` như `thanhtan` ở mọi dạng gọi (cả trong script), nên bí danh không vượt được hook.
+  - Tag duyệt mới là `thanhtan/<task>/approved`; tag `agentflow/<task>/approved` cũ vẫn tính là đã duyệt và vẫn được bảo vệ. Không ref nào trong git dự án bị viết lại.
+
+### Added
+
+- `thanhtan workspace remote <url>` / `save` / `load` / `status`: mang `.ThanhTan/`, nhánh task và tag duyệt sang máy khác qua repo riêng tư của bạn (clone ở `~/.ThanhTan/store/`, mỗi dự án một thư mục theo `origin`). `load` tự trỏ workflow vào dev-core cài ở máy mới. `save` từ chối khi máy khác đã lưu sau lần cuối, `load` từ chối ghi đè thay đổi chưa lưu (`--force` để bỏ qua); mã 39 `WORKSPACE_SYNC`. Không bao giờ push lên remote của dự án.
+- `thanhtan task export [T-002] [--branch] [--message]`: nhánh mới gồm một commit `<loại>: <tiêu đề>` chứa cả task, đặt trên commit task tách ra; không checkout, không push; mã 40 `EXPORT_FAILED`.
+- `thanhtan permissions install [--check] [--user]`: gộp quy tắc permissions của README Bước 4 (giờ ở `data/claude-permissions.json`, test giữ trùng README) vào `.claude/settings.json`; giữ quy tắc của bạn, bỏ quy tắc `agentflow` cũ và quy tắc `allow` cho `task approve|cancel`. README Bước 4 thêm `thanhtan workspace status` vào `allow`.
+- `workspace remote|save|load`, `task export`, `permissions install` là lệnh của người: hook từ chối khi agent chạy.
+- `tools/install.py`: in lời báo lỗi thật của uv; gỡ tool `agentflow` cũ trước khi cài `thanhtan`; trên Windows liệt kê tiến trình đang giữ file của thanhtan và chỉ dừng chúng khi bạn đồng ý.
+
+### Nâng cấp từ 0.8.0
+
+- Đóng mọi phiên Claude Code và Antigravity, rồi ở thư mục repo: `git pull` và `uv run --python 3.12 tools/install.py --backend` (thay cho `uv tool install --force --reinstall ./foundation`; nó gỡ tool `agentflow` cũ).
+- Ở mỗi dự án, khi không có task đang dở: `thanhtan permissions install`, rồi `thanhtan workflow sync`. Mở phiên mới.
+- Làm trên nhiều máy: tạo một repo GitHub riêng tư trống, rồi `thanhtan workspace remote <url>` và `thanhtan workspace save`.
 
 ## [0.8.0] - 2026-10-28
 

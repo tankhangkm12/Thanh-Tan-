@@ -1,18 +1,18 @@
 # /// script
 # requires-python = ">=3.12"
 # ///
-"""Install or update everything this repository gives a machine, in one command: the `agentflow` engine and the plugins of
+"""Install or update everything this repository gives a machine, in one command: the `thanhtan` engine and the plugins of
 Claude Code and Antigravity. It never touches a project.
 
-    uv run tools/install.py                  # install or update agentflow, dev-core in Claude Code and in Antigravity
+    uv run tools/install.py                  # install or update thanhtan, dev-core in Claude Code and in Antigravity
     uv run tools/install.py --backend        # also dev-backend
     uv run tools/install.py --design         # also design-core and design-architecture
-    uv run tools/install.py --only claude    # only Claude Code (or: agy); agentflow is always installed
+    uv run tools/install.py --only claude    # only Claude Code (or: agy); thanhtan is always installed
     uv run tools/install.py --check          # change nothing: say what is installed and what is out of date
 
 Run it from anywhere; it finds the repository from its own place. After `git pull`, run it again.
 
-Python: agentflow is installed with a Python that uv manages (3.12, downloaded once by uv), never the one on PATH. On
+Python: thanhtan is installed with a Python that uv manages (3.12, downloaded once by uv), never the one on PATH. On
 Windows `python` is often only the Microsoft Store shortcut ("Python was not found"), or a tool environment still points
 to a Python that was removed; a uv-managed Python avoids both.
 """
@@ -44,6 +44,12 @@ PLUGIN_DIRS = {
 # What Windows says when a running program (an open agy or Claude Code session) keeps a file open.
 IN_USE_MARKERS = ("being used by another process", "Access is denied", "os error 5", "os error 32")
 IN_USE_HINT = "a running Claude Code or Antigravity session keeps its files open: close those sessions, then run this again"
+TOOL, LEGACY_TOOL = "thanhtan", "agentflow"
+# Windows: the processes started from thanhtan's tool folder (MCP servers of open sessions) or named like it.
+LOCKING_PROCESSES = (
+    "Get-Process | Where-Object { $_.Path -like '*\\uv\\tools\\thanhtan\\*' -or $_.Path -like '*\\uv\\tools\\agentflow\\*' "
+    "-or $_.ProcessName -in 'thanhtan','agentflow' } | ForEach-Object { \"$($_.Id) $($_.ProcessName) $($_.Path)\" }"
+)
 UNKNOWN_FLAG_MARKERS = ("unexpected argument", "unrecognized", "unknown option")
 VERSION_PATTERN = re.compile(r"(\d+\.\d+\.\d+)")
 
@@ -55,7 +61,14 @@ class Result:
 
 
 class Runner:
-    """Runs the programs; tests give a fake one."""
+    """Runs the programs and asks the person; tests give a fake one."""
+
+    windows = sys.platform == "win32"
+
+    def ask(self, question: str) -> bool:
+        if not sys.stdin.isatty():
+            return False
+        return input(f"{question} [y/N] ").strip().lower() in ("y", "yes", "c", "có", "co")
 
     def which(self, name: str) -> str | None:
         return shutil.which(name)
@@ -85,7 +98,7 @@ class Step:
 
 
 def repo_version(name: str) -> str:
-    if name == "agentflow":
+    if name == "thanhtan":
         text = (FOUNDATION / "pyproject.toml").read_text(encoding=ENCODING)
         found = re.search(r'^version\s*=\s*"([^"]+)"', text, re.MULTILINE)
         return found.group(1) if found else "?"
@@ -110,7 +123,7 @@ def tail(output: str, lines: int = 6) -> str:
 def check_prerequisites(runner: Runner, clis: Sequence[str]) -> list[Step]:
     steps = [Step(f"{name} on PATH", runner.which(name) is not None, "" if runner.which(name) else f"install {name} first") for name in ("uv", "git")]
     if runner.which("docker") is None:
-        steps.append(Step("docker", False, "not found: `agentflow commit` needs Docker Desktop (or Podman) to scan for secrets", warning=True))
+        steps.append(Step("docker", False, "not found: `thanhtan commit` needs Docker Desktop (or Podman) to scan for secrets", warning=True))
     else:
         info = runner.run(["docker", "info"])
         steps.append(Step("docker engine running", info.returncode == 0, "" if info.returncode == 0 else "start Docker Desktop", warning=info.returncode != 0))
@@ -120,30 +133,80 @@ def check_prerequisites(runner: Runner, clis: Sequence[str]) -> list[Step]:
     return steps
 
 
-def install_agentflow(runner: Runner) -> Step:
-    python = runner.run(["uv", "python", "install", PYTHON_VERSION])
-    if python.returncode != 0:
-        return Step(f"uv-managed Python {PYTHON_VERSION}", False, tail(python.output))
+def locking_processes(runner: Runner) -> list[tuple[str, str]]:
+    """(id, description) of the Windows processes that may keep thanhtan's files open; empty elsewhere."""
+    if not runner.windows:
+        return []
+    done = runner.run(["powershell", "-NoProfile", "-Command", LOCKING_PROCESSES])
+    found = []
+    for line in done.output.splitlines() if done.returncode == 0 else []:
+        process_id, _, rest = line.strip().partition(" ")
+        if process_id.isdigit():
+            found.append((process_id, rest))
+    return found
+
+
+def _tool_install(runner: Runner) -> Result:
     command = ["uv", "tool", "install", "--force", "--reinstall", "--python", PYTHON_VERSION, "--managed-python", str(FOUNDATION)]
     done = runner.run(command)
     if done.returncode != 0 and any(marker in done.output for marker in UNKNOWN_FLAG_MARKERS):
         # uv older than 0.7 has no --managed-python; the Python it just installed is still the one picked first.
         done = runner.run([part for part in command if part != "--managed-python"])
+    return done
+
+
+def _blocked(runner: Runner, output: str) -> tuple[str, bool]:
+    """What to tell the person when a file is in use, and whether they let us stop the processes (then retry)."""
+    detail = [IN_USE_HINT, "uv said:", tail(output)]
+    processes = locking_processes(runner)
+    if not processes:
+        return "\n".join(detail), False
+    detail.append("these processes keep thanhtan open:")
+    detail += [f"  {process_id} {what}" for process_id, what in processes]
+    if not runner.ask(f"Stop these {len(processes)} process(es) and try again?"):
+        detail.append("stop them (or close those sessions), then run this again")
+        return "\n".join(detail), False
+    ids = ",".join(process_id for process_id, _ in processes)
+    runner.run(["powershell", "-NoProfile", "-Command", f"Stop-Process -Force -Id {ids}"])
+    return "\n".join(detail), True
+
+
+def install_thanhtan(runner: Runner) -> list[Step]:
+    python = runner.run(["uv", "python", "install", PYTHON_VERSION])
+    if python.returncode != 0:
+        return [Step(f"uv-managed Python {PYTHON_VERSION}", False, tail(python.output))]
+    steps = []
+    tools = runner.run(["uv", "tool", "list"])
+    if any(line.split(" ")[0] == LEGACY_TOOL for line in tools.output.splitlines()):
+        # Before 1.0.0 the tool was called agentflow; thanhtan installs `agentflow` as an alias, so the old tool goes.
+        removed = runner.run(["uv", "tool", "uninstall", LEGACY_TOOL])
+        if removed.returncode != 0 and in_use(removed.output):
+            detail, retry = _blocked(runner, removed.output)
+            removed = runner.run(["uv", "tool", "uninstall", LEGACY_TOOL]) if retry else removed
+            if removed.returncode != 0:
+                return [Step(f"remove the old {LEGACY_TOOL} tool", False, detail)]
+        steps.append(Step(f"remove the old {LEGACY_TOOL} tool", removed.returncode == 0, "" if removed.returncode == 0 else tail(removed.output)))
+    done = _tool_install(runner)
+    if done.returncode != 0 and in_use(done.output):
+        detail, retry = _blocked(runner, done.output)
+        done = _tool_install(runner) if retry else Result(done.returncode, detail)
+        if done.returncode != 0:
+            return [*steps, Step(f"install {TOOL}", False, detail if not retry else f"{IN_USE_HINT}\nuv said:\n{tail(done.output)}")]
     if done.returncode != 0:
-        return Step("install agentflow", False, IN_USE_HINT if in_use(done.output) else tail(done.output))
-    return Step("install agentflow", True, f"Python {PYTHON_VERSION} managed by uv")
+        return [*steps, Step(f"install {TOOL}", False, "uv said:\n" + tail(done.output))]
+    return [*steps, Step(f"install {TOOL}", True, f"Python {PYTHON_VERSION} managed by uv; `{LEGACY_TOOL}` still works as an alias")]
 
 
-def check_agentflow(runner: Runner) -> Step:
-    wanted = repo_version("agentflow")
-    if runner.which("agentflow") is None:
-        return Step("agentflow on PATH", False, "not found: run `uv tool update-shell`, then open a new terminal")
-    done = runner.run(["agentflow", "--version"])
+def check_thanhtan(runner: Runner) -> Step:
+    wanted = repo_version("thanhtan")
+    if runner.which("thanhtan") is None:
+        return Step("thanhtan on PATH", False, "not found: run `uv tool update-shell`, then open a new terminal")
+    done = runner.run(["thanhtan", "--version"])
     found = VERSION_PATTERN.search(done.output)
     have = found.group(1) if found else "?"
     if done.returncode != 0:
-        return Step("agentflow runs", False, tail(done.output) + "\n(a broken tool environment: run this script without --check)")
-    return Step(f"agentflow {wanted}", have == wanted, f"PATH has {have}" if have != wanted else "")
+        return Step("thanhtan runs", False, tail(done.output) + "\n(a broken tool environment: run this script without --check)")
+    return Step(f"thanhtan {wanted}", have == wanted, f"PATH has {have}" if have != wanted else "")
 
 
 def claude_listing(runner: Runner) -> dict[str, dict]:
@@ -232,11 +295,11 @@ def run(args: argparse.Namespace, runner: Runner) -> list[Step]:
     if not all(step.ok or step.warning for step in steps):
         return steps
     if not args.check:
-        installed = install_agentflow(runner)
-        steps.append(installed)
-        if not installed.ok:
+        installed = install_thanhtan(runner)
+        steps += installed
+        if not all(step.ok for step in installed):
             return steps
-    steps.append(check_agentflow(runner))
+    steps.append(check_thanhtan(runner))
     for cli in clis:
         if runner.which(cli) is None:
             continue
@@ -257,15 +320,15 @@ def report(steps: Sequence[Step], check: bool) -> int:
         print(f"\n{len(failed)} problem(s).", "Run without --check to install or update." if check else "")
         return 1
     print("\nAll good." + ("" if check else " Open a new Claude Code / Antigravity session to load the new plugins."))
-    print("Projects are not touched: in each project the next `agentflow` command moves an old .agentflow/ to .ThanhTan/, "
-          "and `agentflow doctor` says when `agentflow workflow sync` is needed.")
+    print("Projects are not touched: in each project the next `thanhtan` command moves an old .agentflow/ to .ThanhTan/, "
+          "and `thanhtan doctor` says when `thanhtan workflow sync` is needed.")
     return 0
 
 
 def main(argv: list[str] | None = None, runner: Runner | None = None) -> int:
-    parser = argparse.ArgumentParser(description="Install or update agentflow and the plugins of this repository.")
+    parser = argparse.ArgumentParser(description="Install or update thanhtan and the plugins of this repository.")
     parser.add_argument("--check", action="store_true", help="change nothing; say what is installed and what is out of date")
-    parser.add_argument("--only", choices=(CLAUDE, AGY), help="only this CLI (agentflow is always handled)")
+    parser.add_argument("--only", choices=(CLAUDE, AGY), help="only this CLI (thanhtan is always handled)")
     parser.add_argument("--backend", action="store_true", help="also dev-backend")
     parser.add_argument("--design", action="store_true", help="also design-core and design-architecture")
     args = parser.parse_args(argv)

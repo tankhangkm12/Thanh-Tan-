@@ -3,10 +3,10 @@ import hashlib
 import pytest
 import yaml
 
-from agentflow.constants import ExitCode
-from agentflow.errors import AgentflowError
-from agentflow.interfaces import WorkflowSource
-from agentflow.workflow import FileWorkflowSource, load_workflow, parse_workflow
+from thanhtan.constants import ExitCode
+from thanhtan.errors import ThanhTanError
+from thanhtan.interfaces import WorkflowSource
+from thanhtan.workflow import FileWorkflowSource, load_workflow, parse_workflow
 
 
 def write_yaml(tmp_path, data, name="workflow.yaml"):
@@ -22,7 +22,7 @@ def test_load_valid_workflow(tmp_path, workflow_data):
 
 
 def test_missing_file(tmp_path):
-    with pytest.raises(AgentflowError) as exc:
+    with pytest.raises(ThanhTanError) as exc:
         load_workflow(tmp_path / "nope.yaml")
     assert exc.value.code is ExitCode.WORKFLOW_NOT_FOUND
 
@@ -30,14 +30,14 @@ def test_missing_file(tmp_path):
 def test_broken_yaml(tmp_path):
     path = tmp_path / "workflow.yaml"
     path.write_text("steps: [unclosed", encoding="utf-8")
-    with pytest.raises(AgentflowError) as exc:
+    with pytest.raises(ThanhTanError) as exc:
         load_workflow(path)
     assert exc.value.code is ExitCode.INVALID_WORKFLOW
 
 
 def test_schema_violation_lists_location(workflow_data):
     del workflow_data["steps"][0]["role"]
-    with pytest.raises(AgentflowError) as exc:
+    with pytest.raises(ThanhTanError) as exc:
         parse_workflow(workflow_data, origin="w.yaml")
     assert exc.value.code is ExitCode.INVALID_WORKFLOW
     assert "steps/0" in str(exc.value)
@@ -54,7 +54,7 @@ def test_schema_violation_lists_location(workflow_data):
 )
 def test_reference_problems(workflow_data, mutate, expected):
     mutate(workflow_data)
-    with pytest.raises(AgentflowError) as exc:
+    with pytest.raises(ThanhTanError) as exc:
         parse_workflow(workflow_data, origin="w.yaml")
     assert expected in str(exc.value)
 

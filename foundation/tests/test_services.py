@@ -1,12 +1,12 @@
 import pytest
 from conftest import SAMPLE_WORKFLOW, write_workflow
 
-from agentflow.cli import main
-from agentflow.constants import ActionKind, ExitCode, ProjectSection
-from agentflow.errors import AgentflowError
-from agentflow.interfaces import WorkspaceService
-from agentflow.services import WorkspaceServices
-from agentflow.workspace import find_workspace
+from thanhtan.cli import main
+from thanhtan.constants import ActionKind, ExitCode, ProjectSection
+from thanhtan.errors import ThanhTanError
+from thanhtan.interfaces import WorkspaceService
+from thanhtan.services import WorkspaceServices
+from thanhtan.workspace import find_workspace
 
 GOOD_PLAN = """### C1 - Build it
 - role: builder
@@ -32,7 +32,7 @@ def service(repo):
 
 
 def refuses(call, code):
-    with pytest.raises(AgentflowError) as exc:
+    with pytest.raises(ThanhTanError) as exc:
         call()
     assert exc.value.code is code
     return str(exc.value)
@@ -155,7 +155,7 @@ def test_knowledge_read_returns_a_file_inside_the_workspace_copy(service, knowle
 
 @pytest.mark.parametrize("name", ["../config.yaml", "..\\config.yaml", "/etc/hosts", "C:/Windows/win.ini", "lessons/../../state.json", "missing.md", "lessons", "image.png"])
 def test_knowledge_read_stays_inside_the_knowledge_folder(service, knowledge, name):
-    with pytest.raises(AgentflowError) as exc:
+    with pytest.raises(ThanhTanError) as exc:
         service.knowledge_read(name)
     assert exc.value.code in {ExitCode.KNOWLEDGE_NOT_FOUND, ExitCode.INVALID_INPUT}
 
@@ -189,7 +189,7 @@ def conventions_path(repo):
 
 
 def confirm_by_hand(repo, code):
-    """What a person does (or `agentflow project confirm`): flip the status of one convention in the file."""
+    """What a person does (or `thanhtan project confirm`): flip the status of one convention in the file."""
     path = conventions_path(repo)
     text = path.read_text(encoding="utf-8")
     start = text.index(f"### {code} -")

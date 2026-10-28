@@ -1,0 +1,80 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "thanhtan state",
+  "description": "Content of .ThanhTan/state.json, the source of truth for workspace state. STATE.md is generated from it.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "updated_at", "active_task_id", "tasks"],
+  "properties": {
+    "schema_version": { "const": 1 },
+    "updated_at": { "type": ["string", "null"], "format": "date-time" },
+    "active_task_id": {
+      "anyOf": [{ "type": "null" }, { "$ref": "#/$defs/task_id" }]
+    },
+    "tasks": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/task" }
+    }
+  },
+  "$defs": {
+    "task_id": { "type": "string", "pattern": "^T-[0-9]{3,}$" },
+    "step_id": { "type": "string", "pattern": "^[a-z][a-z0-9-]*$" },
+    "task": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "title",
+        "status",
+        "current_step",
+        "step_status",
+        "loop_round",
+        "branch",
+        "history"
+      ],
+      "properties": {
+        "id": { "$ref": "#/$defs/task_id" },
+        "title": { "type": "string", "minLength": 1 },
+        "status": { "enum": ["open", "blocked", "done", "cancelled"] },
+        "current_step": { "$ref": "#/$defs/step_id" },
+        "step_status": {
+          "enum": ["in_progress", "awaiting_approval", "passed", "failed"]
+        },
+        "loop_round": { "type": "integer", "minimum": 0 },
+        "branch": {
+          "anyOf": [{ "type": "null" }, { "type": "string", "minLength": 1 }]
+        },
+        "size": { "type": "string", "pattern": "^[a-z][a-z0-9-]*$" },
+        "roadmap": { "type": "string", "pattern": "^R[0-9]+$" },
+        "type": { "type": "string", "pattern": "^[a-z][a-z0-9-]*$" },
+        "base": { "type": "string", "minLength": 1 },
+        "replanned_at": { "type": "string" },
+        "history": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/history_entry" }
+        }
+      }
+    },
+    "history_entry": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["at", "step", "event"],
+      "properties": {
+        "at": { "type": "string", "format": "date-time" },
+        "step": { "$ref": "#/$defs/step_id" },
+        "event": {
+          "enum": [
+            "started",
+            "passed",
+            "failed",
+            "approved",
+            "blocked",
+            "resumed",
+            "cancelled",
+            "done"
+          ]
+        }
+      }
+    }
+  }
+}

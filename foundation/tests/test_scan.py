@@ -4,7 +4,7 @@ from pathlib import Path
 
 import pytest
 
-from agentflow.constants import (
+from thanhtan.constants import (
     GITLEAKS_IMAGE,
     SEMGREP_IMAGE,
     TRIVY_IMAGE,
@@ -13,16 +13,16 @@ from agentflow.constants import (
     ResultKind,
     ScanStatus,
 )
-from agentflow.container import glob_regex, running_engine, select_files, tool_command
-from agentflow.errors import AgentflowError
-from agentflow.models import CommandResult, StepStatus, Task, TaskStatus
-from agentflow.placeholders import expand_args, expand_text, host_url
-from agentflow.scan import ScanService, condition_holds, scan_problems
-from agentflow.scan_read import parse_findings, read_result
-from agentflow.scan_store import ScanStore, suppressed_ids, write_suppression
-from agentflow.scan_tools import GITLEAKS_SPEC, SEMGREP_SPEC, TRIVY_SPEC
-from agentflow.scan_types import Condition, FileSelection, ResultSpec, ScanContext, ScanFinding, ScanToolSpec
-from agentflow.semgrep_rules import default_cache_dir, ensure_rules, ruleset_file
+from thanhtan.container import glob_regex, running_engine, select_files, tool_command
+from thanhtan.errors import ThanhTanError
+from thanhtan.models import CommandResult, StepStatus, Task, TaskStatus
+from thanhtan.placeholders import expand_args, expand_text, host_url
+from thanhtan.scan import ScanService, condition_holds, scan_problems
+from thanhtan.scan_read import parse_findings, read_result
+from thanhtan.scan_store import ScanStore, suppressed_ids, write_suppression
+from thanhtan.scan_tools import GITLEAKS_SPEC, SEMGREP_SPEC, TRIVY_SPEC
+from thanhtan.scan_types import Condition, FileSelection, ResultSpec, ScanContext, ScanFinding, ScanToolSpec
+from thanhtan.semgrep_rules import default_cache_dir, ensure_rules, ruleset_file
 
 FIXTURES = Path(__file__).parent / "fixtures" / "scans"
 
@@ -66,7 +66,7 @@ def test_gitleaks_any_finding_blocks_and_exit_99_is_a_normal_result():
     status, findings = read_result("gitleaks", GITLEAKS_SPEC.result, 99, fixture("gitleaks.json"))
     assert status is ScanStatus.BLOCKED and findings[0].rule == "github-pat" and findings[0].blocking
     assert read_result("gitleaks", GITLEAKS_SPEC.result, 0, "")[0] is ScanStatus.CLEAN
-    with pytest.raises(AgentflowError) as exc:
+    with pytest.raises(ThanhTanError) as exc:
         read_result("gitleaks", GITLEAKS_SPEC.result, 2, "boom")
     assert exc.value.code == ExitCode.SCAN_FAILED
 
@@ -82,12 +82,12 @@ def test_exit_code_kind():
     assert read_result("st", spec, 0, "")[0] is ScanStatus.CLEAN
     status, findings = read_result("st", spec, 1, "failed")
     assert status is ScanStatus.BLOCKED and findings[0].blocking
-    with pytest.raises(AgentflowError):
+    with pytest.raises(ThanhTanError):
         read_result("st", spec, 2, "cannot load schema")
 
 
 def test_unreadable_output_is_an_error_not_an_empty_result():
-    with pytest.raises(AgentflowError) as exc:
+    with pytest.raises(ThanhTanError) as exc:
         parse_findings("squawk", SQUAWK, "Traceback ...")
     assert exc.value.code == ExitCode.SCAN_FAILED
 
@@ -102,7 +102,7 @@ def test_placeholders():
         "run", "f1", "f2", "--url", "http://host.docker.internal:8000/v1",
     ]
     assert host_url("https://example.com/x") == "https://example.com/x"
-    with pytest.raises(AgentflowError) as exc:
+    with pytest.raises(ThanhTanError) as exc:
         expand_text("${config:missing}", values.get)
     assert exc.value.code == ExitCode.SETTINGS_INVALID and "config set missing" in str(exc.value)
     assert expand_text("${var:range}", values.get, {"range": "a..b"}) == "a..b"
@@ -137,10 +137,10 @@ def test_command_is_pinned_read_only_and_offline_by_default():
 
 
 def test_trivy_gets_network_and_a_cache_volume_and_schemathesis_the_host():
-    from agentflow.scan_types import MountSpec
+    from thanhtan.scan_types import MountSpec
 
     command = tool_command("docker", TRIVY_SPEC, Path("/r"), ["fs"], list(TRIVY_SPEC.mounts))
-    assert "--network" not in command and "agentflow-trivy-cache:/root/.cache:rw" in command and TRIVY_IMAGE in command
+    assert "--network" not in command and "thanhtan-trivy-cache:/root/.cache:rw" in command and TRIVY_IMAGE in command
     spec = ScanToolSpec("st", "img:1", ("run",), SQUAWK, network=NetworkMode.HOST_GATEWAY)
     command = tool_command("docker", spec, Path("/r"), ["run"], [MountSpec("/x", "/y")])
     assert "--add-host" in command and "host.docker.internal:host-gateway" in command
@@ -172,7 +172,7 @@ class FakeRunner:
 
 
 def test_engine_not_running_is_a_hard_error():
-    with pytest.raises(AgentflowError) as exc:
+    with pytest.raises(ThanhTanError) as exc:
         running_engine(FakeRunner(engine_up=False))
     assert exc.value.code == ExitCode.ENGINE_NOT_RUNNING
 
@@ -212,7 +212,7 @@ def test_service_needs_a_running_engine_only_when_something_runs(tmp_path):
     down = FakeRunner(engine_up=False)
     skipped = ScanService(down, store).run("T-001", [trivial(when=Condition(config_present=("x",)))], context(tmp_path))
     assert skipped[0].status is ScanStatus.SKIPPED
-    with pytest.raises(AgentflowError) as exc:
+    with pytest.raises(ThanhTanError) as exc:
         ScanService(down, store).run("T-001", [trivial()], context(tmp_path))
     assert exc.value.code == ExitCode.ENGINE_NOT_RUNNING
     assert store.load("T-002") == {}
@@ -221,7 +221,7 @@ def test_service_needs_a_running_engine_only_when_something_runs(tmp_path):
 def test_service_stores_nothing_when_a_tool_cannot_run(tmp_path):
     store = ScanStore(tmp_path / "ws")
     runner = FakeRunner({"img/t:1": CommandResult(125, "", "no such image")})
-    with pytest.raises(AgentflowError):
+    with pytest.raises(ThanhTanError):
         ScanService(runner, store).run("T-001", [trivial()], context(tmp_path))
     assert store.load("T-001") == {}
 
@@ -255,7 +255,7 @@ def test_scan_problems_missing_stale_blocking_and_suppressed(tmp_path):
 
 def test_a_suppression_needs_a_reason(tmp_path):
     finding = ScanFinding("t:r:l", "r", "ERROR", "l", "m", True)
-    with pytest.raises(AgentflowError):
+    with pytest.raises(ThanhTanError):
         write_suppression(tmp_path, "T-001", finding, "  ", "2026")
 
 
@@ -297,20 +297,20 @@ def test_stale_rules_are_refreshed_and_fall_back_to_the_cache_offline(tmp_path):
     warnings = []
     ensure_rules(cache, ["p/default"], repo, Fetcher(fail=True), now=far_future, warn=warnings.append)
     assert warnings and "cached copy" in warnings[0]
-    with pytest.raises(AgentflowError) as exc:
+    with pytest.raises(ThanhTanError) as exc:
         ensure_rules(tmp_path / "empty", ["p/default"], repo, Fetcher(fail=True))
     assert exc.value.code == ExitCode.SCAN_FAILED
 
 
 def test_rule_cache_inside_the_repository_is_refused(tmp_path):
-    with pytest.raises(AgentflowError):
+    with pytest.raises(ThanhTanError):
         ensure_rules(tmp_path / "repo" / ".cache", ["p/default"], tmp_path / "repo", Fetcher())
 
 
 def test_cache_dir_locations():
-    assert default_cache_dir({"AGENTFLOW_CACHE_DIR": "/c"}) == Path("/c")
-    assert default_cache_dir({"LOCALAPPDATA": "C:/L"}, windows=True) == Path("C:/L/agentflow/cache")
-    assert default_cache_dir({"XDG_CACHE_HOME": "/x"}, windows=False) == Path("/x/agentflow")
+    assert default_cache_dir({"THANHTAN_CACHE_DIR": "/c"}) == Path("/c")
+    assert default_cache_dir({"LOCALAPPDATA": "C:/L"}, windows=True) == Path("C:/L/thanhtan/cache")
+    assert default_cache_dir({"XDG_CACHE_HOME": "/x"}, windows=False) == Path("/x/thanhtan")
 
 
 def test_no_semgrep_registry_rules_are_tracked_in_this_repository():

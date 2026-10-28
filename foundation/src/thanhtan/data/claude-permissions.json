@@ -1,0 +1,58 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(thanhtan status *)",
+      "Bash(thanhtan next *)",
+      "Bash(thanhtan doctor *)",
+      "Bash(thanhtan init *)",
+      "Bash(thanhtan task new *)",
+      "Bash(thanhtan task advance *)",
+      "Bash(thanhtan plan check *)",
+      "Bash(thanhtan report *)",
+      "Bash(thanhtan commit *)",
+      "Bash(thanhtan scan *)",
+      "Bash(thanhtan stats *)",
+      "Bash(thanhtan diagnosis *)",
+      "Bash(thanhtan roadmap list *)",
+      "Bash(thanhtan roadmap show *)",
+      "Bash(thanhtan config get *)",
+      "Bash(thanhtan config check *)",
+      "Bash(thanhtan ext list *)",
+      "Bash(thanhtan workflow sync *)",
+      "Bash(thanhtan workspace status *)",
+      "mcp__plugin_dev-core_thanhtan__status",
+      "mcp__plugin_dev-core_thanhtan__next_step",
+      "mcp__plugin_dev-core_thanhtan__plan_check",
+      "mcp__plugin_dev-core_thanhtan__report_write",
+      "mcp__plugin_dev-core_thanhtan__project_write",
+      "mcp__plugin_dev-core_thanhtan__scan_summary",
+      "mcp__plugin_dev-core_thanhtan__conventions",
+      "mcp__plugin_dev-core_thanhtan__knowledge_search",
+      "mcp__plugin_dev-core_thanhtan__knowledge_read",
+      "mcp__plugin_dev-core_thanhtan__diagnosis_write",
+      "PowerShell(thanhtan status *)",
+      "PowerShell(thanhtan next *)",
+      "PowerShell(thanhtan task new *)",
+      "PowerShell(thanhtan task advance *)",
+      "PowerShell(thanhtan plan check *)",
+      "PowerShell(thanhtan report *)",
+      "PowerShell(thanhtan commit *)",
+      "PowerShell(thanhtan scan *)",
+      "PowerShell(thanhtan stats *)",
+      "PowerShell(thanhtan diagnosis *)"
+    ],
+    "ask": [
+      "Bash(thanhtan task approve *)",
+      "Bash(thanhtan task cancel *)",
+      "PowerShell(thanhtan task approve *)",
+      "PowerShell(thanhtan task cancel *)"
+    ],
+    "deny": [
+      "Edit(./.claude/settings.json)",
+      "Edit(./.claude/settings.local.json)",
+      "Edit(./.ThanhTan/state.json)",
+      "Edit(./.ThanhTan/**/state.json)"
+    ],
+    "disableBypassPermissionsMode": "disable"
+  }
+}

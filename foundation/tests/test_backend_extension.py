@@ -5,10 +5,10 @@ from pathlib import Path
 import pytest
 from conftest import git
 
-from agentflow import cli
-from agentflow.cli import main
-from agentflow.constants import ExitCode, GateKind, NetworkMode, ResultKind
-from agentflow.extension import load_extension_file
+from thanhtan import cli
+from thanhtan.cli import main
+from thanhtan.constants import ExitCode, GateKind, NetworkMode, ResultKind
+from thanhtan.extension import load_extension_file
 
 REPO = Path(__file__).resolve().parents[2]
 EXTENSION = REPO / "families" / "software-dev" / "backend" / "extension.yaml"
@@ -91,9 +91,9 @@ def test_an_unknown_role_is_refused(ws, tmp_path):
 
 
 def test_the_extension_adds_tools_to_the_test_step(ws, capsys):
-    from agentflow.projectcontext import load_project_context
-    from agentflow.scan import tools_for_step
-    from agentflow.workspace import find_workspace, load_workspace_workflow
+    from thanhtan.projectcontext import load_project_context
+    from thanhtan.scan import tools_for_step
+    from thanhtan.workspace import find_workspace, load_workspace_workflow
 
     paths = find_workspace(Path.cwd())
     workflow, project = load_workspace_workflow(paths), None

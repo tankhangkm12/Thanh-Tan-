@@ -4,10 +4,10 @@ from pathlib import Path
 import pytest
 from conftest import SAMPLE_WORKFLOW, git, write_workflow
 
-from agentflow import cli
-from agentflow.cli import main
-from agentflow.constants import GITLEAKS_IMAGE, SEMGREP_IMAGE, TRIVY_IMAGE, ExitCode
-from agentflow.models import CommandResult
+from thanhtan import cli
+from thanhtan.cli import main
+from thanhtan.constants import GITLEAKS_IMAGE, SEMGREP_IMAGE, TRIVY_IMAGE, ExitCode
+from thanhtan.models import CommandResult
 
 FIXTURES = Path(__file__).parent / "fixtures" / "scans"
 
@@ -42,7 +42,7 @@ def ws(gitflow_repo, tmp_path, monkeypatch, capsys):
     data["steps"][2]["gates"] = ["scans-clean"]  # "check" plays the security step
     path = write_workflow(tmp_path / "plugin" / "workflow.yaml", data)
     monkeypatch.chdir(gitflow_repo)
-    monkeypatch.setenv("AGENTFLOW_CACHE_DIR", str(tmp_path / "cache"))
+    monkeypatch.setenv("THANHTAN_CACHE_DIR", str(tmp_path / "cache"))
     monkeypatch.setattr(cli, "SubprocessRunner", FakeRunner)
     monkeypatch.setattr(cli, "HttpRuleFetcher", FakeFetcher)
     FakeRunner.commands = []

@@ -2,7 +2,7 @@
 
 - `keep_previous`: two versions replaced in the same second must both survive in `project/history/`.
 - `project_write` of the conventions: what an agent can and cannot make of a convention.
-- `roadmap.describe` and `roadmap.next_item`, used by `agentflow status`, outside the command line.
+- `roadmap.describe` and `roadmap.next_item`, used by `thanhtan status`, outside the command line.
 
 All of it describes behaviour that already exists: these tests are green. The mutation check in the report shows they
 fail when the code they cover is broken.
@@ -11,13 +11,13 @@ fail when the code they cover is broken.
 import pytest
 from sdd_helpers import init_workspace, project_dir, sample_workflow
 
-from agentflow.confirmations import Confirmations
-from agentflow.constants import ExitCode, ProjectSection, RoadmapStatus
-from agentflow.errors import AgentflowError
-from agentflow.project import keep_previous
-from agentflow.roadmap import RoadmapItem, describe, next_item, unconfirmed_codes
-from agentflow.services import WorkspaceServices
-from agentflow.workspace import find_workspace
+from thanhtan.confirmations import Confirmations
+from thanhtan.constants import ExitCode, ProjectSection, RoadmapStatus
+from thanhtan.errors import ThanhTanError
+from thanhtan.project import keep_previous
+from thanhtan.roadmap import RoadmapItem, describe, next_item, unconfirmed_codes
+from thanhtan.services import WorkspaceServices
+from thanhtan.workspace import find_workspace
 
 STAMP = "2026-10-17T10:00:00Z"
 CONVENTIONS = """# Quy ước
@@ -63,7 +63,7 @@ def history(ws, name):
 
 
 def refused(service, text):
-    with pytest.raises(AgentflowError) as exc:
+    with pytest.raises(ThanhTanError) as exc:
         service.write_project(ProjectSection.CONVENTIONS, text)
     return exc.value
 
@@ -72,7 +72,7 @@ def refused(service, text):
 
 
 def test_two_versions_saved_in_the_same_second_both_survive(tmp_path, monkeypatch):
-    monkeypatch.setattr("agentflow.project.utc_now", lambda: STAMP)
+    monkeypatch.setattr("thanhtan.project.utc_now", lambda: STAMP)
     paths = [keep_previous(tmp_path, "profile", text) for text in ("one", "two", "three")]
     assert len(set(paths)) == 3
     assert [path.read_text(encoding="utf-8") for path in paths] == ["one", "two", "three"]
@@ -80,21 +80,21 @@ def test_two_versions_saved_in_the_same_second_both_survive(tmp_path, monkeypatc
 
 
 def test_the_first_version_of_a_second_keeps_the_plain_name(tmp_path, monkeypatch):
-    monkeypatch.setattr("agentflow.project.utc_now", lambda: STAMP)
+    monkeypatch.setattr("thanhtan.project.utc_now", lambda: STAMP)
     first = keep_previous(tmp_path, "profile", "one")
     second = keep_previous(tmp_path, "profile", "two")
     assert first.name == "profile-20261017T100000Z.md" and second.name != first.name
 
 
 def test_versions_of_different_documents_never_collide(tmp_path, monkeypatch):
-    monkeypatch.setattr("agentflow.project.utc_now", lambda: STAMP)
+    monkeypatch.setattr("thanhtan.project.utc_now", lambda: STAMP)
     a = keep_previous(tmp_path, "profile", "p")
     b = keep_previous(tmp_path, "roadmap", "r")
     assert a.read_text(encoding="utf-8") == "p" and b.read_text(encoding="utf-8") == "r"
 
 
 def test_rewriting_a_document_twice_in_one_second_keeps_both_older_versions(ws, service, monkeypatch):
-    monkeypatch.setattr("agentflow.project.utc_now", lambda: STAMP)
+    monkeypatch.setattr("thanhtan.project.utc_now", lambda: STAMP)
     for text in ("# Profile v1\n", "# Profile v2\n", "# Profile v3\n"):
         service.write_project(ProjectSection.PROFILE, text)
     assert (project_dir(ws) / "profile.md").read_text(encoding="utf-8") == "# Profile v3\n"
@@ -196,7 +196,7 @@ def test_windows_line_ends_are_stored_as_unix_line_ends(ws, service):
 
 
 def test_conventions_are_not_written_while_a_task_is_open(ws, service, monkeypatch):
-    from agentflow.cli import main
+    from thanhtan.cli import main
 
     assert main(["task", "new", "t"]) == ExitCode.OK
     error = refused(service, CONVENTIONS)

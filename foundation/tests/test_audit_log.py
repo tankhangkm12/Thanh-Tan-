@@ -30,9 +30,9 @@ from checklist_helpers import (
 )
 from sdd_helpers import run, say
 
-from agentflow.constants import CliKind, ExitCode, HookEvent
-from agentflow.git import GitBranchLookup
-from agentflow.hook import handle_hook
+from thanhtan.constants import CliKind, ExitCode, HookEvent
+from thanhtan.git import GitBranchLookup
+from thanhtan.hook import handle_hook
 
 PROTECTED = ["state.json", "STATE.md", "integrity.json", "approve-confirm.md", "locked-files.json", "confirmations.json"]
 LINE_KEYS = {"at", "cli", "tool", "kind", "target", "decision"}
@@ -113,7 +113,7 @@ def test_powershell_commands_are_logged_as_shell(repo):
 
 @pytest.mark.parametrize(
     "command",
-    ["git status", "ls -la", "pytest -q", "agentflow status", "cat src/state_machine.py", "echo statejson"],
+    ["git status", "ls -la", "pytest -q", "thanhtan status", "cat src/state_machine.py", "echo statejson"],
 )
 def test_ordinary_commands_are_not_logged(repo, command):
     hook(repo, command=command)
@@ -207,7 +207,7 @@ def test_approve_refuses_when_an_allowed_call_touched_the_checklist(waiting, cap
     code, _out, err = approve(capsys)
     assert code == INTEGRITY_FAILED
     assert "approve-confirm.md" in err, "the refusal quotes the line of the log"
-    assert "agentflow state accept" in err
+    assert "thanhtan state accept" in err
     assert task_now(waiting)[2] == "awaiting_approval"
 
 
@@ -241,7 +241,7 @@ READING = [
     "Get-Content .ThanhTan\\state.json",
     "grep version .ThanhTan/state.json",
     "cat .ThanhTan/tasks/T-001/approve-confirm.md",
-    "agentflow status  # looks at .ThanhTan/state.json",
+    "thanhtan status  # looks at .ThanhTan/state.json",
 ]
 
 
@@ -249,7 +249,7 @@ READING = [
 def test_a_command_that_could_write_the_checklist_or_state_blocks_the_approval(waiting, capsys, command):
     log(waiting, entry(target=command))
     code, _out, err = approve(capsys)
-    assert code == INTEGRITY_FAILED and "agentflow state accept" in err
+    assert code == INTEGRITY_FAILED and "thanhtan state accept" in err
 
 
 @pytest.mark.parametrize("command", READING)

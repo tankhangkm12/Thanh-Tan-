@@ -1,9 +1,9 @@
 """Phase B1: the mission of a project, written by the scout into profile.md and confirmed by a person.
 
 The mission is the `## Mission` section of `.ThanhTan/project/profile.md`: why, for whom, scope, out of scope and
-the source it came from. Confirmation is not a flag inside the file: agentflow keeps the sha256 of what a person
+the source it came from. Confirmation is not a flag inside the file: thanhtan keeps the sha256 of what a person
 confirmed, so a document that an agent rewrites is unconfirmed again without anyone remembering to say so.
-`agentflow project status` shows `mission:`, `profile:`, `architecture:` and `roadmap:` as missing, unconfirmed or confirmed.
+`thanhtan project status` shows `mission:`, `profile:`, `architecture:` and `roadmap:` as missing, unconfirmed or confirmed.
 """
 
 import json
@@ -12,12 +12,12 @@ import pytest
 from mcp_helpers import call
 from sdd_helpers import CONVENTIONS, PROFILE, init_workspace, project_dir, run, sample_workflow
 
-from agentflow.constants import CliKind, ExitCode, HookEvent, ProjectSection
-from agentflow.errors import AgentflowError
-from agentflow.git import GitBranchLookup
-from agentflow.hook import handle_hook
-from agentflow.services import WorkspaceServices
-from agentflow.workspace import find_workspace
+from thanhtan.constants import CliKind, ExitCode, HookEvent, ProjectSection
+from thanhtan.errors import ThanhTanError
+from thanhtan.git import GitBranchLookup
+from thanhtan.hook import handle_hook
+from thanhtan.services import WorkspaceServices
+from thanhtan.workspace import find_workspace
 
 INVALID_INPUT = 22
 
@@ -33,7 +33,7 @@ def service(ws):
 
 
 def state_line(capsys, name: str) -> str:
-    """The value after `<name>: ` in the output of `agentflow project status`."""
+    """The value after `<name>: ` in the output of `thanhtan project status`."""
     code, out, _ = run(capsys, "project", "status")
     assert code == ExitCode.OK
     lines = [line for line in out.splitlines() if line.startswith(f"{name}: ")]
@@ -241,7 +241,7 @@ def test_a_new_task_does_not_warn_about_a_confirmed_mission(service, ws, capsys)
 
 
 def test_the_project_write_tool_reports_the_warnings(ws):
-    from agentflow.mcp_server import build_server
+    from thanhtan.mcp_server import build_server
 
     server = build_server(WorkspaceServices(find_workspace(ws)))
     result = call(server, "project_write", section="profile", content="# Profile\n\nA web shop.\n")
@@ -354,7 +354,7 @@ def hook_reply(repo, tool, **tool_input) -> str:
 
 @pytest.fixture
 def server(ws):
-    from agentflow.mcp_server import build_server
+    from thanhtan.mcp_server import build_server
 
     return build_server(WorkspaceServices(find_workspace(ws)))
 
@@ -405,6 +405,6 @@ def test_what_a_person_confirmed_is_confirmed_again_only_by_the_very_same_text(s
 def test_a_task_in_progress_blocks_a_rewrite_of_the_profile(service, ws, capsys):
     """Regression: green before phase B (project documents are written between tasks)."""
     run(capsys, "task", "new", "t")
-    with pytest.raises(AgentflowError) as exc:
+    with pytest.raises(ThanhTanError) as exc:
         write_profile(service)
     assert exc.value.code == 31

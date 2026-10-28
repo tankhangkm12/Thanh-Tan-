@@ -6,9 +6,9 @@ description: Write and run tests for backend code using the project's own test c
 
 This skill does not assume any language or test framework. Read how the project tests itself, then follow that.
 
-Run every `agentflow` command on its own, as a single command line. Never join commands with `&&`, `;` or `|`. You never push, merge or open a pull request; that is the person's job.
+Run every `thanhtan` command on its own, as a single command line. Never join commands with `&&`, `;` or `|`. You never push, merge or open a pull request; that is the person's job.
 
-1. Run `agentflow config get backend.test_command`. That is how the project runs its tests; use it exactly. If it is not set, say so; do not guess a command.
+1. Run `thanhtan config get backend.test_command`. That is how the project runs its tests; use it exactly. If it is not set, say so; do not guess a command.
 2. Look at the existing tests: folder layout, naming, fixtures, how the database is provided to integration tests, how time and randomness are controlled. Add tests next to the existing ones in the same style.
 3. Test at the right level:
    - **Rules** (business-logic skill): fast tests with no network and no database, one test per example and per refusal.
@@ -18,4 +18,4 @@ Run every `agentflow` command on its own, as a single command line. Never join c
 5. Tests must be deterministic: no sleeping for timing, no dependence on test order, no real external services.
 6. Run the full test command before you report. A red or skipped test is reported as it is; never edit a test only to make it pass, and never change application code from the tester role (report it and fail the step instead).
 
-The tester role writes only under the project's test folders. Commit with `agentflow commit "<what changed>"`.
+The tester role writes only under the project's test folders. Commit with `thanhtan commit "<what changed>"`.

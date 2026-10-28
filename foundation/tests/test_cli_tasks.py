@@ -4,11 +4,11 @@ import json
 import pytest
 from conftest import git
 
-from agentflow import cli
-from agentflow.cli import main
-from agentflow.constants import ExitCode
-from agentflow.errors import AgentflowError
-from agentflow.models import ScanResult
+from thanhtan import cli
+from thanhtan.cli import main
+from thanhtan.constants import ExitCode
+from thanhtan.errors import ThanhTanError
+from thanhtan.models import ScanResult
 
 
 @pytest.fixture
@@ -136,7 +136,7 @@ def test_commit_blocked_by_leaks_and_by_engine_down(ws, capsys, monkeypatch):
     use_scanner(monkeypatch, FakeScanner(ScanResult(False, "Finding: REDACTED")))
     code, _, err = run(capsys, "commit", "add a")
     assert code == ExitCode.SECRETS_FOUND and "REDACTED" in err
-    use_scanner(monkeypatch, FakeScanner(error=AgentflowError("engine down", ExitCode.ENGINE_NOT_RUNNING)))
+    use_scanner(monkeypatch, FakeScanner(error=ThanhTanError("engine down", ExitCode.ENGINE_NOT_RUNNING)))
     assert run(capsys, "commit", "add a")[0] == ExitCode.ENGINE_NOT_RUNNING
     assert git(ws, "log", "-1", "--format=%s") == "initial"
 

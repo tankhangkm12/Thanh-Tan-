@@ -1,12 +1,12 @@
 import pytest
 from conftest import write_workflow
 
-from agentflow.constants import DriftStatus, ExitCode, StepStatus, SyncOutcome, TaskStatus
-from agentflow.errors import AgentflowError
-from agentflow.models import State, Task
-from agentflow.state import JsonStateStore
-from agentflow.sync import sync_workflow, workflow_drift
-from agentflow.workspace import init_workspace, load_config, load_workspace_workflow
+from thanhtan.constants import DriftStatus, ExitCode, StepStatus, SyncOutcome, TaskStatus
+from thanhtan.errors import ThanhTanError
+from thanhtan.models import State, Task
+from thanhtan.state import JsonStateStore
+from thanhtan.sync import sync_workflow, workflow_drift
+from thanhtan.workspace import init_workspace, load_config, load_workspace_workflow
 
 
 @pytest.fixture
@@ -58,7 +58,7 @@ def test_sync_rejects_invalid_source_and_keeps_copy(paths, git_repo, workflow_fi
     before = paths.workflow_copy.read_bytes()
     workflow_data["steps"][2]["on_fail"] = "ghost"
     write_workflow(workflow_file, workflow_data)
-    with pytest.raises(AgentflowError) as exc:
+    with pytest.raises(ThanhTanError) as exc:
         sync_workflow(git_repo)
     assert exc.value.code is ExitCode.INVALID_WORKFLOW
     assert paths.workflow_copy.read_bytes() == before
@@ -67,14 +67,14 @@ def test_sync_rejects_invalid_source_and_keeps_copy(paths, git_repo, workflow_fi
 def test_sync_rejects_other_family(paths, git_repo, workflow_file, workflow_data):
     workflow_data["family"] = "other"
     write_workflow(workflow_file, workflow_data)
-    with pytest.raises(AgentflowError) as exc:
+    with pytest.raises(ThanhTanError) as exc:
         sync_workflow(git_repo)
     assert exc.value.code is ExitCode.WORKFLOW_MISMATCH
 
 
 def test_sync_missing_source(paths, git_repo, workflow_file):
     workflow_file.unlink()
-    with pytest.raises(AgentflowError) as exc:
+    with pytest.raises(ThanhTanError) as exc:
         sync_workflow(git_repo)
     assert exc.value.code is ExitCode.WORKFLOW_NOT_FOUND
     assert paths.workflow_copy.is_file()
@@ -85,7 +85,7 @@ def test_sync_blocked_by_in_flight_task(paths, git_repo, workflow_file, workflow
     put_task(paths, status)
     before = paths.workflow_copy.read_bytes()
     change_source(workflow_file, workflow_data)
-    with pytest.raises(AgentflowError) as exc:
+    with pytest.raises(ThanhTanError) as exc:
         sync_workflow(git_repo)
     assert exc.value.code is ExitCode.SYNC_BLOCKED
     assert "T-001 at 'build'" in str(exc.value)
@@ -105,7 +105,7 @@ def test_force_cannot_strand_a_task(paths, git_repo, workflow_file, workflow_dat
     workflow_data["steps"][1]["id"] = "compile"
     workflow_data["steps"][2]["on_fail"] = "compile"
     write_workflow(workflow_file, workflow_data)
-    with pytest.raises(AgentflowError) as exc:
+    with pytest.raises(ThanhTanError) as exc:
         sync_workflow(git_repo, force=True)
     assert exc.value.code is ExitCode.SYNC_BLOCKED
     assert "drops steps" in str(exc.value)

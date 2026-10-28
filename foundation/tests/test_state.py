@@ -2,11 +2,11 @@ import json
 
 import pytest
 
-from agentflow.constants import ExitCode, StepStatus, TaskStatus
-from agentflow.errors import AgentflowError
-from agentflow.interfaces import StateStore
-from agentflow.models import State, Task, state_from_dict, workflow_from_dict
-from agentflow.state import GENERATED_NOTE, JsonStateStore, render_state_md
+from thanhtan.constants import ExitCode, StepStatus, TaskStatus
+from thanhtan.errors import ThanhTanError
+from thanhtan.interfaces import StateStore
+from thanhtan.models import State, Task, state_from_dict, workflow_from_dict
+from thanhtan.state import GENERATED_NOTE, JsonStateStore, render_state_md
 
 FIXED_TIME = "2026-10-10T09:00:00Z"
 
@@ -44,14 +44,14 @@ def test_save_regenerates_state_md(store, state_data, tmp_path):
 
 
 def test_load_missing_file_means_no_workspace(store):
-    with pytest.raises(AgentflowError) as exc:
+    with pytest.raises(ThanhTanError) as exc:
         store.load()
     assert exc.value.code is ExitCode.NO_WORKSPACE
 
 
 def test_load_rejects_broken_json(store, tmp_path):
     (tmp_path / "state.json").write_text("{", encoding="utf-8")
-    with pytest.raises(AgentflowError) as exc:
+    with pytest.raises(ThanhTanError) as exc:
         store.load()
     assert exc.value.code is ExitCode.INVALID_STATE
 
@@ -59,7 +59,7 @@ def test_load_rejects_broken_json(store, tmp_path):
 def test_load_rejects_schema_violation(store, state_data, tmp_path):
     del state_data["tasks"][0]["branch"]
     (tmp_path / "state.json").write_text(json.dumps(state_data), encoding="utf-8")
-    with pytest.raises(AgentflowError) as exc:
+    with pytest.raises(ThanhTanError) as exc:
         store.load()
     assert exc.value.code is ExitCode.INVALID_STATE
 
@@ -77,7 +77,7 @@ def test_load_rejects_schema_violation(store, state_data, tmp_path):
 )
 def test_save_refuses_invalid_state_and_writes_nothing(store, state_data, tmp_path, mutate, expected):
     mutate(state_data)
-    with pytest.raises(AgentflowError) as exc:
+    with pytest.raises(ThanhTanError) as exc:
         store.save(state_from_dict(state_data))
     assert exc.value.code is ExitCode.INVALID_STATE
     assert expected in str(exc.value)
