@@ -1,6 +1,6 @@
 [project]
 name = "thanhtan"
-version = "0.8.0"
+version = "1.0.0"
 description = "Shared, domain-agnostic engine for the plugin families in this repo"
 authors = [
     { name = "tankhangkm12" }

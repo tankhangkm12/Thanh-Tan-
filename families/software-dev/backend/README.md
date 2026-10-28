@@ -1,6 +1,6 @@
 # dev-backend
 
-Plugin phát triển phía server của nhóm **software-dev** (phiên bản 0.4.0). Phụ thuộc `dev-core` (quy trình, gitflow, gate dùng chung) và chỉ thêm phần nghiệp vụ backend. Không giả định ngôn ngữ hay framework: mọi thông tin kỹ thuật lấy từ cấu hình dự án.
+Plugin phát triển phía server của nhóm **software-dev** (phiên bản 1.0.0). Phụ thuộc `dev-core` (quy trình, gitflow, gate dùng chung) và chỉ thêm phần nghiệp vụ backend. Không giả định ngôn ngữ hay framework: mọi thông tin kỹ thuật lấy từ cấu hình dự án.
 
 ## Có gì bên trong
 

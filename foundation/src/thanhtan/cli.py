@@ -9,7 +9,7 @@ from dataclasses import dataclass, replace
 from importlib.metadata import version
 from pathlib import Path
 
-from thanhtan import amend, diagnosis, docpin, envvars, gitconfig, lockfiles, lockflow, stats
+from thanhtan import amend, diagnosis, docpin, envvars, gitconfig, lockfiles, lockflow, permissions, stats, taskexport, workspacesync
 from thanhtan.assign import ProjectAgentNames, WorkflowAgentNames, assignment_lines
 from thanhtan.convention_sources import load_effective_conventions
 from thanhtan.services import WorkspaceServices
@@ -17,7 +17,7 @@ from thanhtan.testspec import TESTS_PASS_FILE, require_active_spec_step, task_fi
 from thanhtan.checklist import ChecklistWriter, check_approval, finish_approval
 from thanhtan.integrity import NOTHING_TO_ACCEPT, Integrity
 from thanhtan.checklist import checklist_path
-from thanhtan.constants import ConfirmState, DiagnosisCommand, StateCommand, TestsCommand, KnowledgeCommand, KnowledgePlace, McpCommand, ProjectCommand, ReplanCommand, ReplanState, RoadmapCommand, RoadmapStatus, RoleCommand
+from thanhtan.constants import ConfirmState, DiagnosisCommand, PermissionsCommand, WorkspaceCommand, StateCommand, TestsCommand, KnowledgeCommand, KnowledgePlace, McpCommand, ProjectCommand, ReplanCommand, ReplanState, RoadmapCommand, RoadmapStatus, RoleCommand
 from thanhtan.interfaces import AgentNames
 from thanhtan.roles import RoleGrants
 from thanhtan.constants import ANSWER_OPTION, DECISION_SCOPE_PROJECT, CheckKind, TestSpecMode
@@ -100,6 +100,7 @@ from thanhtan.tasks import (
 from thanhtan.workspace import (
     WorkspacePaths,
     find_workspace,
+    git_toplevel,
     init_workspace,
     load_config,
     load_workspace_workflow,
@@ -168,6 +169,35 @@ def build_parser() -> argparse.ArgumentParser:
     seal = task_commands.add_parser(TaskCommand.SEAL, help="for a person: write summary.md and the approval tag of a finished task")
     seal.add_argument("task_id", help="id of a finished task, e.g. T-001")
     seal.add_argument(COMMIT_OPTION, help="tag this commit instead of the task branch's tip (e.g. after the branch was deleted)")
+    export = task_commands.add_parser(
+        TaskCommand.EXPORT, help="for a person: a new branch with the whole task as one commit, ready to push for a pull request"
+    )
+    export.add_argument("task_id", nargs="?", help="the task (default: the open task, else the last finished one)")
+    export.add_argument("--branch", help="name of the new branch (default: the task branch without its T-001- part)")
+    export.add_argument("--message", help="the commit message (default: '<type>: <title>')")
+
+    workspace_parser = commands.add_parser(
+        Command.WORKSPACE, help="carry this workspace to another machine through your own private git repository"
+    )
+    workspace_commands = workspace_parser.add_subparsers(dest="workspace_command", metavar="<workspace command>", required=True)
+    ws_remote = workspace_commands.add_parser(WorkspaceCommand.REMOTE, help="for a person, once per machine: clone your private repository into ~/.ThanhTan/store")
+    ws_remote.add_argument("url", help="your private repository, e.g. https://github.com/<you>/thanhtan-workspaces.git")
+    ws_save = workspace_commands.add_parser(WorkspaceCommand.SAVE, help="for a person: save this workspace, its task branches and approval tags, and push")
+    ws_load = workspace_commands.add_parser(WorkspaceCommand.LOAD, help="for a person: bring the saved workspace, branches and tags onto this machine")
+    ws_load.add_argument("--workflow", type=Path, help="dev-core's workflow.yaml on this machine (found by itself when left out)")
+    ws_status = workspace_commands.add_parser(WorkspaceCommand.STATUS, help="when this workspace was saved, and whether this machine changed it since (read-only)")
+    for sub in (ws_save, ws_load, ws_status):
+        sub.add_argument("--name", help="the project's folder in your repository (default: owner/repo of origin)")
+    for sub in (ws_save, ws_load):
+        sub.add_argument("--force", action="store_true", help="go on although the other side changed (save) or this machine has unsaved changes (load)")
+
+    permissions_parser = commands.add_parser(Command.PERMISSIONS, help="the Claude Code permission rules thanhtan needs")
+    permissions_commands = permissions_parser.add_subparsers(dest="permissions_command", metavar="<permissions command>", required=True)
+    perm_install = permissions_commands.add_parser(
+        PermissionsCommand.INSTALL, help="for a person: merge the rules into .claude/settings.json (keeps yours, drops the old agentflow ones)"
+    )
+    perm_install.add_argument("--check", action="store_true", help="change nothing; say what is missing")
+    perm_install.add_argument("--user", action="store_true", help="use ~/.claude/settings.json instead of the project's")
 
     ext = commands.add_parser(Command.EXT, help="extensions: what child plugins add (roles, rules, scan tools, gates)")
     ext_commands = ext.add_subparsers(dest="ext_command", metavar="<ext command>", required=True)
@@ -503,6 +533,8 @@ def cmd_state(args: argparse.Namespace) -> ExitCode:
 
 def cmd_task(args: argparse.Namespace) -> ExitCode:
     opened = _open_workspace()
+    if args.task_command == TaskCommand.EXPORT:
+        return _export_task(opened, args)
     store = _store(opened)
     if args.task_command in {TaskCommand.NEW, TaskCommand.ADVANCE, TaskCommand.APPROVE}:
         warning = Integrity(opened.paths.dir).verify(bool(opened.state.tasks)).warning
@@ -804,6 +836,67 @@ def cmd_scope(args: argparse.Namespace) -> ExitCode:
             print(f"    {path} (+{added} -{removed})")
     if not commits:
         print("nothing changed since the last round: report that the earlier findings still stand or are closed, and stop")
+    return ExitCode.OK
+
+
+def _export_task(opened: _Opened, args: argparse.Namespace) -> ExitCode:
+    tasks = opened.state.tasks
+    if args.task_id:
+        task = next((item for item in tasks if item.id == args.task_id), None)
+        if task is None:
+            raise ThanhTanError(f"no task {args.task_id}", ExitCode.INVALID_INPUT)
+    else:
+        done = [item for item in tasks if item.status is TaskStatus.DONE]
+        task = opened.state.active_task() or (done[-1] if done else None)
+        if task is None:
+            raise ThanhTanError("no task to export yet", ExitCode.NO_ACTIVE_TASK)
+    result = taskexport.export(opened.paths.root, task, branch=args.branch, message=args.message)
+    for line in result.lines:
+        print(line)
+    for warning_text in result.warnings:
+        _err(f"{WARNING_PREFIX}{warning_text}")
+    return ExitCode.OK
+
+
+def cmd_workspace(args: argparse.Namespace) -> ExitCode:
+    if args.workspace_command == WorkspaceCommand.REMOTE:
+        lines = workspacesync.set_remote(args.url)
+    elif args.workspace_command == WorkspaceCommand.LOAD:
+        root = git_toplevel(Path.cwd())
+        report = workspacesync.load(root, name=args.name, force=args.force, workflow=args.workflow, at=utc_now(), machine=workspacesync.default_machine())
+        lines = report.lines
+        for warning_text in report.warnings:
+            _err(f"{WARNING_PREFIX}{warning_text}")
+    elif args.workspace_command == WorkspaceCommand.STATUS:
+        lines = workspacesync.status(git_toplevel(Path.cwd()), name=args.name)
+    else:
+        opened = _open_workspace()
+        branches = [task.branch for task in opened.state.tasks if task.branch]
+        report = workspacesync.save(opened.paths, branches, name=args.name, force=args.force, at=utc_now(), machine=workspacesync.default_machine())
+        lines = report.lines
+        for warning_text in report.warnings:
+            _err(f"{WARNING_PREFIX}{warning_text}")
+    for line in lines:
+        print(line)
+    return ExitCode.OK
+
+
+def cmd_permissions(args: argparse.Namespace) -> ExitCode:
+    root = git_toplevel(Path.cwd())
+    path, result = permissions.install(root, check=args.check, user_home=Path.home() if args.user else None)
+    for rule in result.removed:
+        print(f"- {rule}")
+    for rule in result.added:
+        print(f"+ {rule}")
+    for note in result.notes:
+        _err(f"{WARNING_PREFIX}{note}")
+    if not result.changed:
+        print(f"{path}: the thanhtan rules are all there")
+        return ExitCode.OK
+    if args.check:
+        print(f"{path}: {len(result.added)} rule(s) missing, {len(result.removed)} to remove; run without --check to write them")
+        return ExitCode.ERROR
+    print(f"{path}: {len(result.added)} rule(s) added, {len(result.removed)} removed; open a new Claude Code session to use them")
     return ExitCode.OK
 
 
@@ -1187,6 +1280,8 @@ HANDLERS: dict[str, Handler] = {
     Command.TESTS: cmd_tests,
     Command.STATS: cmd_stats,
     Command.DIAGNOSIS: cmd_diagnosis,
+    Command.WORKSPACE: cmd_workspace,
+    Command.PERMISSIONS: cmd_permissions,
     Command.REPLAN: cmd_replan,
     Command.CONVENTIONS: cmd_conventions,
     Command.KNOWLEDGE: cmd_knowledge,

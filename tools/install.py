@@ -44,6 +44,12 @@ PLUGIN_DIRS = {
 # What Windows says when a running program (an open agy or Claude Code session) keeps a file open.
 IN_USE_MARKERS = ("being used by another process", "Access is denied", "os error 5", "os error 32")
 IN_USE_HINT = "a running Claude Code or Antigravity session keeps its files open: close those sessions, then run this again"
+TOOL, LEGACY_TOOL = "thanhtan", "agentflow"
+# Windows: the processes started from thanhtan's tool folder (MCP servers of open sessions) or named like it.
+LOCKING_PROCESSES = (
+    "Get-Process | Where-Object { $_.Path -like '*\\uv\\tools\\thanhtan\\*' -or $_.Path -like '*\\uv\\tools\\agentflow\\*' "
+    "-or $_.ProcessName -in 'thanhtan','agentflow' } | ForEach-Object { \"$($_.Id) $($_.ProcessName) $($_.Path)\" }"
+)
 UNKNOWN_FLAG_MARKERS = ("unexpected argument", "unrecognized", "unknown option")
 VERSION_PATTERN = re.compile(r"(\d+\.\d+\.\d+)")
 
@@ -55,7 +61,14 @@ class Result:
 
 
 class Runner:
-    """Runs the programs; tests give a fake one."""
+    """Runs the programs and asks the person; tests give a fake one."""
+
+    windows = sys.platform == "win32"
+
+    def ask(self, question: str) -> bool:
+        if not sys.stdin.isatty():
+            return False
+        return input(f"{question} [y/N] ").strip().lower() in ("y", "yes", "c", "có", "co")
 
     def which(self, name: str) -> str | None:
         return shutil.which(name)
@@ -120,18 +133,68 @@ def check_prerequisites(runner: Runner, clis: Sequence[str]) -> list[Step]:
     return steps
 
 
-def install_thanhtan(runner: Runner) -> Step:
-    python = runner.run(["uv", "python", "install", PYTHON_VERSION])
-    if python.returncode != 0:
-        return Step(f"uv-managed Python {PYTHON_VERSION}", False, tail(python.output))
+def locking_processes(runner: Runner) -> list[tuple[str, str]]:
+    """(id, description) of the Windows processes that may keep thanhtan's files open; empty elsewhere."""
+    if not runner.windows:
+        return []
+    done = runner.run(["powershell", "-NoProfile", "-Command", LOCKING_PROCESSES])
+    found = []
+    for line in done.output.splitlines() if done.returncode == 0 else []:
+        process_id, _, rest = line.strip().partition(" ")
+        if process_id.isdigit():
+            found.append((process_id, rest))
+    return found
+
+
+def _tool_install(runner: Runner) -> Result:
     command = ["uv", "tool", "install", "--force", "--reinstall", "--python", PYTHON_VERSION, "--managed-python", str(FOUNDATION)]
     done = runner.run(command)
     if done.returncode != 0 and any(marker in done.output for marker in UNKNOWN_FLAG_MARKERS):
         # uv older than 0.7 has no --managed-python; the Python it just installed is still the one picked first.
         done = runner.run([part for part in command if part != "--managed-python"])
+    return done
+
+
+def _blocked(runner: Runner, output: str) -> tuple[str, bool]:
+    """What to tell the person when a file is in use, and whether they let us stop the processes (then retry)."""
+    detail = [IN_USE_HINT, "uv said:", tail(output)]
+    processes = locking_processes(runner)
+    if not processes:
+        return "\n".join(detail), False
+    detail.append("these processes keep thanhtan open:")
+    detail += [f"  {process_id} {what}" for process_id, what in processes]
+    if not runner.ask(f"Stop these {len(processes)} process(es) and try again?"):
+        detail.append("stop them (or close those sessions), then run this again")
+        return "\n".join(detail), False
+    ids = ",".join(process_id for process_id, _ in processes)
+    runner.run(["powershell", "-NoProfile", "-Command", f"Stop-Process -Force -Id {ids}"])
+    return "\n".join(detail), True
+
+
+def install_thanhtan(runner: Runner) -> list[Step]:
+    python = runner.run(["uv", "python", "install", PYTHON_VERSION])
+    if python.returncode != 0:
+        return [Step(f"uv-managed Python {PYTHON_VERSION}", False, tail(python.output))]
+    steps = []
+    tools = runner.run(["uv", "tool", "list"])
+    if any(line.split(" ")[0] == LEGACY_TOOL for line in tools.output.splitlines()):
+        # Before 1.0.0 the tool was called agentflow; thanhtan installs `agentflow` as an alias, so the old tool goes.
+        removed = runner.run(["uv", "tool", "uninstall", LEGACY_TOOL])
+        if removed.returncode != 0 and in_use(removed.output):
+            detail, retry = _blocked(runner, removed.output)
+            removed = runner.run(["uv", "tool", "uninstall", LEGACY_TOOL]) if retry else removed
+            if removed.returncode != 0:
+                return [Step(f"remove the old {LEGACY_TOOL} tool", False, detail)]
+        steps.append(Step(f"remove the old {LEGACY_TOOL} tool", removed.returncode == 0, "" if removed.returncode == 0 else tail(removed.output)))
+    done = _tool_install(runner)
+    if done.returncode != 0 and in_use(done.output):
+        detail, retry = _blocked(runner, done.output)
+        done = _tool_install(runner) if retry else Result(done.returncode, detail)
+        if done.returncode != 0:
+            return [*steps, Step(f"install {TOOL}", False, detail if not retry else f"{IN_USE_HINT}\nuv said:\n{tail(done.output)}")]
     if done.returncode != 0:
-        return Step("install thanhtan", False, IN_USE_HINT if in_use(done.output) else tail(done.output))
-    return Step("install thanhtan", True, f"Python {PYTHON_VERSION} managed by uv")
+        return [*steps, Step(f"install {TOOL}", False, "uv said:\n" + tail(done.output))]
+    return [*steps, Step(f"install {TOOL}", True, f"Python {PYTHON_VERSION} managed by uv; `{LEGACY_TOOL}` still works as an alias")]
 
 
 def check_thanhtan(runner: Runner) -> Step:
@@ -233,8 +296,8 @@ def run(args: argparse.Namespace, runner: Runner) -> list[Step]:
         return steps
     if not args.check:
         installed = install_thanhtan(runner)
-        steps.append(installed)
-        if not installed.ok:
+        steps += installed
+        if not all(step.ok for step in installed):
             return steps
     steps.append(check_thanhtan(runner))
     for cli in clis:

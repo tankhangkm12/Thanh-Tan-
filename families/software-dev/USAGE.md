@@ -423,6 +423,9 @@ Các lệnh dưới đây mang quyền quyết định của bạn. Hook của `
 | `thanhtan tests amend <file>... --reason "..." [--accept-green]` | Mở cửa sổ để đổi một test đã duyệt (hoặc thêm file cấu hình test); sửa xong commit bằng `thanhtan commit`. `--accept-green` chỉ khi test sửa xong xanh trên mã cũ mà bạn chấp nhận (cần lý do). Xem "Khóa test đã duyệt" |
 | `thanhtan state accept --reason "..."` | Sau khi đọc một thay đổi `state.json` làm ngoài thanhtan (hoặc các lệnh nhật ký `audit.jsonl` ghi lại): tin lại file, ghi `decisions/<thời điểm>-state-accept.md` kèm trạng thái đã chấp nhận |
 | `thanhtan role grant\|revoke\|sync` | Cấp, thu hồi, sinh lại tool MCP theo dự án cho role |
+| `thanhtan task export [T-002] [--branch <tên>] [--message "..."]` | Tạo nhánh mới gồm **một** commit chứa toàn bộ thay đổi của task, để đẩy lên cho lead review (xem "Đẩy task cho lead") |
+| `thanhtan workspace remote <url>` / `save` / `load` | Mang workspace sang máy khác qua repo riêng tư của bạn (xem "Làm trên nhiều máy") |
+| `thanhtan permissions install [--check] [--user]` | Ghi quy tắc permissions của Claude Code vào `.claude/settings.json` (README Bước 4) |
 
 Hai lệnh sau không bị hook từ chối nhưng phải luôn hỏi bạn: hook `pre-tool` trả `ask` (Claude Code) hoặc `force_ask` (Antigravity) cho `thanhtan task approve` (hoặc `/dev-core:approve`) và `thanhtan task cancel`, kể cả khi agent gọi qua `uv run`, `python -m thanhtan`, đường dẫn đầy đủ, `timeout`, tiền tố biến môi trường hay nội dung bash/python đọc từ heredoc. Quy tắc `ask` trong khối permissions của README (Bước 4) là lớp phụ.
 
@@ -435,6 +438,44 @@ Merge và push là việc của bạn, không phải của agent: agent không b
 ### Giới hạn trên Antigravity CLI
 
 Antigravity không có quy tắc `ask` kiểu `permissions`, nên câu hỏi duyệt đến từ hook: `force_ask` cho `task approve`/`task cancel`, bỏ qua "Always Allow". Chế độ mặc định (`request-review`) hỏi đúng; nếu bạn chạy chế độ tự duyệt mọi lệnh (`--dangerously-skip-permissions`) thì lệnh vẫn chạy mà không hỏi (đã thử với agy 1.4.0), và chỉ còn các lớp không phụ thuộc câu hỏi: hook từ chối ghi vào `.ThanhTan/` và lệnh của người, `thanhtan commit` từ chối khi sai nhánh hoặc có secret. **KHÔNG dùng `agy --dangerously-skip-permissions` với plugin này**: mọi câu hỏi duyệt của plugin bị bỏ qua. Chi tiết và bảng thử thật: [docs/architecture.md](../../docs/architecture.md).
+
+## Đẩy task cho lead (export)
+
+Nhánh task (`chore/T-002-...`) giữ mọi commit agent tạo (`C1: ...`, `C2: ...`). Để đẩy lên một nhánh sạch theo chuẩn công ty:
+
+```
+thanhtan task export
+git push -u origin chore/them-dockerfile-cho-inventory-service
+```
+
+- `task export` không đổi nhánh đang đứng và không push. Nó tạo nhánh mới (mặc định là tên nhánh task bỏ phần `T-002-`) gồm **một** commit `<loại>: <tiêu đề>`, đặt trên đúng commit mà task tách ra. Đổi tên bằng `--branch feature/INV-12-dockerfile`, đổi lời commit bằng `--message "..."`.
+- Không ghi mã task thì `export` lấy task đang mở, không có thì task xong gần nhất. Task chưa xong vẫn export được, kèm cảnh báo.
+- Nhánh gốc đã có commit mới từ lúc task bắt đầu thì `export` nhắc `git rebase <nhánh gốc>` trên nhánh mới trước khi push.
+
+## Làm trên nhiều máy (workspace trong repo riêng tư)
+
+`.ThanhTan/` chỉ ở máy bạn (không vào git của dự án). Để làm tiếp ở máy khác, giữ nó trong **một repo riêng tư của bạn** (ví dụ `github.com/<bạn>/thanhtan-workspaces`, tạo trống trên GitHub). Một repo dùng cho mọi dự án: mỗi dự án một thư mục, tên lấy từ `origin` (`ecommerce-taca/inventory-service`) hoặc `--name`.
+
+```
+thanhtan workspace remote https://github.com/<bạn>/thanhtan-workspaces.git   # một lần mỗi máy
+thanhtan workspace save                                                     # trước khi rời máy
+```
+
+Ở máy mới:
+
+```
+git clone <repo công ty> inventory-service
+cd inventory-service
+thanhtan workspace remote https://github.com/<bạn>/thanhtan-workspaces.git
+thanhtan workspace load
+thanhtan status
+```
+
+- `save` chép `.ThanhTan/` cùng một bundle git chứa các nhánh task và tag duyệt vào `~/.ThanhTan/store/<dự án>/`, rồi commit và push lên repo riêng tư. Code chưa commit **không** đi theo: `save` cảnh báo.
+- `load` đưa workspace, nhánh và tag về; nhánh đã có ở máy này với commit khác thì giữ nguyên và báo. Nó tự tìm `workflow.yaml` của dev-core đã cài ở máy này (hoặc `--workflow <đường dẫn>`).
+- `thanhtan workspace status` (chỉ đọc) cho biết lần lưu cuối, từ máy nào, máy này có đổi gì chưa lưu.
+- An toàn: `load` từ chối ghi đè thay đổi chưa lưu của máy này, `save` từ chối khi máy khác đã lưu sau lần cuối máy này lưu hoặc tải (phải `load` trước). `--force` để bỏ qua. Đừng làm cùng một dự án trên hai máy một lúc.
+- Không có gì đi lên remote của công ty: chỉ `~/.ThanhTan/store` push, và chỉ lên URL của bạn. Giới hạn: hook không chặn agent ghi vào `~/.ThanhTan/store`.
 
 ## Tiết kiệm token
 

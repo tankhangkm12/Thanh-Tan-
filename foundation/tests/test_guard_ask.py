@@ -70,6 +70,11 @@ PERSON_COMMANDS = [
     "roadmap set R1 done",
     "replan done",
     "replan skip T-001 --reason x",
+    "task export T-001",
+    "workspace remote https://example.invalid/x.git",
+    "workspace save",
+    "workspace load --force",
+    "permissions install",
 ]
 # The commands that give a person's approval: the agent may run them only if the person says yes at the prompt.
 ASK_COMMANDS = [

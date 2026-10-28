@@ -2,7 +2,7 @@
 
 Các bước dưới đây do **bạn** chạy. Agent không merge vào `main`, không tạo tag, không push `main`. Ví dụ dùng bản `1.0.0`; thay số khi phát hành bản khác.
 
-Số phiên bản hiện tại: thanhtan 0.8.0 (`foundation/pyproject.toml`), dev-core 0.7.0, dev-backend 0.4.0 (`.claude-plugin/plugin.json` của từng plugin). Chưa nâng lên 1.0.0.
+Số phiên bản hiện tại: thanhtan 1.0.0 (`foundation/pyproject.toml`), dev-core 1.0.0, dev-backend 1.0.0 (`.claude-plugin/plugin.json` của từng plugin).
 
 ## 0. Chuẩn bị
 

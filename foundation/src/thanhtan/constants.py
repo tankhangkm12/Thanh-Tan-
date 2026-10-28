@@ -567,6 +567,18 @@ class TaskCommand(StrEnum):
     APPROVE = "approve"
     CANCEL = "cancel"
     SEAL = "seal"
+    EXPORT = "export"
+
+
+class WorkspaceCommand(StrEnum):
+    REMOTE = "remote"
+    SAVE = "save"
+    LOAD = "load"
+    STATUS = "status"
+
+
+class PermissionsCommand(StrEnum):
+    INSTALL = "install"
 
 
 class HookEvent(StrEnum):

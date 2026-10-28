@@ -320,10 +320,11 @@ def _repoint_workflow(paths: WorkspacePaths, explicit: Path | None, home: Callab
         return []
     candidates = [explicit.resolve()] if explicit is not None else _installed_workflows(home())
     if not candidates or not candidates[0].is_file():
-        return [
+        missing = (
             f"warning: the workflow it was copied from ({current}) is not on this machine; run "
             "`thanhtan init --workflow <path to dev-core's workflow.yaml>` once"
-        ]
+        )
+        return [missing]
     save_config(paths, replace(config, workflow=replace(config.workflow, source_path=str(candidates[0]))))
     return [f"workflow source: {candidates[0]} (run `thanhtan workflow sync` when no task is open, if status says it changed)"]
 

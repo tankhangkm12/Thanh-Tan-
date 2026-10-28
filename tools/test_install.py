@@ -118,3 +118,57 @@ def test_projects_are_never_touched(capsys):
     runner = FakeRunner()
     install.main(["--backend", "--design"], runner)
     assert not [call for call in runner.calls if call[0] == "thanhtan" and call[1:] != ["--version"]]
+
+
+def test_the_old_agentflow_tool_is_removed_first(capsys):
+    runner = FakeRunner(answers={"uv tool list": install.Result(0, "agentflow v0.8.0\n- agentflow\nruff v0.1\n")})
+    assert install.main([], runner) == 0
+    uninstall = runner.ran("uv", "tool", "uninstall", "agentflow")
+    assert uninstall and runner.calls.index(uninstall[0]) < runner.calls.index(runner.ran("uv", "tool", "install")[0])
+    assert "remove the old agentflow tool" in capsys.readouterr().out
+
+
+def test_without_an_old_tool_nothing_is_uninstalled(capsys):
+    runner = FakeRunner(answers={"uv tool list": install.Result(0, "ruff v0.1\n")})
+    install.main([], runner)
+    assert not runner.ran("uv", "tool", "uninstall")
+
+
+def test_uv_s_own_words_are_shown_when_the_install_fails(capsys):
+    runner = FakeRunner(answers={"uv tool install": install.Result(2, "error: No space left on device")})
+    assert install.main([], runner) == 1
+    assert "No space left on device" in capsys.readouterr().out
+
+
+LOCKED = "error: failed to remove thanhtan.exe: Access is denied. (os error 5)"
+LISTED = "4242 thanhtan C:\\Users\\T\\.local\\bin\\thanhtan.exe\n"
+
+
+def windows_runner(say_yes: bool) -> FakeRunner:
+    attempts = []
+
+    def tool(args):
+        attempts.append(args)
+        return install.Result(2, LOCKED) if len(attempts) == 1 else install.Result(0, "")
+
+    runner = FakeRunner(answers={"uv tool install": tool, "powershell -NoProfile -Command Get-Process": install.Result(0, LISTED)})
+    runner.windows = True
+    runner.asked = []
+    runner.ask = lambda question: runner.asked.append(question) or say_yes
+    return runner
+
+
+def test_on_windows_the_locking_processes_are_named_and_stopped_when_the_person_agrees(capsys):
+    runner = windows_runner(say_yes=True)
+    assert install.main([], runner) == 0
+    assert runner.asked and "1 process" in runner.asked[0]
+    assert runner.ran("powershell", "-NoProfile", "-Command", "Stop-Process -Force -Id 4242")
+    assert len(runner.ran("uv", "tool", "install")) == 2
+
+
+def test_on_windows_nothing_is_stopped_without_a_yes(capsys):
+    runner = windows_runner(say_yes=False)
+    assert install.main([], runner) == 1
+    out = capsys.readouterr().out
+    assert "4242 thanhtan" in out and "Access is denied" in out
+    assert not [call for call in runner.calls if "Stop-Process" in " ".join(call)]

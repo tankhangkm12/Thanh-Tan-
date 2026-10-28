@@ -19,6 +19,7 @@
       "Bash(thanhtan config check *)",
       "Bash(thanhtan ext list *)",
       "Bash(thanhtan workflow sync *)",
+      "Bash(thanhtan workspace status *)",
       "mcp__plugin_dev-core_thanhtan__status",
       "mcp__plugin_dev-core_thanhtan__next_step",
       "mcp__plugin_dev-core_thanhtan__plan_check",

@@ -31,6 +31,11 @@ PERSON_COMMANDS = [
     "role grant",
     "role revoke",
     "role sync",
+    "task export",
+    "workspace remote",
+    "workspace save",
+    "workspace load",
+    "permissions install",
 ]
 EDIT_DENIES = [
     "Edit(./.claude/settings.json)",
@@ -145,3 +150,8 @@ def test_the_text_does_not_promise_that_decide_asks():
     text = step4()
     intro = text.split("```json")[0]
     assert "thanhtan decide" not in intro.split("**ask**")[-1].split(".")[0]
+
+
+def test_the_block_is_what_thanhtan_permissions_install_writes():
+    shipped = json.loads((REPO / "foundation" / "src" / "thanhtan" / "data" / "claude-permissions.json").read_text(encoding="utf-8"))
+    assert shipped["permissions"] == rules()

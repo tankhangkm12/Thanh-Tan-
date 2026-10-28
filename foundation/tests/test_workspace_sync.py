@@ -14,7 +14,15 @@ from sdd_helpers import init_workspace, say
 from thanhtan.constants import ExitCode
 from thanhtan.errors import ThanhTanError
 from thanhtan.workspace import WorkspacePaths, load_config
-from thanhtan.workspacesync import MARKER_FILE, SAVE_FILE, load, project_name, save, set_remote, status
+from thanhtan.workspacesync import (
+    MARKER_FILE,
+    SAVE_FILE,
+    load,
+    project_name,
+    save,
+    set_remote,
+    status,
+)
 
 AT = "2026-10-29T10:00:00+07:00"
 
@@ -180,3 +188,23 @@ def test_uncommitted_code_is_warned_about(world):
 
 def test_status_before_any_store():
     assert status(Path("/nowhere"), environ={"THANHTAN_HOME": "/nonexistent-home"})[0].startswith("store: not set up")
+
+
+def test_the_commands_from_one_machine_to_the_other(world, monkeypatch, capsys):
+    from thanhtan.cli import main
+
+    monkeypatch.setenv("THANHTAN_HOME", home(world, "a")["THANHTAN_HOME"])
+    monkeypatch.chdir(world["a"])
+    assert main(["workspace", "remote", world["private"]]) == ExitCode.OK
+    assert main(["workspace", "save"]) == ExitCode.OK
+    assert "saved" in capsys.readouterr().out
+    b = machine_b(world)
+    monkeypatch.setenv("THANHTAN_HOME", home(world, "b")["THANHTAN_HOME"])
+    monkeypatch.chdir(b)
+    assert main(["workspace", "remote", world["private"]]) == ExitCode.OK
+    assert main(["workspace", "load", "--workflow", str(world["workflow"])]) == ExitCode.OK
+    assert main(["workspace", "status"]) == ExitCode.OK
+    out = capsys.readouterr().out
+    assert "loaded" in out and "unchanged since" in out
+    assert main(["status"]) == ExitCode.OK
+    assert "T-001 Orders" in capsys.readouterr().out

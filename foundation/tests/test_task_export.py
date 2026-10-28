@@ -75,3 +75,19 @@ def test_a_task_without_changes_or_branch_is_refused(gitflow_repo):
         export(gitflow_repo, task(id="T-003", branch="chore/T-003-nothing"))
     with pytest.raises(ThanhTanError, match="not on this machine"):
         export(gitflow_repo, task(branch="chore/T-009-gone"))
+
+
+def test_the_command_exports_the_last_finished_task(gitflow_repo, tmp_path, monkeypatch, capsys):
+    from checklist_helpers import checklist_workflow, open_workspace
+    from sdd_helpers import run, say
+
+    open_workspace(gitflow_repo, tmp_path, monkeypatch, capsys, checklist_workflow(tmp_path))
+    assert say(monkeypatch, "task", "new", "Orders") == ExitCode.OK
+    (gitflow_repo / "orders.txt").write_text("orders\n", encoding="utf-8")
+    git(gitflow_repo, "add", "orders.txt")
+    git(gitflow_repo, "commit", "-q", "-m", "C1: orders")
+    capsys.readouterr()
+    code, out, err = run(capsys, "task", "export")
+    assert code == ExitCode.OK and "feature/orders" in out and "git push -u origin feature/orders" in out
+    assert "not finished" in err
+    assert run(capsys, "task", "export", "T-009")[0] == ExitCode.INVALID_INPUT

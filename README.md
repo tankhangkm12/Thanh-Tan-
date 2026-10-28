@@ -36,7 +36,7 @@ uv run --python 3.12 tools/install.py --check      # chỉ kiểm, không đổi
 
 Script cài `thanhtan` bằng Python 3.12 **do uv quản lý**, không dùng `python` trên PATH: trên Windows `python` thường chỉ là lối tắt Microsoft Store ("Python was not found"), hoặc môi trường tool cũ trỏ tới Python đã gỡ. Claude Code hay `agy` không có trên máy thì bỏ qua phần của nó (`--only claude` hoặc `--only agy` để chọn). Báo "Access is denied" hay "being used by another process": đóng các phiên Claude Code và Antigravity rồi chạy lại. Script không đụng tới dự án: sau mỗi `git pull` chỉ cần chạy lại nó, mở phiên mới, và ở dự án chạy `thanhtan workflow sync` khi `thanhtan doctor` nhắc.
 
-Từ 0.8.0 thư mục làm việc tên là `.ThanhTan/` (trước là `.agentflow/`), thư mục người dùng là `~/.ThanhTan/`. Lệnh `thanhtan` đầu tiên trong dự án cũ tự đổi tên, giữ nguyên task.
+Từ thanhtan 1.0.0 động cơ tên là `thanhtan` (trước là `agentflow`; lệnh `agentflow` vẫn chạy như bí danh). Từ 0.8.0 thư mục làm việc tên là `.ThanhTan/` (trước là `.agentflow/`), thư mục người dùng là `~/.ThanhTan/`. Lệnh `thanhtan` đầu tiên trong dự án cũ tự đổi tên, giữ nguyên task.
 
 Các bước dưới đây là cách cài tay, làm đúng những gì script làm.
 
@@ -161,6 +161,8 @@ Hook chỉ hoạt động trong dự án đã có `.ThanhTan/`; ở dự án kh�
 
 ### Bước 4 (BẮT BUỘC): quy tắc permissions của Claude Code
 
+**Cách nhanh:** ở thư mục dự án chạy `thanhtan permissions install` (thêm `--user` để ghi vào `~/.claude/settings.json` cho mọi dự án, `--check` để chỉ kiểm). Lệnh gộp đúng khối dưới đây vào `.claude/settings.json`, giữ quy tắc của bạn, bỏ quy tắc cũ viết cho `agentflow`. Chạy lại sau mỗi lần cập nhật plugin.
+
 Agent chạy hàng loạt lệnh `thanhtan`. Để không bị hỏi từng lệnh, thêm quy tắc **allow** cho các lệnh thường ngày. Đồng thời **bắt buộc** thêm quy tắc **ask** cho hai lệnh mang quyền duyệt của người: `thanhtan task approve` và `thanhtan task cancel`. Thứ tự đánh giá là deny, rồi ask, rồi allow, nên `ask` luôn hỏi bạn dù allow có khớp. Nếu bỏ `ask`, agent có thể tự duyệt bước của chính nó, và workflow mất ý nghĩa.
 
 Dán vào `.claude/settings.json` của dự án (hoặc `~/.claude/settings.json` cho mọi dự án). Cú pháp theo [tài liệu permissions](https://code.claude.com/docs/en/permissions): `Bash(lệnh *)` khớp lệnh có hoặc không có đối số; `Bash(lệnh:*)` là cách viết tương đương; `Edit(<mẫu>)` áp cho mọi tool sửa file của Claude Code (`Write`, `Edit`, `NotebookEdit`).
@@ -187,6 +189,7 @@ Dán vào `.claude/settings.json` của dự án (hoặc `~/.claude/settings.jso
       "Bash(thanhtan config check *)",
       "Bash(thanhtan ext list *)",
       "Bash(thanhtan workflow sync *)",
+      "Bash(thanhtan workspace status *)",
       "mcp__plugin_dev-core_thanhtan__status",
       "mcp__plugin_dev-core_thanhtan__next_step",
       "mcp__plugin_dev-core_thanhtan__plan_check",
@@ -234,7 +237,7 @@ Ghi chú:
 - Claude Code tách lệnh ghép (`&&`, `;`, `|`, xuống dòng) và đòi mỗi lệnh con khớp một quy tắc; vì vậy prompt của dev-core bắt mọi lệnh `thanhtan` chạy riêng.
 - Báo cáo được ghi bằng tool MCP `report_write` (tên đầy đủ có tiền tố `mcp__plugin_dev-core_thanhtan__`), nên không cần heredoc. Lệnh `thanhtan report` (nhận nội dung qua heredoc `<<'EOF'`) chỉ còn là dự phòng khi không có tool MCP.
 - Tám tool MCP trong `allow` chỉ đọc workspace hoặc ghi báo cáo/hồ sơ dự án theo luật của `thanhtan` (báo cáo chỉ cho bước hiện tại và không ghi đè bước đã qua; hồ sơ dự án chỉ ghi khi không có task đang mở). Không có tool MCP cho việc của người (duyệt, hủy, seal, `decide`, extension, `config set`).
-- Các lệnh `thanhtan decide`, `ext add`, `ext sync`, `config set`, `task seal`, `project confirm`, `roadmap set`, `replan done|skip` là việc của **người**: hook **từ chối** khi agent tự chạy (không phải `ask`, nên không có trong khối trên). Bạn chạy trực tiếp: trong Claude Code gõ `! thanhtan decide ...`, hoặc dùng terminal riêng (Antigravity).
+- Các lệnh `thanhtan decide`, `ext add`, `ext sync`, `config set`, `task seal`, `task export`, `project confirm`, `roadmap set`, `replan done|skip`, `workspace remote|save|load`, `permissions install` là việc của **người**: hook **từ chối** khi agent tự chạy (không phải `ask`, nên không có trong khối trên). Bạn chạy trực tiếp: trong Claude Code gõ `! thanhtan decide ...`, hoặc dùng terminal riêng (Antigravity).
 
 ### Giới hạn của Antigravity (không có quy tắc ask)
 

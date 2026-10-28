@@ -82,6 +82,7 @@ _PERSON_ONLY = frozenset(
         ("knowledge", "init"), ("knowledge", "pull"), ("knowledge", "push"),
         ("role", "grant"), ("role", "revoke"), ("role", "sync"), ("roadmap", "set"),
         ("replan", "done"), ("replan", "skip"), ("state", "accept"), ("tests", "amend"),
+        ("task", "export"), ("workspace", "remote"), ("workspace", "save"), ("workspace", "load"), ("permissions", "install"),
     }  # fmt: skip
 )
 # Commands that need a person's yes at a prompt (the agent cannot give it); the person-only ones are denied instead.
@@ -114,7 +115,7 @@ REASONS = {
     GuardRule.BRANCH_FORCE_DELETE: "force-deleting a branch is blocked",
     GuardRule.TAG_DELETE: "deleting a tag is blocked",
     GuardRule.DIRECT_COMMIT: "git commit is blocked in an thanhtan project: stage files and use `thanhtan commit`",
-    GuardRule.APPROVAL_TAG: "tags under 'thanhtan/' are written by `thanhtan task approve` only",
+    GuardRule.APPROVAL_TAG: "tags under 'thanhtan/' (and 'agentflow/', their name before 1.0.0) are written by `thanhtan task approve` only",
     GuardRule.PERSON_ONLY: "`thanhtan {command}` is for a person: ask them to run it themselves (in Claude Code: `! thanhtan {command} ...`)",
 }
 
