@@ -4,9 +4,9 @@ import posixpath
 
 import pytest
 
-from agentflow.constants import CONFIG_FILE, WORKSPACE_DIR
-from agentflow.interfaces import WriteTargetPolicy
-from agentflow.pathguard import WorkspaceWritePolicy
+from thanhtan.constants import CONFIG_FILE, WORKSPACE_DIR
+from thanhtan.interfaces import WriteTargetPolicy
+from thanhtan.pathguard import WorkspaceWritePolicy
 
 
 @pytest.fixture
@@ -45,7 +45,7 @@ def test_absolute_targets_and_other_working_directories(repo):
     assert policy.is_protected(str(repo / WORKSPACE_DIR / "decisions" / "x.md"), repo.parent)
 
 
-@pytest.mark.parametrize("target", ["src/app.py", ".ThanhTan-notes/x.md", "agentflow/x.md", "x/.ThanhTany/y", "README.md"])
+@pytest.mark.parametrize("target", ["src/app.py", ".ThanhTan-notes/x.md", "thanhtan/x.md", "x/.ThanhTany/y", "README.md"])
 def test_other_paths_are_not_protected(repo, target):
     assert not WorkspaceWritePolicy().is_protected(target, repo)
 

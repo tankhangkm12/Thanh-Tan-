@@ -5,12 +5,12 @@ import pytest
 from conftest import SAMPLE_WORKFLOW, write_workflow
 from mcp import Client
 
-from agentflow.cli import main
-from agentflow.constants import MCP_SERVER_NAME, READ_ONLY_TOOLS, ExitCode, ToolName
-from agentflow.mcp_server import CurrentProjectServices, build_server
-from agentflow.projectlocator import EnvironmentProjectLocator
-from agentflow.services import WorkspaceServices
-from agentflow.workspace import find_workspace
+from thanhtan.cli import main
+from thanhtan.constants import MCP_SERVER_NAME, READ_ONLY_TOOLS, ExitCode, ToolName
+from thanhtan.mcp_server import CurrentProjectServices, build_server
+from thanhtan.projectlocator import EnvironmentProjectLocator
+from thanhtan.services import WorkspaceServices
+from thanhtan.workspace import find_workspace
 
 GOOD_PLAN = "### C1 - Build it\n- role: builder\n- done-when: `pytest`\n- docs: không có — internal change\n"
 # What only a person may do: none of it may be reachable through a tool.
@@ -124,7 +124,7 @@ def test_scan_summary_without_results(server, repo):
 
 def test_the_server_finds_the_workspace_afresh_on_every_call(repo, tmp_path, monkeypatch):
     monkeypatch.chdir(tmp_path)  # outside any workspace
-    server = build_server(CurrentProjectServices(EnvironmentProjectLocator(environ={"AGENTFLOW_HOME": str(tmp_path / "home")})))
+    server = build_server(CurrentProjectServices(EnvironmentProjectLocator(environ={"THANHTAN_HOME": str(tmp_path / "home")})))
     assert call(server, "status").is_error
     monkeypatch.chdir(repo)
     assert not call(server, "status").is_error
@@ -134,7 +134,7 @@ def test_a_real_stdio_server_answers_and_refuses(repo):
     from mcp import StdioServerParameters
     from mcp.client.stdio import stdio_client
 
-    params = StdioServerParameters(command=sys.executable, args=["-m", "agentflow", "mcp", "serve"], cwd=str(repo))
+    params = StdioServerParameters(command=sys.executable, args=["-m", "thanhtan", "mcp", "serve"], cwd=str(repo))
 
     async def run():
         from mcp import ClientSession
@@ -149,4 +149,4 @@ def test_a_real_stdio_server_answers_and_refuses(repo):
     names, status, report = asyncio.run(run())
     assert names == {str(name) for name in ToolName}
     assert not status.is_error and report.is_error and "no active task" in report.content[0].text
-    assert MCP_SERVER_NAME == "agentflow"
+    assert MCP_SERVER_NAME == "thanhtan"

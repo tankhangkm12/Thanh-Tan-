@@ -1,4 +1,4 @@
-from agentflow.plan import PlanItem, check_plan, docs_problem, parse_plan
+from thanhtan.plan import PlanItem, check_plan, docs_problem, parse_plan
 
 PLAN = """# Plan
 
@@ -91,22 +91,22 @@ def _tiered(tier_line, layer_line=""):
 
 
 def test_an_item_carries_its_tier_and_layer():
-    from agentflow.plan import parse_plan
+    from thanhtan.plan import parse_plan
 
     item = parse_plan(_tiered("- tier: FAST\n", "- layer: `Domain`\n")).items[0]
     assert (item.tier, item.layer) == ("fast", "domain")
 
 
 def test_a_missing_tier_counts_as_deep():
-    from agentflow.constants import PlanTier
-    from agentflow.plan import parse_plan
+    from thanhtan.constants import PlanTier
+    from thanhtan.plan import parse_plan
 
     item = parse_plan(_tiered("")).items[0]
     assert item.tier is None and item.effective_tier == PlanTier.DEEP
 
 
 def test_plan_check_refuses_an_unknown_tier_and_accepts_the_known_ones():
-    from agentflow.plan import check_plan, parse_plan
+    from thanhtan.plan import check_plan, parse_plan
 
     class Roles:
         def roles(self):
@@ -147,7 +147,7 @@ def _covering(*covers):
 
 
 def test_requirements_are_read_from_the_confirm_report():
-    from agentflow.plan import parse_requirements
+    from thanhtan.plan import parse_requirements
 
     text = "# Confirmed\n\n## Yêu cầu\n- Y1: users can log in\n- Y2 - and log out\n* Y10: a long one\nY3 is mentioned in prose\n"
     assert parse_requirements(text) == ("Y1", "Y2", "Y10")

@@ -2,10 +2,10 @@ from dataclasses import replace
 
 import pytest
 
-from agentflow.constants import ActionKind, ExitCode, HistoryEvent, StepStatus, TaskEvent, TaskStatus
-from agentflow.engine import next_action, resume_target, start_task, transition
-from agentflow.errors import AgentflowError
-from agentflow.models import Task, workflow_from_dict
+from thanhtan.constants import ActionKind, ExitCode, HistoryEvent, StepStatus, TaskEvent, TaskStatus
+from thanhtan.engine import next_action, resume_target, start_task, transition
+from thanhtan.errors import ThanhTanError
+from thanhtan.models import Task, workflow_from_dict
 
 AT = "2026-10-10T10:00:00Z"
 
@@ -75,13 +75,13 @@ def test_blocked(workflow):
 
 @pytest.mark.parametrize("step_status", [StepStatus.PASSED, StepStatus.FAILED])
 def test_open_task_with_finished_step_status_is_invalid(workflow, step_status):
-    with pytest.raises(AgentflowError) as exc:
+    with pytest.raises(ThanhTanError) as exc:
         next_action(workflow, task(step_status=step_status))
     assert exc.value.code is ExitCode.INVALID_STATE
 
 
 def test_unknown_step_is_invalid_state(workflow):
-    with pytest.raises(AgentflowError) as exc:
+    with pytest.raises(ThanhTanError) as exc:
         next_action(workflow, task("ghost"))
     assert exc.value.code is ExitCode.INVALID_STATE
 
@@ -194,7 +194,7 @@ def test_cancel_in_flight_task(workflow, start):
     ],
 )
 def test_invalid_transitions(workflow, start, event, message):
-    with pytest.raises(AgentflowError) as exc:
+    with pytest.raises(ThanhTanError) as exc:
         transition(workflow, start, event, AT)
     assert exc.value.code is ExitCode.INVALID_TRANSITION
     assert message in str(exc.value)

@@ -1,7 +1,7 @@
 import pytest
 from jsonschema import Draft202012Validator
 
-from agentflow.constants import (
+from thanhtan.constants import (
     CONFIG_SCHEMA_FILE,
     STATE_SCHEMA_FILE,
     WORKFLOW_SCHEMA_FILE,
@@ -9,7 +9,7 @@ from agentflow.constants import (
     StepStatus,
     TaskStatus,
 )
-from agentflow.validation import load_schema, schema_errors
+from thanhtan.validation import load_schema, schema_errors
 
 ALL_SCHEMAS = [WORKFLOW_SCHEMA_FILE, STATE_SCHEMA_FILE, CONFIG_SCHEMA_FILE]
 

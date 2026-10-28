@@ -1,0 +1,935 @@
+"""Fixed values used across thanhtan: file names, enums, exit codes and keys.
+
+No other module should spell these values as string literals.
+"""
+
+from enum import IntEnum, StrEnum
+
+PACKAGE_NAME = "thanhtan"
+SCHEMA_VERSION = 1
+ENCODING = "utf-8"
+
+# Workspace layout (relative to the project root).
+WORKSPACE_DIR = ".ThanhTan"
+# The name the workspace had before 0.8.0; thanhtan moves such a folder to WORKSPACE_DIR the first time it finds it.
+LEGACY_WORKSPACE_DIR = ".agentflow"
+WORKSPACE_DIR_NAMES = (WORKSPACE_DIR, LEGACY_WORKSPACE_DIR)
+STATE_FILE = "state.json"
+STATE_MD_FILE = "STATE.md"
+INTEGRITY_FILE = "integrity.json"
+AUDIT_FILE = "audit.jsonl"
+# Per task: one line each time a gate refuses a pass (read by `thanhtan stats`).
+GATE_LOG_FILE = "gate-log.jsonl"
+# Per task: the sha256 of the documents the confirm report names, taken when a person approves it.
+DOCS_PINNED_FILE = "docs-pinned.json"
+CONFIG_FILE = "config.yaml"
+WORKFLOW_COPY_FILE = "workflow.yaml"
+DECISIONS_DIR = "decisions"
+TASKS_DIR = "tasks"
+PROJECT_DIR = "project"
+KNOWLEDGE_DIR = "knowledge"
+WORKSPACE_SUBDIRS = (DECISIONS_DIR, TASKS_DIR, PROJECT_DIR, KNOWLEDGE_DIR)
+# Per-task files: <workspace>/tasks/<task id>/reports/<step id>.md
+REPORTS_DIR = "reports"
+MARKDOWN_SUFFIX = ".md"
+GITKEEP_FILE = ".gitkeep"
+EXCLUDE_ENTRY = f"{WORKSPACE_DIR}/"
+TMP_SUFFIX = ".tmp"
+
+# Schemas shipped inside the package.
+SCHEMAS_DIR = "schemas"
+WORKFLOW_SCHEMA_FILE = "workflow.schema.json"
+STATE_SCHEMA_FILE = "state.schema.json"
+CONFIG_SCHEMA_FILE = "config.schema.json"
+EXTENSION_SCHEMA_FILE = "extension.schema.json"
+EXTENSIONS_DIR = "extensions"
+YAML_SUFFIX = ".yaml"
+
+# Git plumbing.
+GIT_EXECUTABLE = "git"
+GIT_TOPLEVEL_ARGS = ("rev-parse", "--show-toplevel")
+GIT_PATH_ARGS = ("rev-parse", "--git-path")
+GIT_EXCLUDE_PATH = "info/exclude"
+
+# Where a server that does not run in the project finds it, and where thanhtan keeps per-user files.
+PROJECT_DIR_ENV = "THANHTAN_PROJECT_DIR"
+SHELL_PWD_ENV = "PWD"
+USER_DIR_ENV = "THANHTAN_HOME"
+USER_DIR_NAME = ".ThanhTan"
+LEGACY_USER_DIR_NAME = ".agentflow"
+ACTIVE_PROJECT_FILE = "active-project.txt"
+ANSWER_OPTION = "--answer"
+USER_CONFIG_FILE = "user.yaml"
+DEFAULT_KNOWLEDGE_DIR_NAME = "knowledge"
+# When this environment variable names a file, every hook call appends one JSON line to it (for diagnosing CLIs).
+HOOK_LOG_ENV = "THANHTAN_HOOK_LOG"
+# Before 1.0.0 the variables were called AGENTFLOW_*; they are still read when the new one is not set.
+ENV_PREFIX = "THANHTAN_"
+LEGACY_ENV_PREFIX = "AGENTFLOW_"
+TOOL_TIMEOUT_SECONDS = 15
+VERSION_FLAG = "--version"
+ENGINE_INFO_ARG = "info"
+
+# Gitflow: where each task type branches from.
+MAIN_BRANCH = "main"
+DEVELOP_BRANCH = "develop"
+PROTECTED_BRANCHES = frozenset({MAIN_BRANCH, DEVELOP_BRANCH})
+BRANCH_SEPARATOR = "/"
+
+# Task ids look like T-001; branch slugs come from the task title.
+TASK_ID_PREFIX = "T-"
+TASK_ID_DIGITS = 3
+SLUG_MAX_LENGTH = 40
+SLUG_FALLBACK = "task"
+COMMIT_PREFIX_SEPARATOR = ": "
+# Git trailer that ties a commit to a plan item.
+PLAN_ITEM_TRAILER = "Plan-Item"
+SUMMARY_FILE = "summary.md"
+SPEC_DELTA_FILE = "spec-delta.md"
+REPLAN_FILE = "replan.md"
+# Per-task replan history in project/history/: replan-<task id>-<time>.md
+REPLAN_HISTORY_NAME = "replan-{task_id}"
+REPLAN_SKIP_HISTORY_NAME = "replan-skip-{task_id}"
+REPLAN_SKIP_SUFFIX = "-replan-skip"
+# The sections of replan.md: which roadmap items the task finished (a proposal) and what to change in the workflow.
+REPLAN_DONE_HEADING = "Mục roadmap đã hoàn thành"
+REPLAN_PROCESS_HEADING = "Đề xuất cải tiến quy trình"
+# The sections of spec-delta.md.
+SPEC_DELTA_PROPOSALS_HEADING = "Đề xuất của reviewer"
+SPEC_DELTA_CHANGES_HEADING = "Thay đổi thật của task"
+SPEC_DELTA_LINKS_HEADING = "Liên kết"
+NO_REVIEW_REPORT_TEXT = "không có báo cáo review"
+LESSONS_DIR = "lessons"
+LESSONS_HEADING = "Bài học đề xuất"
+# The review report section where the reviewer says whether the project documents must change.
+DRIFT_HEADING = "Đề xuất cập nhật hồ sơ"
+# The confirm report section that names the documents the task works from (paths in the project, or links).
+DOCS_HEADING = "Tài liệu"
+CHECKLIST_HEADING = "Checklist"
+CHECKLIST_NOTES_HEADING = "Ghi chú của bạn"
+CHECKLIST_OPTIONAL_MARK = "(tùy chọn)"
+CHECKLIST_ROADMAP_CODE = "roadmap"
+CHECKLIST_FIXED_PREFIX = "K"
+CHECKLIST_PLAN_PREFIX = "C"
+CHECKLIST_DRIFT_PREFIX = "D"
+CHECKLIST_LOCK_PREFIX = "L"
+CHECKLIST_DOCS_PREFIX = "TL"
+DRIFT_NONE_TEXT = "không có"
+
+# Secret scanning with Gitleaks in a container. The image is pinned on purpose.
+GITLEAKS_IMAGE = "zricethezav/gitleaks:v8.24.0"
+SCAN_TIMEOUT_SECONDS = 900
+# Exit code Gitleaks is told to use for "leaks found", so it differs from its own errors.
+GITLEAKS_LEAKS_EXIT_CODE = 99
+CONTAINER_REPO_DIR = "/repo"
+
+
+class ExitCode(IntEnum):
+    OK = 0
+    ERROR = 1
+    USAGE = 2
+    MISSING_REQUIREMENT = 3
+    NOT_GIT_REPO = 4
+    NO_WORKSPACE = 5
+    INVALID_WORKFLOW = 6
+    INVALID_STATE = 7
+    WORKFLOW_MISMATCH = 8
+    WORKFLOW_NOT_FOUND = 9
+    SYNC_BLOCKED = 10
+    INVALID_CONFIG = 11
+    TASK_CONFLICT = 12
+    NO_ACTIVE_TASK = 13
+    INVALID_TRANSITION = 14
+    DIRTY_WORKING_TREE = 15
+    BRANCH_PROBLEM = 16
+    NOTHING_STAGED = 17
+    SECRETS_FOUND = 18
+    ENGINE_NOT_RUNNING = 19
+    SCAN_FAILED = 20
+    GIT_FAILED = 21
+    INVALID_INPUT = 22
+    UNKNOWN_STEP = 23
+    PLAN_INVALID = 24
+    GATE_FAILED = 25
+    TASK_NOT_SEALED = 26
+    SCAN_BLOCKED = 27
+    EXTENSION_INVALID = 28
+    SETTINGS_INVALID = 29
+    REPORT_REFUSED = 30
+    PROJECT_WRITE_REFUSED = 31
+    KNOWLEDGE_NOT_FOUND = 32
+    CONVENTIONS_INVALID = 33
+    ROLE_GRANT_REFUSED = 34
+    ROADMAP_INVALID = 35
+    CHECKLIST_REFUSED = 36
+    INTEGRITY_FAILED = 37
+    WORKSPACE_CONFLICT = 38
+    WORKSPACE_SYNC = 39
+    EXPORT_FAILED = 40
+
+
+class ToolName(StrEnum):
+    """The MCP tools thanhtan offers an agent. Nothing that is a person's call (approve, cancel, seal, decide,
+    extensions, settings, pushing knowledge, confirming conventions) is on this list."""
+
+    STATUS = "status"
+    NEXT_STEP = "next_step"
+    PLAN_CHECK = "plan_check"
+    REPORT_WRITE = "report_write"
+    PROJECT_WRITE = "project_write"
+    SCAN_SUMMARY = "scan_summary"
+    CONVENTIONS = "conventions"
+    KNOWLEDGE_SEARCH = "knowledge_search"
+    KNOWLEDGE_READ = "knowledge_read"
+    REPLAN_WRITE = "replan_write"
+    DIAGNOSIS_WRITE = "diagnosis_write"
+
+
+MCP_SERVER_NAME = "thanhtan"
+# The tools that only read the workspace (the rest write a report or a project document).
+READ_ONLY_TOOLS = frozenset(
+    {
+        ToolName.STATUS,
+        ToolName.NEXT_STEP,
+        ToolName.PLAN_CHECK,
+        ToolName.SCAN_SUMMARY,
+        ToolName.CONVENTIONS,
+        ToolName.KNOWLEDGE_SEARCH,
+        ToolName.KNOWLEDGE_READ,
+    }
+)
+
+
+class CheckKind(StrEnum):
+    """How a convention is checked. A closed set: a new kind needs code in thanhtan."""
+
+    PLAN = "plan"
+    SEMGREP = "semgrep"
+    REVIEW = "review"
+
+
+class PlanRuleKind(StrEnum):
+    """The plan rules a ``check: plan`` convention can switch on."""
+
+    ITEM_ORDER = "item-order"
+    LAYER_ORDER = "layer-order"
+
+
+class ConventionStatus(StrEnum):
+    UNCONFIRMED = "unconfirmed"
+    CONFIRMED = "confirmed"
+
+
+class ConventionPrefix(StrEnum):
+    """Code prefix per source: project conventions, decisions of a person, the personal knowledge store."""
+
+    PROJECT = "PC"
+    DECISION = "DC"
+    PERSONAL = "KC"
+
+
+class ConventionField(StrEnum):
+    CHECK = "check"
+    RULE = "rule"
+    STATUS = "status"
+    SOURCE = "source"
+    DESCRIPTION = "description"
+    OVERRIDES = "overrides"
+    # Parameters of a ``layer-order`` plan rule: the layers from first to last, and the paths it is limited to.
+    LAYERS = "layers"
+    SCOPE = "scope"
+    DOCS = "docs"
+    CODE = "code"
+
+
+class ConventionSource(StrEnum):
+    """Where an effective convention came from, in the order of priority."""
+
+    DECISION = "decisions"
+    PROJECT = "project"
+    PERSONAL = "knowledge"
+
+
+CONVENTIONS_FILE = "conventions.md"
+DECISION_ANSWER_INFIX = "answer"
+DECISION_ANSWER_KIND = "convention-answer"
+DECISION_SCOPE_PROJECT = "project"
+OPEN_QUESTIONS_HEADING = "## Câu hỏi mở"
+SETUP_QUESTION_PATTERN = r"S\d+"
+SEMGREP_RULE_SUFFIXES = (".yaml", ".yml")
+
+
+class DriftDoc(StrEnum):
+    """The project documents a review may propose to change (``- <document>: <proposal>``)."""
+
+    PROFILE = "profile"
+    MISSION = "mission"
+    ARCHITECTURE = "architecture"
+    CONVENTIONS = "conventions"
+    ROADMAP = "roadmap"
+
+
+class ProjectSection(StrEnum):
+    """The project documents a scout writes (``.ThanhTan/project/<section>.md``)."""
+
+    PROFILE = "profile"
+    ARCHITECTURE = "architecture"
+    SOURCES = "sources"
+    CONVENTIONS = "conventions"
+    ROADMAP = "roadmap"
+
+
+# Limits for what the knowledge tools hand to a model.
+KNOWLEDGE_TEXT_SUFFIXES = frozenset({".md", ".yaml", ".yml", ".txt", ".json"})
+KNOWLEDGE_MAX_FILE_BYTES = 200_000
+KNOWLEDGE_SEARCH_DEFAULT_LIMIT = 10
+KNOWLEDGE_SEARCH_MAX_LIMIT = 50
+KNOWLEDGE_HIT_MAX_CHARS = 240
+
+
+class TaskType(StrEnum):
+    FEATURE = "feature"
+    BUGFIX = "bugfix"
+    HOTFIX = "hotfix"
+    # A change that keeps the behaviour: restructuring code, or upkeep such as a dependency upgrade.
+    REFACTOR = "refactor"
+    CHORE = "chore"
+
+
+TASK_BASE_BRANCH = {
+    TaskType.FEATURE: DEVELOP_BRANCH,
+    TaskType.BUGFIX: DEVELOP_BRANCH,
+    TaskType.HOTFIX: MAIN_BRANCH,
+    TaskType.REFACTOR: DEVELOP_BRANCH,
+    TaskType.CHORE: DEVELOP_BRANCH,
+}
+
+
+class TestSpecMode(StrEnum):
+    """What the test-spec step proves: the tests fail before the code exists (``red``), or they pass on the code as it is
+    and must keep passing (``green``, for a change that keeps the behaviour)."""
+
+    __test__ = False  # not a pytest class
+
+    RED = "red"
+    GREEN = "green"
+
+
+class TypeKey(StrEnum):
+    """Keys of a task type's profile in the ``types`` section of a workflow."""
+
+    TEST_SPEC = "test_spec"
+    SIZE = "size"
+
+
+class TaskEvent(StrEnum):
+    PASS = "pass"
+    FAIL = "fail"
+    APPROVE = "approve"
+    CANCEL = "cancel"
+
+
+# What `task advance --result` accepts.
+STEP_RESULTS = (TaskEvent.PASS, TaskEvent.FAIL)
+
+
+class TaskStatus(StrEnum):
+    OPEN = "open"
+    BLOCKED = "blocked"
+    DONE = "done"
+    CANCELLED = "cancelled"
+
+
+# Task statuses that mean the task is still somewhere inside the workflow.
+IN_FLIGHT_TASK_STATUSES = frozenset({TaskStatus.OPEN, TaskStatus.BLOCKED})
+
+
+class StepStatus(StrEnum):
+    IN_PROGRESS = "in_progress"
+    AWAITING_APPROVAL = "awaiting_approval"
+    PASSED = "passed"
+    FAILED = "failed"
+
+
+class HistoryEvent(StrEnum):
+    STARTED = "started"
+    PASSED = "passed"
+    FAILED = "failed"
+    APPROVED = "approved"
+    BLOCKED = "blocked"
+    # A person approved a blocked task, overriding the block.
+    RESUMED = "resumed"
+    CANCELLED = "cancelled"
+    DONE = "done"
+
+
+class ActionKind(StrEnum):
+    START_TASK = "start_task"
+    CONTINUE = "continue"
+    AWAIT_APPROVAL = "await_approval"
+    BLOCKED = "blocked"
+
+
+class DriftStatus(StrEnum):
+    IN_SYNC = "in_sync"
+    SOURCE_CHANGED = "source_changed"
+    SOURCE_MISSING = "source_missing"
+
+
+class SyncOutcome(StrEnum):
+    UNCHANGED = "unchanged"
+    UPDATED = "updated"
+
+
+class Tool(StrEnum):
+    UV = "uv"
+    GIT = "git"
+    DOCKER = "docker"
+    PODMAN = "podman"
+
+
+class ToolStatus(StrEnum):
+    OK = "ok"
+    MISSING = "missing"
+    WARNING = "warning"
+
+
+REQUIRED_TOOLS = (Tool.UV, Tool.GIT)
+# At least one of these must be installed.
+CONTAINER_TOOLS = (Tool.DOCKER, Tool.PODMAN)
+
+INSTALL_URLS = {
+    Tool.UV: "https://docs.astral.sh/uv/getting-started/installation/",
+    Tool.GIT: "https://git-scm.com/downloads",
+    Tool.DOCKER: "https://docs.docker.com/get-started/get-docker/",
+    Tool.PODMAN: "https://podman.io/docs/installation",
+}
+
+
+class Command(StrEnum):
+    DOCTOR = "doctor"
+    INIT = "init"
+    STATUS = "status"
+    NEXT = "next"
+    WORKFLOW = "workflow"
+    TASK = "task"
+    REPORT = "report"
+    COMMIT = "commit"
+    GUARD = "guard"
+    HOOK = "hook"
+    MCP = "mcp"
+    PROJECT = "project"
+    CONVENTIONS = "conventions"
+    KNOWLEDGE = "knowledge"
+    ROADMAP = "roadmap"
+    REPLAN = "replan"
+    PLAN = "plan"
+    SCAN = "scan"
+    REVIEW_MAP = "review-map"
+    SCOPE = "scope"
+    DECIDE = "decide"
+    EXT = "ext"
+    CONFIG = "config"
+    ROLE = "role"
+    STATE = "state"
+    TESTS = "tests"
+    STATS = "stats"
+    DIAGNOSIS = "diagnosis"
+    WORKSPACE = "workspace"
+    PERMISSIONS = "permissions"
+
+
+class TestsCommand(StrEnum):
+    __test__ = False  # not a pytest class
+
+    VERIFY_RED = "verify-red"
+    CHECK = "check"
+    AMEND = "amend"
+
+
+class StateCommand(StrEnum):
+    ACCEPT = "accept"
+
+
+class ProjectCommand(StrEnum):
+    CONFIRM = "confirm"
+    STATUS = "status"
+
+
+class RoadmapCommand(StrEnum):
+    LIST = "list"
+    SHOW = "show"
+    SET = "set"
+
+
+class DiagnosisCommand(StrEnum):
+    WRITE = "write"
+    LIST = "list"
+    SHOW = "show"
+
+
+class ReplanCommand(StrEnum):
+    STATUS = "status"
+    WRITE = "write"
+    DONE = "done"
+    SKIP = "skip"
+
+
+class ReplanState(StrEnum):
+    """Where the replan of the latest finished task stands (``thanhtan replan status``)."""
+
+    NO_FINISHED_TASK = "no-finished-task"
+    TASK_OPEN = "task-open"
+    NOT_SEALED = "not-sealed"
+    PENDING = "pending"
+    PROPOSED = "proposed"
+    DONE = "done"
+    SKIPPED = "skipped"
+
+
+class RoadmapStatus(StrEnum):
+    """Where a roadmap item stands. Only a person (or thanhtan when a task is tied to the item) moves it."""
+
+    TODO = "todo"
+    DOING = "doing"
+    DONE = "done"
+    DROPPED = "dropped"
+
+
+class RoadmapField(StrEnum):
+    STATUS = "status"
+    GOAL = "goal"
+    DOCS = "docs"
+
+
+class MissionField(StrEnum):
+    """The bullets of the ``## Mission`` section of the project profile."""
+
+    WHY = "why"
+    FOR = "for"
+    SCOPE = "scope"
+    OUT_OF_SCOPE = "out-of-scope"
+    SOURCE = "source"
+
+
+class ConfirmUnit(StrEnum):
+    """Project documents (or parts of one) a person confirms by name; an agent can rewrite them but never confirm."""
+
+    MISSION = "mission"
+    PROFILE = "profile"
+    ARCHITECTURE = "architecture"
+    CONVENTIONS = "conventions"
+    ROADMAP = "roadmap"
+
+
+class ConfirmState(StrEnum):
+    MISSING = "missing"
+    UNCONFIRMED = "unconfirmed"
+    CONFIRMED = "confirmed"
+
+
+# Files under .ThanhTan/project/ that thanhtan writes itself.
+CONFIRMATIONS_FILE = "confirmations.json"
+HISTORY_DIR = "history"
+MISSION_HEADING = "Mission"
+ROADMAP_ITEM_PATTERN = r"R[0-9]+"
+ROADMAP_FILE_STEM = "roadmap"
+
+
+class UserConfigKey(StrEnum):
+    KNOWLEDGE_DIR = "knowledge_dir"
+
+
+class KnowledgePlace(StrEnum):
+    """Where in the personal store a pushed file goes."""
+
+    LESSONS = "lessons"
+    PATTERNS = "patterns"
+
+
+class KnowledgeCommand(StrEnum):
+    INIT = "init"
+    PULL = "pull"
+    PUSH = "push"
+
+
+class McpCommand(StrEnum):
+    SERVE = "serve"
+
+
+class WorkflowCommand(StrEnum):
+    SYNC = "sync"
+
+
+class TaskCommand(StrEnum):
+    NEW = "new"
+    ADVANCE = "advance"
+    APPROVE = "approve"
+    CANCEL = "cancel"
+    SEAL = "seal"
+
+
+class HookEvent(StrEnum):
+    """What a hook is for; each CLI maps its own event names onto these."""
+
+    SESSION_START = "session-start"
+    PRE_TOOL = "pre-tool"
+    STOP = "stop"
+
+
+class CliKind(StrEnum):
+    CLAUDE = "claude"
+    ANTIGRAVITY = "antigravity"
+
+
+class ReplyKind(StrEnum):
+    """What the hook logic wants to tell the CLI; adapters turn it into each CLI's format."""
+
+    NONE = "none"
+    DENY = "deny"
+    ASK = "ask"
+    CONTEXT = "context"
+    REMINDER = "reminder"
+
+
+class ClaudeHookKey(StrEnum):
+    CWD = "cwd"
+    TOOL_NAME = "tool_name"
+    TOOL_INPUT = "tool_input"
+    COMMAND = "command"
+    FILE_PATH = "file_path"
+    NOTEBOOK_PATH = "notebook_path"
+    STOP_HOOK_ACTIVE = "stop_hook_active"
+    HOOK_SPECIFIC_OUTPUT = "hookSpecificOutput"
+    HOOK_EVENT_NAME = "hookEventName"
+    PERMISSION_DECISION = "permissionDecision"
+    PERMISSION_DECISION_REASON = "permissionDecisionReason"
+    ADDITIONAL_CONTEXT = "additionalContext"
+    SYSTEM_MESSAGE = "systemMessage"
+
+
+class ClaudeHookValue(StrEnum):
+    PRE_TOOL_USE = "PreToolUse"
+    SESSION_START = "SessionStart"
+    DENY = "deny"
+    ASK = "ask"
+
+
+class AntigravityHookKey(StrEnum):
+    WORKSPACE_PATHS = "workspacePaths"
+    TOOL_CALL = "toolCall"
+    NAME = "name"
+    ARGS = "args"
+    COMMAND_LINE = "CommandLine"
+    TARGET_FILE = "TargetFile"
+    CWD = "Cwd"
+    INVOCATION_NUM = "invocationNum"
+    INJECT_STEPS = "injectSteps"
+    EPHEMERAL_MESSAGE = "ephemeralMessage"
+    DECISION = "decision"
+    REASON = "reason"
+
+
+class AntigravityDecision(StrEnum):
+    DENY = "deny"
+    # Asks the person even when the command was approved with "Always Allow".
+    FORCE_ASK = "force_ask"
+    # Any value but "continue" lets the agent stop.
+    ALLOW_STOP = "allow"
+
+
+# Antigravity numbers model invocations from 0; only the first one gets the session summary.
+ANTIGRAVITY_FIRST_INVOCATION = 0
+# What a Antigravity PreToolUse hook prints when it has no objection. An empty string means "no output";
+# its handling by `agy` is checked by the install smoke test (see tools/).
+# Tools of each CLI that write a file. Claude Code: Write, Edit and NotebookEdit are documented (MultiEdit is
+# not any more, but costs nothing to cover). Antigravity: the file tools of its hooks reference.
+CLAUDE_WRITE_TOOLS = frozenset({"Write", "Edit", "MultiEdit", "NotebookEdit"})
+ANTIGRAVITY_WRITE_TOOLS = frozenset({"write_to_file", "replace_file_content", "multi_replace_file_content"})
+ANTIGRAVITY_PRE_TOOL_PASS_OUTPUT = ""
+EMPTY_JSON_OBJECT = "{}"
+
+
+class GuardDecision(StrEnum):
+    ALLOW = "allow"
+    DENY = "deny"
+    ASK = "ask"
+
+
+class GuardRule(StrEnum):
+    """Why `thanhtan guard` denied a shell command."""
+
+    PUSH = "push"
+    PROTECTED_BRANCH = "protected-branch"
+    RESET_HARD = "reset-hard"
+    CLEAN_FORCE_DIRS = "clean-force-dirs"
+    BRANCH_FORCE_DELETE = "branch-force-delete"
+    TAG_DELETE = "tag-delete"
+    DIRECT_COMMIT = "direct-commit"
+    APPROVAL_TAG = "approval-tag"
+    PERSON_ONLY = "person-only"
+    PERSON_CONFIRMS = "person-confirms"
+    SCRIPT_UNREAD = "script-unread"
+    WORKSPACE_WRITE = "workspace-write"
+    LOCKED_FILE = "locked-file"
+
+
+class GuardKey(StrEnum):
+    """Keys of the JSON that `thanhtan guard` reads and writes."""
+
+    COMMAND = "command"
+    CWD = "cwd"
+    DECISION = "decision"
+    REASON = "reason"
+    RULE = "rule"
+
+
+# Tags `thanhtan task approve` creates; nobody else may create refs under this prefix. Before 1.0.0 it was `agentflow/`:
+# those tags still count as approvals and stay protected.
+APPROVAL_TAG_PREFIX = "thanhtan/"
+LEGACY_APPROVAL_TAG_PREFIX = "agentflow/"
+APPROVAL_TAG_PREFIXES = (APPROVAL_TAG_PREFIX, LEGACY_APPROVAL_TAG_PREFIX)
+APPROVAL_TAG_SUFFIX = "approved"
+TAG_REF_PREFIX = "refs/tags/"
+THANHTAN_PROGRAM = "thanhtan"
+# The name of the command before 1.0.0, still installed as an alias of the same program.
+LEGACY_PROGRAM = "agentflow"
+PROGRAM_NAMES = (THANHTAN_PROGRAM, LEGACY_PROGRAM)
+
+
+class WorkflowKey(StrEnum):
+    SCHEMA_VERSION = "schema_version"
+    FAMILY = "family"
+    MAX_ROUNDS = "max_rounds"
+    STEPS = "steps"
+    ID = "id"
+    NAME = "name"
+    ROLE = "role"
+    REQUIRES_APPROVAL = "requires_approval"
+    ON_FAIL = "on_fail"
+    GATES = "gates"
+    APPROVAL_CHECKLIST = "approval_checklist"
+    APPROVAL_ITEMS = "approval_items"
+    LOCK_ON_APPROVAL = "lock_on_approval"
+    PIN_DOCS_ON_APPROVAL = "pin_docs_on_approval"
+    TIERED_ROLES = "tiered_roles"
+    SIZES = "sizes"
+    TYPES = "types"
+    READ_ONLY_ROLES = "read_only_roles"
+    AGENT_DIRS = "agent_dirs"
+
+
+class SizeKey(StrEnum):
+    """Keys of the ``sizes`` section of a workflow: named profiles that make a task lighter or heavier."""
+
+    DEFAULT = "default"
+    PROFILES = "profiles"
+    SKIP_APPROVAL = "skip_approval"
+    MAX_PLAN_ITEMS = "max_plan_items"
+    SCANS = "scans"
+
+
+class ApprovalItem(StrEnum):
+    """Where the dynamic lines of an approval checklist come from (the report of the step being approved)."""
+
+    PLAN_ITEMS = "plan-items"
+    REVIEW_CONVENTIONS = "review-conventions"
+    DRIFT_PROPOSALS = "drift-proposals"
+    SPEC_ITEMS = "spec-items"
+    LOCKED_FILES = "locked-files"
+    REVIEW_REQUIREMENTS = "review-requirements"
+    CHANGED_DOCS = "changed-docs"
+
+
+class GateKind(StrEnum):
+    """Checks a step must pass before ``task advance --result pass`` is accepted."""
+
+    PLAN_VALID = "plan-valid"
+    SCANS_CLEAN = "scans-clean"
+    CONVENTIONS_REVIEWED = "conventions-reviewed"
+    DRIFT_REVIEWED = "drift-reviewed"
+    TEST_SPEC_VALID = "test-spec-valid"
+    TESTS_PASS = "tests-pass"
+    LOCKED_FILES_INTACT = "locked-files-intact"
+    REQUIREMENTS_REVIEWED = "requirements-reviewed"
+    REQUIREMENTS_SOURCED = "requirements-sourced"
+
+
+class PlanCommand(StrEnum):
+    CHECK = "check"
+    ASSIGN = "assign"
+
+
+class ExtCommand(StrEnum):
+    ADD = "add"
+    LIST = "list"
+    SYNC = "sync"
+
+
+class RoleCommand(StrEnum):
+    GRANT = "grant"
+    REVOKE = "revoke"
+    LIST = "list"
+    SYNC = "sync"
+
+
+class ReadVerb(StrEnum):
+    """What the name of an MCP tool starts with when the tool only reads. A role that is read-only may be granted
+    nothing else: thanhtan cannot ask another MCP server what a tool does, so it goes by the name."""
+
+    GET = "get"
+    LIST = "list"
+    READ = "read"
+    SEARCH = "search"
+    QUERY = "query"
+    FIND = "find"
+    DESCRIBE = "describe"
+    VIEW = "view"
+    STATUS = "status"
+
+
+# Tools a project grants a role are MCP tools: ``mcp__<server>``, ``mcp__<server>__*`` or ``mcp__<server>__<tool>``.
+MCP_TOOL_PREFIX = "mcp__"
+MCP_TOOL_SEPARATOR = "__"
+MCP_WILDCARD = "*"
+# The project-level copy of a plugin agent that carries the granted tools (Claude Code reads .claude/agents/).
+PROJECT_AGENT_PREFIX = "project-"
+CLAUDE_PROJECT_AGENTS_DIR = ".claude/agents"
+PROJECT_AGENT_EXCLUDE_ENTRY = f"{CLAUDE_PROJECT_AGENTS_DIR}/{PROJECT_AGENT_PREFIX}*{MARKDOWN_SUFFIX}"
+PROJECT_AGENT_MARKER = "Generated by thanhtan role sync"
+
+
+class ConfigCommand(StrEnum):
+    GET = "get"
+    SET = "set"
+    CHECK = "check"
+
+
+class StateKey(StrEnum):
+    SCHEMA_VERSION = "schema_version"
+    UPDATED_AT = "updated_at"
+    ACTIVE_TASK_ID = "active_task_id"
+    TASKS = "tasks"
+    ID = "id"
+    TITLE = "title"
+    STATUS = "status"
+    CURRENT_STEP = "current_step"
+    STEP_STATUS = "step_status"
+    LOOP_ROUND = "loop_round"
+    BRANCH = "branch"
+    SIZE = "size"
+    TYPE = "type"
+    # The branch the task was started from (the one its review, scope and summary compare against).
+    BASE = "base"
+    ROADMAP = "roadmap"
+    REPLANNED_AT = "replanned_at"
+    HISTORY = "history"
+    AT = "at"
+    STEP = "step"
+    EVENT = "event"
+
+
+class ConfigKey(StrEnum):
+    SCHEMA_VERSION = "schema_version"
+    WORKFLOW = "workflow"
+    FAMILY = "family"
+    SOURCE_PATH = "source_path"
+    SHA256 = "sha256"
+    EXTENSIONS = "extensions"
+    SETTINGS = "settings"
+    NAME = "name"
+    ROLE_GRANTS = "role_grants"
+
+
+# ----------------------------------------------------------------- plan
+
+class PlanField(StrEnum):
+    """Field names of a plan item (a bullet under its ``### C<n>`` heading)."""
+
+    ROLE = "role"
+    FILES = "files"
+    DONE_WHEN = "done-when"
+    DOCS = "docs"
+    KIND = "kind"
+    TIER = "tier"
+    LAYER = "layer"
+    # The requirements (Y1, Y2, ...) of the confirm report that the item fulfils.
+    COVERS = "covers"
+    # Fields of a question under "Chưa có quy ước".
+    ASK = "ask"
+    OPTIONS = "options"
+    NEEDED_BY = "needed-by"
+
+
+class PlanItemKind(StrEnum):
+    """What a plan item does to its files, for the ``item-order`` convention."""
+
+    INTERFACE = "interface"
+    IMPLEMENT = "implement"
+    OTHER = "other"
+
+
+class PlanTier(StrEnum):
+    """How much model an item needs: ``fast`` for routine work, ``deep`` for the hard parts. A missing tier means deep."""
+
+    FAST = "fast"
+    DEEP = "deep"
+
+
+DEFAULT_PLAN_TIER = PlanTier.DEEP
+# An agent of a tiered role is named <role>-<tier>.
+AGENT_NAME_SEPARATOR = "-"
+LIST_SEPARATOR = ","
+
+PLAN_ITEM_CODE_PATTERN = r"C[0-9]+"
+PLAN_QUESTION_CODE_PATTERN = r"Q[0-9]+"
+PLAN_QUESTIONS_HEADING = "Chưa có quy ước"
+PLAN_NO_DOCS_PREFIX = "không có"
+PLAN_NO_FILES_PREFIX = "không có"
+
+# ----------------------------------------------------------------- scans
+
+SCANS_DIR = "scans"
+SCAN_SUMMARY_FILE = "summary.json"
+SEMGREP_IMAGE = "semgrep/semgrep:1.180.0"
+# Rules a person wrote for their conventions: kept in the knowledge store (``semgrep/``) and copied next to the workspace.
+SEMGREP_CONVENTION_RULES_DIR = "semgrep"
+CUSTOM_RULES_MOUNT = "/custom-rules"
+CUSTOM_RULES_CACHE_DIR = "convention-rules"
+TRIVY_IMAGE = "aquasec/trivy:0.75.0"
+TRIVY_CACHE_VOLUME = "thanhtan-trivy-cache"
+SEMGREP_RULES_DIR = "semgrep-rules"
+CACHE_DIR_ENV = "THANHTAN_CACHE_DIR"
+APP_CACHE_DIR = "thanhtan"
+SEMGREP_RULES_URL = "https://semgrep.dev/c/{ruleset}"
+SEMGREP_DEFAULT_RULESETS = ("p/default",)
+SEMGREP_RULES_MAX_AGE_SECONDS = 7 * 24 * 3600
+FETCH_TIMEOUT_SECONDS = 120
+HOST_GATEWAY_NAME = "host.docker.internal"
+DECISION_SUPPRESS_SUFFIX = "suppress"
+
+
+class NetworkMode(StrEnum):
+    """Network a scan container gets. Extensions may only ask for ``none`` or ``host-gateway``."""
+
+    NONE = "none"
+    BRIDGE = "bridge"
+    HOST_GATEWAY = "host-gateway"
+
+
+class ResultKind(StrEnum):
+    """How a scan tool's output becomes findings."""
+
+    JSON_FINDINGS = "json_findings"
+    EXIT_CODE = "exit_code"
+
+
+class ScanStatus(StrEnum):
+    CLEAN = "clean"
+    BLOCKED = "blocked"
+    SKIPPED = "skipped"
+
+
+class FileScope(StrEnum):
+    CHANGED = "changed"
+

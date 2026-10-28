@@ -3,14 +3,14 @@ import io
 import pytest
 from conftest import SAMPLE_WORKFLOW, git, write_workflow
 
-from agentflow.cli import main
-from agentflow.constants import ExitCode
-from agentflow.git import SubprocessGit
-from agentflow.models import CommitInfo, Task
-from agentflow.constants import StepStatus, TaskStatus
-from agentflow.plan import PlanItem
-from agentflow.seal import approval_tag, base_branch
-from agentflow.summary import build_summary
+from thanhtan.cli import main
+from thanhtan.constants import ExitCode
+from thanhtan.git import SubprocessGit
+from thanhtan.models import CommitInfo, Task
+from thanhtan.constants import StepStatus, TaskStatus
+from thanhtan.plan import PlanItem
+from thanhtan.seal import approval_tag, base_branch
+from thanhtan.summary import build_summary
 
 PLAN = """### C1 - Build it
 - role: builder
@@ -66,7 +66,7 @@ def test_commit_with_item_adds_a_trailer_and_rejects_unknown_items(ws, monkeypat
 
 @pytest.fixture(autouse=True)
 def _no_container(monkeypatch):
-    from agentflow.models import ScanResult
+    from thanhtan.models import ScanResult
 
     class Clean:
         def __init__(self, runner):
@@ -75,7 +75,7 @@ def _no_container(monkeypatch):
         def scan_staged(self, repo):
             return ScanResult(True, "")
 
-    monkeypatch.setattr("agentflow.cli.ContainerGitleaksScanner", Clean)
+    monkeypatch.setattr("thanhtan.cli.ContainerGitleaksScanner", Clean)
 
 
 def drive_to_the_end(ws, monkeypatch):
@@ -172,10 +172,10 @@ def test_a_last_step_without_approval_is_sealed_when_it_passes(gitflow_repo, tmp
 
 
 def test_summary_lists_each_items_tier_and_layer():
-    from agentflow.models import Task
-    from agentflow.plan import parse_plan
-    from agentflow.summary import build_summary
-    from agentflow.constants import StepStatus, TaskStatus
+    from thanhtan.models import Task
+    from thanhtan.plan import parse_plan
+    from thanhtan.summary import build_summary
+    from thanhtan.constants import StepStatus, TaskStatus
 
     plan = parse_plan(
         "### C1 - a\n- role: implementer\n- tier: fast\n- layer: api\n- done-when: ok\n- docs: không có — x\n"

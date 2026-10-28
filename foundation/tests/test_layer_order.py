@@ -1,11 +1,11 @@
 import pytest
 
-from agentflow.constants import ConventionPrefix, PlanRuleKind
-from agentflow.convention_sources import load_decision_conventions
-from agentflow.conventions import parse_conventions, render_conventions, validate_conventions
-from agentflow.interfaces import PlanWideRule
-from agentflow.plan import check_plan, parse_plan
-from agentflow.plan_rules import LayerOrderRule
+from thanhtan.constants import ConventionPrefix, PlanRuleKind
+from thanhtan.convention_sources import load_decision_conventions
+from thanhtan.conventions import parse_conventions, render_conventions, validate_conventions
+from thanhtan.interfaces import PlanWideRule
+from thanhtan.plan import check_plan, parse_plan
+from thanhtan.plan_rules import LayerOrderRule
 
 LAYERS = ("interface", "api", "infra", "service", "domain")
 
@@ -119,8 +119,8 @@ def test_layer_order_is_a_known_plan_rule():
 
 
 def test_a_decision_answer_carries_layers_and_scope(tmp_path):
-    from agentflow.convention_sources import write_answer
-    from agentflow.constants import CheckKind
+    from thanhtan.convention_sources import write_answer
+    from thanhtan.constants import CheckKind
 
     (tmp_path / "decisions").mkdir()
     write_answer(tmp_path, "T-001", "Q1", "DC-01", "Layers in order", CheckKind.PLAN, "layer-order", None, "2026-01-01T00:00:00Z", "api, domain", "src/**")

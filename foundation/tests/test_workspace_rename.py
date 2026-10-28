@@ -12,15 +12,15 @@ from pathlib import Path
 from checklist_helpers import checklist_workflow, open_workspace
 from sdd_helpers import run, say
 
-from agentflow.constants import (
+from thanhtan.constants import (
     CONFIG_FILE,
     LEGACY_WORKSPACE_DIR,
     WORKSPACE_DIR,
     ExitCode,
 )
-from agentflow.lockguard import _workspace_of
-from agentflow.pathguard import WorkspaceWritePolicy
-from agentflow.projectlocator import user_dir
+from thanhtan.lockguard import _workspace_of
+from thanhtan.pathguard import WorkspaceWritePolicy
+from thanhtan.projectlocator import user_dir
 
 
 def test_the_names():

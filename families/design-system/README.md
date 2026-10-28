@@ -9,4 +9,4 @@ Nhóm plugin thiết kế. `design-core` giữ chuẩn chung của nhóm (workfl
 | `design-core` | Workflow G0–G10, 8 tiêu chí chất lượng, quyền ghi của agent, template workspace, script kiểm tra (chạy qua uv); có sẵn trong marketplace `thanh-tan-plugins` |
 | `design-architecture` | Biến tài liệu BA thành bộ tài liệu kiến trúc giải pháp đầy đủ, có số liệu thật; chỉ chứa template, checklist và phần "dùng với core" |
 
-Nhóm này không chạy bằng `agentflow`: workspace là `.agent-workspace/` trong dự án và các gate do script Python kiểm.
+Nhóm này không chạy bằng `thanhtan`: workspace là `.agent-workspace/` trong dự án và các gate do script Python kiểm.

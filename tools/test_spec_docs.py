@@ -66,7 +66,7 @@ def test_test_spec_is_done_by_the_tester_and_needs_a_person():
     assert "test-spec-valid" in spec["gates"] and spec["on_fail"] == "plan"
 
 
-def test_test_spec_has_a_checklist_with_the_lines_agentflow_adds():
+def test_test_spec_has_a_checklist_with_the_lines_thanhtan_adds():
     spec = step("test-spec")
     assert len(spec["approval_checklist"]) >= 4
     assert "spec-items" in spec["approval_items"]
@@ -103,8 +103,8 @@ def test_the_generated_checklist_block_of_usage_includes_test_spec():
         "- reason:",
         "- output:",
         "không có —",
-        "agentflow tests verify-red",
-        "agentflow commit",
+        "thanhtan tests verify-red",
+        "thanhtan commit",
     ],
 )
 def test_the_tester_writes_the_test_spec_report_in_the_agreed_form(needle):
@@ -114,7 +114,7 @@ def test_the_tester_writes_the_test_spec_report_in_the_agreed_form(needle):
 def test_the_tester_proves_the_tests_fail_for_the_right_reason():
     text = role("tester")
     assert re.search(r"not (a )?(syntax|import|typo)|feature (is )?(missing|not there)|reason", text, flags=re.I)
-    assert re.search(r"runs? (the )?commands? (again|itself)|agentflow runs", text, flags=re.I)
+    assert re.search(r"runs? (the )?commands? (again|itself)|thanhtan runs", text, flags=re.I)
 
 
 def test_the_tester_never_writes_application_code_in_either_step():
@@ -124,7 +124,7 @@ def test_the_tester_never_writes_application_code_in_either_step():
 
 def test_the_tester_does_not_report_the_test_step_as_passed_on_its_own_word():
     text = role("tester")
-    assert re.search(r"agentflow runs the (project's )?test command", text, flags=re.I)
+    assert re.search(r"thanhtan runs the (project's )?test command", text, flags=re.I)
     assert "tests-pass" in text
 
 
@@ -162,7 +162,7 @@ def test_the_implementer_does_not_edit_the_tests_of_the_test_spec_report():
 
 def test_the_scout_writes_the_test_command_line_of_the_profile():
     text = role("scout")
-    assert "- test-command:" in text and "agentflow config set test_command" in text
+    assert "- test-command:" in text and "thanhtan config set test_command" in text
 
 
 # ------------------------------------------------------------------ skills
@@ -188,7 +188,7 @@ def test_the_approve_skill_tells_the_person_what_to_read_for_test_spec():
 
 def test_usage_has_a_section_on_tests_first_with_the_report_form_and_the_commands():
     body = section(read(USAGE), "Test trước (test-spec)")
-    for needle in ("- tests:", "- command:", "- red: fail", "không có —", "agentflow tests verify-red", "verify-red.json", "tests-pass", "test_command", "test_timeout_minutes", "test-command", "15 phút", "kind: other", "spec_results", "đỏ trước", "xanh sau"):
+    for needle in ("- tests:", "- command:", "- red: fail", "không có —", "thanhtan tests verify-red", "verify-red.json", "tests-pass", "test_command", "test_timeout_minutes", "test-command", "15 phút", "kind: other", "spec_results", "đỏ trước", "xanh sau"):
         assert needle in body, needle
 
 
@@ -204,13 +204,13 @@ def test_usage_names_the_loop_with_test_spec_in_it():
 
 def test_usage_troubleshooting_covers_the_two_new_refusals():
     body = section(read(USAGE), "Xử lý tình huống")
-    for needle in ("test-spec", "chạy lại", "tests-pass", "agentflow config set test_command", "project confirm profile"):
+    for needle in ("test-spec", "chạy lại", "tests-pass", "thanhtan config set test_command", "project confirm profile"):
         assert needle in body, needle
 
 
-def test_usage_says_the_report_is_not_what_agentflow_trusts():
+def test_usage_says_the_report_is_not_what_thanhtan_trusts():
     body = section(read(USAGE), "Test trước (test-spec)")
-    assert re.search(r"agentflow (tự )?chạy lại", body) and re.search(r"output.{0,80}(chỉ|để bạn đọc)", body, flags=re.S)
+    assert re.search(r"thanhtan (tự )?chạy lại", body) and re.search(r"output.{0,80}(chỉ|để bạn đọc)", body, flags=re.S)
 
 
 def test_readme_names_test_spec_and_the_test_command_setting():

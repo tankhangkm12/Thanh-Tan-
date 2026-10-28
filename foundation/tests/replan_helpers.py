@@ -12,8 +12,8 @@ from pathlib import Path
 
 from conftest import SAMPLE_WORKFLOW, git, write_workflow
 
-from agentflow.cli import main
-from agentflow.constants import ExitCode
+from thanhtan.cli import main
+from thanhtan.constants import ExitCode
 
 HEADING = "## Đề xuất cập nhật hồ sơ"
 NONE_PROPOSAL = "không có"

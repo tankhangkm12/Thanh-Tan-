@@ -7,13 +7,13 @@ import pytest
 import yaml
 from conftest import SAMPLE_WORKFLOW, git, write_workflow
 
-from agentflow import cli
-from agentflow.cli import main
-from agentflow.constants import ExitCode, GateKind, NetworkMode, ResultKind
-from agentflow.errors import AgentflowError
-from agentflow.extension import load_extension_file, parse_extension
-from agentflow.models import CommandResult
-from agentflow.settings import coerce, get_value, set_value
+from thanhtan import cli
+from thanhtan.cli import main
+from thanhtan.constants import ExitCode, GateKind, NetworkMode, ResultKind
+from thanhtan.errors import ThanhTanError
+from thanhtan.extension import load_extension_file, parse_extension
+from thanhtan.models import CommandResult
+from thanhtan.settings import coerce, get_value, set_value
 
 EXTENSION = {
     "schema_version": 1,
@@ -108,17 +108,17 @@ def test_a_valid_extension_is_read():
 def test_invalid_extensions_are_refused(change, message):
     data = copy.deepcopy(EXTENSION)
     change(data)
-    with pytest.raises(AgentflowError, match=message) as exc:
+    with pytest.raises(ThanhTanError, match=message) as exc:
         parse_extension(data, "x")
     assert exc.value.code == ExitCode.EXTENSION_INVALID
 
 
 def test_unreadable_files(tmp_path):
-    with pytest.raises(AgentflowError):
+    with pytest.raises(ThanhTanError):
         load_extension_file(tmp_path / "missing.yaml")
     bad = tmp_path / "bad.yaml"
     bad.write_text("a: [", encoding="utf-8")
-    with pytest.raises(AgentflowError):
+    with pytest.raises(ThanhTanError):
         load_extension_file(bad)
 
 
@@ -133,7 +133,7 @@ def test_settings_helpers():
     assert coerce([extension], "proj.retries", "5") == 5
     assert coerce([extension], "proj.up_cmd", "5") == "5"
     assert coerce([], "x.y", "5") == "5"
-    with pytest.raises(AgentflowError):
+    with pytest.raises(ThanhTanError):
         set_value({}, "a..b", 1)
 
 
@@ -168,7 +168,7 @@ def ws(gitflow_repo, tmp_path, monkeypatch, capsys):
     data["steps"][1]["gates"] = ["plan-valid"]
     path = write_workflow(tmp_path / "plugin" / "workflow.yaml", data)
     monkeypatch.chdir(gitflow_repo)
-    monkeypatch.setenv("AGENTFLOW_CACHE_DIR", str(tmp_path / "cache"))
+    monkeypatch.setenv("THANHTAN_CACHE_DIR", str(tmp_path / "cache"))
     monkeypatch.setattr(cli, "SubprocessRunner", FakeRunner)
     monkeypatch.setattr(cli, "HttpRuleFetcher", FakeFetcher)
     FakeRunner.commands, FakeRunner.outputs = [], {}
@@ -313,7 +313,7 @@ def start_build(ws, monkeypatch, capsys, plan):
 
 @pytest.fixture(autouse=True)
 def _no_gitleaks(monkeypatch):
-    from agentflow.models import ScanResult
+    from thanhtan.models import ScanResult
 
     class Clean:
         def __init__(self, runner):

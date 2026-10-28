@@ -1,6 +1,6 @@
 """Steps of the conventions flow that both smoke tests run: setup, confirming, questions, custom Semgrep rules.
 
-The scout's part is played through the real MCP server (`agentflow mcp serve` over stdio), so the tool a model would
+The scout's part is played through the real MCP server (`thanhtan mcp serve` over stdio), so the tool a model would
 call is the one under test. A person's part (confirming, answering, copying a rule file) uses the real commands.
 """
 
@@ -9,7 +9,7 @@ import json
 from pathlib import Path
 from typing import Any
 
-from smoke_support import AGENTFLOW, Session, expect
+from smoke_support import THANHTAN, Session, expect
 
 ENCODING = "utf-8"
 RULE_FILE = "no-literal-status.yaml"
@@ -78,7 +78,7 @@ def mcp_call(repo: Path, tool: str, arguments: dict[str, Any]) -> tuple[bool, st
     from mcp.client.stdio import stdio_client
 
     async def run() -> tuple[bool, str]:
-        params = StdioServerParameters(command=AGENTFLOW, args=["mcp", "serve"], cwd=str(repo))
+        params = StdioServerParameters(command=THANHTAN, args=["mcp", "serve"], cwd=str(repo))
         async with stdio_client(params) as (read, write), ClientSession(read, write) as session:
             await session.initialize()
             result = await session.call_tool(tool, arguments)
@@ -116,7 +116,7 @@ def person_assets(s: Session, base: Path, repo: Path) -> Path:
 
 
 def agents_cannot_decide_or_write(s: Session, repo: Path) -> None:
-    for command in ("agentflow project confirm --all", "agentflow decide --answer Q1 --text x --check review", "agentflow knowledge push x.md"):
+    for command in ("thanhtan project confirm --all", "thanhtan decide --answer Q1 --text x --check review", "thanhtan knowledge push x.md"):
         verdict = json.loads(s.af("guard", stdin=json.dumps({"command": command, "cwd": str(repo)})).stdout)
         expect(verdict["rule"] == "person-only", f"the guard refuses `{command}` from an agent", str(verdict))
     target = str(repo / ".ThanhTan" / "decisions" / "forged.md")
@@ -212,7 +212,7 @@ def conventions_flow(s: Session, base: Path, repo: Path) -> None:
     s.af("task", "advance", "--result", "pass")
     s.approve()
 
-    tag = f"agentflow/{task}/approved"
+    tag = f"thanhtan/{task}/approved"
     expect(s.git("tag", "-l", tag) == tag and s.git("cat-file", "-t", tag) == "tag", "the approval tag is annotated")
     lesson = repo / ".ThanhTan" / "tasks" / task / "lessons" / "L1.md"
     summary = (repo / ".ThanhTan" / "tasks" / task / "summary.md").read_text(encoding=ENCODING)

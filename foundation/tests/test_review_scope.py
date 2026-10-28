@@ -1,11 +1,11 @@
-"""Review only what changed since the last review: the mark a review or security round leaves, and `agentflow scope`."""
+"""Review only what changed since the last review: the mark a review or security round leaves, and `thanhtan scope`."""
 
 import json
 
 from conftest import git
 from spec_helpers import at_spec_step, run, start, task_dir
 
-from agentflow import reviewmarks
+from thanhtan import reviewmarks
 
 
 def task_with_commit(gitflow_repo, tmp_path, monkeypatch, capsys):

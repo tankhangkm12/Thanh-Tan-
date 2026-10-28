@@ -1,8 +1,8 @@
 import pytest
 from conftest import SAMPLE_WORKFLOW, git, write_workflow
 
-from agentflow.cli import main
-from agentflow.constants import ExitCode
+from thanhtan.cli import main
+from thanhtan.constants import ExitCode
 
 GOOD_PLAN = """### C1 - Build it
 - role: builder
@@ -64,8 +64,8 @@ def test_plan_check_command(ws, capsys, monkeypatch, tmp_path):
 
 
 def test_workflow_schema_accepts_known_gates_only(workflow_data):
-    from agentflow.constants import GateKind
-    from agentflow.workflow import parse_workflow
+    from thanhtan.constants import GateKind
+    from thanhtan.workflow import parse_workflow
 
     workflow_data["steps"][1]["gates"] = ["plan-valid", "scans-clean"]
     assert parse_workflow(workflow_data, "x").steps[1].gates == (GateKind.PLAN_VALID, GateKind.SCANS_CLEAN)

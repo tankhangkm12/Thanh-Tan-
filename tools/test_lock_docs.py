@@ -3,8 +3,8 @@
 The real `core/workflow.yaml` locks at `test-spec` (`lock_on_approval`), the steps after `plan` and `test-spec` carry the gate
 `locked-files-intact`, and the checklist of `test-spec` lists the files that will be locked. The tester declares test
 infrastructure under `## Hạ tầng test`, the implementer never touches the locked files, and the person changes an approved
-test with `agentflow tests amend`. USAGE, README, architecture, CHANGELOG and the dev-backend README describe it, with its
-limits. The versions go up here: agentflow 0.7.0, dev-core 0.6.0, dev-backend 0.3.0 (0.6.0 and 0.5.0 when the lock came; the review tools moved them on).
+test with `thanhtan tests amend`. USAGE, README, architecture, CHANGELOG and the dev-backend README describe it, with its
+limits. The versions go up here: thanhtan 0.7.0, dev-core 0.6.0, dev-backend 0.3.0 (0.6.0 and 0.5.0 when the lock came; the review tools moved them on).
 
 Run with: uv run --with pyyaml --with pytest pytest tools
 """
@@ -30,7 +30,7 @@ CHANGELOG = REPO / "CHANGELOG.md"
 RELEASE = REPO / "docs" / "release.md"
 BACKEND_README = BACKEND / "README.md"
 
-AGENTFLOW_VERSION, CORE_VERSION, BACKEND_VERSION = "0.8.0", "0.7.0", "0.4.0"
+THANHTAN_VERSION, CORE_VERSION, BACKEND_VERSION = "0.8.0", "0.7.0", "0.4.0"
 
 
 def read(path: Path) -> str:
@@ -107,7 +107,7 @@ def test_the_generated_documents_are_up_to_date_with_the_workflow():
 
 @pytest.mark.parametrize(
     "needle",
-    ["## Hạ tầng test", "conftest.py", "pytest.ini", "pyproject.toml", "setup.cfg", "tox.ini", "jest.config", "vitest.config", "Makefile", "package.json", "agentflow tests check"],
+    ["## Hạ tầng test", "conftest.py", "pytest.ini", "pyproject.toml", "setup.cfg", "tox.ini", "jest.config", "vitest.config", "Makefile", "package.json", "thanhtan tests check"],
 )
 def test_the_tester_declares_the_test_infrastructure_and_checks_the_lock(needle):
     assert needle in role("tester")
@@ -122,7 +122,7 @@ def test_the_tester_knows_what_the_lock_covers_and_when_it_starts():
 def test_the_tester_checks_the_lock_before_it_runs_the_tests_and_fails_the_step_when_it_changed():
     text = role("tester")
     step_test = text[text.index("## Step `test`") :]
-    assert "agentflow tests check" in step_test
+    assert "thanhtan tests check" in step_test
     assert re.search(r"changed.{0,200}--result fail|--result fail.{0,200}changed", step_test, flags=re.S)
 
 
@@ -142,7 +142,7 @@ def test_the_tester_never_adds_test_configuration_after_the_approval():
 
 def test_the_implementer_is_told_the_files_are_locked_and_what_to_do_instead():
     text = role("implementer")
-    assert "locked" in text.lower() and "agentflow tests amend" in text
+    assert "locked" in text.lower() and "thanhtan tests amend" in text
     assert re.search(r"(a )?person.{0,80}(runs|only)|only (a )?person", text, flags=re.I | re.S)
     assert re.search(r"(never|do not|must not).{0,60}(create|add).{0,100}(conftest|pytest\.ini|configuration)", text, flags=re.I | re.S)
     assert re.search(r"(stop|tell the person)", text, flags=re.I)
@@ -160,8 +160,8 @@ def test_the_implementer_is_told_that_the_hook_and_the_gates_both_look():
 
 def test_the_approve_skill_tells_the_person_the_lock_starts_now_and_how_to_change_a_test_later():
     text = skill("approve")
-    assert "locked-files.json" in text and "agentflow tests amend" in text
-    assert re.search(r"(never|do not).{0,80}agentflow tests amend|agentflow tests amend.{0,120}(person|their)", text, flags=re.I | re.S)
+    assert "locked-files.json" in text and "thanhtan tests amend" in text
+    assert re.search(r"(never|do not).{0,80}thanhtan tests amend|thanhtan tests amend.{0,120}(person|their)", text, flags=re.I | re.S)
 
 
 def test_the_continue_skill_says_the_tests_are_locked_after_test_spec_and_what_the_implementer_does_when_one_is_wrong():
@@ -172,7 +172,7 @@ def test_the_continue_skill_says_the_tests_are_locked_after_test_spec_and_what_t
 def test_no_prompt_or_skill_lets_an_agent_run_the_amend_command():
     """Regression for the day the prompts name the command: each mention says it is the person's."""
     for text in [role("tester"), role("implementer"), role("reviewer"), skill("approve"), skill("continue"), skill("start")]:
-        for found in re.finditer(r"agentflow tests amend", text):
+        for found in re.finditer(r"thanhtan tests amend", text):
             around = text[max(0, found.start() - 200) : found.end() + 200].lower()
             assert re.search(r"person|never|do not|only", around), around
 
@@ -189,12 +189,12 @@ def test_usage_has_a_section_on_the_locked_tests_with_the_files_the_hash_and_the
         "conftest.py",
         "pytest.ini",
         "pyproject.toml",
-        "agentflow tests check",
+        "thanhtan tests check",
         "locked-files-intact",
         "tests-pass",
-        "agentflow tests amend",
+        "thanhtan tests amend",
         "--reason",
-        "agentflow commit",
+        "thanhtan commit",
         "decisions/",
         "verify-red.json",
         "reverified",
@@ -215,7 +215,7 @@ def test_usage_says_who_is_stopped_and_when_the_lock_ends():
 
 def test_usage_walks_the_person_through_changing_an_approved_test():
     body = section(read(USAGE), "Khóa test đã duyệt")
-    steps = [body.index(needle) for needle in ("agentflow tests amend", "agentflow commit")]
+    steps = [body.index(needle) for needle in ("thanhtan tests amend", "thanhtan commit")]
     assert steps == sorted(steps)
     assert re.search(r"cửa sổ", body) and re.search(r"(chặn|từ chối).{0,200}(mã cũ|xanh)|(mã cũ|xanh).{0,200}(chặn|từ chối)", body, flags=re.S | re.I)
     assert re.search(r"--accept-green.{0,200}(lý do|--reason)|(lý do|--reason).{0,200}--accept-green", body, flags=re.S)
@@ -231,12 +231,12 @@ def test_usage_lists_what_the_lock_does_not_reach():
 
 def test_usage_puts_the_amend_command_among_the_persons_commands():
     body = section(read(USAGE), "Lệnh của người")
-    assert "agentflow tests amend" in body and "--reason" in body
+    assert "thanhtan tests amend" in body and "--reason" in body
 
 
 def test_usage_troubleshooting_covers_the_new_refusals():
     body = section(read(USAGE), "Xử lý tình huống")
-    for needle in ("locked-files-intact", "agentflow tests check", "agentflow tests amend", "verify-red.json", "config.yaml", "agentflow state accept", "Hạ tầng test"):
+    for needle in ("locked-files-intact", "thanhtan tests check", "thanhtan tests amend", "verify-red.json", "config.yaml", "thanhtan state accept", "Hạ tầng test"):
         assert needle in body, needle
 
 
@@ -252,7 +252,7 @@ def test_usage_names_the_whole_loop_with_the_lock_in_it():
 
 def test_readme_names_the_lock_and_the_upgrade_steps():
     text = read(README)
-    for needle in ("Khóa test", "agentflow tests amend", "locked-files-intact", "uv tool install --force --reinstall ./foundation", "agentflow workflow sync", f"agentflow {AGENTFLOW_VERSION}"):
+    for needle in ("Khóa test", "thanhtan tests amend", "locked-files-intact", "uv tool install --force --reinstall ./foundation", "thanhtan workflow sync", f"thanhtan {THANHTAN_VERSION}"):
         assert needle in text, needle
     assert re.search(r"claude plugin update", text) and re.search(r"agy plugin install", text)
 
@@ -264,8 +264,8 @@ def test_architecture_describes_the_lock_its_files_and_its_gates():
         "locked-files-intact",
         "locked-files.json",
         "locked_files_sha256",
-        "agentflow tests check",
-        "agentflow tests amend",
+        "thanhtan tests check",
+        "thanhtan tests amend",
         "reverified",
         "Hạ tầng test",
         "PYTEST_ADDOPTS",
@@ -279,7 +279,7 @@ def test_architecture_describes_the_lock_its_files_and_its_gates():
 
 def test_architecture_has_a_section_for_the_lock_with_its_layers_and_honest_limits():
     body = section(read(ARCHITECTURE), "Khóa test đã duyệt", level=3)
-    for layer in ("hook", "agentflow commit", "gate", "hash", "integrity.json", "tests amend"):
+    for layer in ("hook", "thanhtan commit", "gate", "hash", "integrity.json", "tests amend"):
         assert layer in body, layer
     assert re.search(r"python -c", body) and re.search(r"Makefile|package.json", body)
     assert re.search(r"không phải sandbox|không (biến|làm).{0,40}không thể", body)
@@ -298,7 +298,7 @@ def test_architecture_lists_the_amend_command_among_the_ones_only_a_person_runs(
 
 def test_the_backend_readme_says_the_migration_tests_are_locked_too():
     text = read(BACKEND_README)
-    assert re.search(r"khóa.{0,300}(test|migration)", text, flags=re.S | re.I) and "agentflow tests amend" in text
+    assert re.search(r"khóa.{0,300}(test|migration)", text, flags=re.S | re.I) and "thanhtan tests amend" in text
 
 
 # ------------------------------------------------------------------ CHANGELOG
@@ -309,8 +309,8 @@ def test_the_backend_readme_says_the_migration_tests_are_locked_too():
     [
         "lock_on_approval",
         "locked-files-intact",
-        "agentflow tests check",
-        "agentflow tests amend",
+        "thanhtan tests check",
+        "thanhtan tests amend",
         "Hạ tầng test",
         "reverified",
         "PYTEST_ADDOPTS",
@@ -329,24 +329,24 @@ def test_the_changelog_says_what_the_lock_file_holds():
 
 def test_the_changelog_gives_the_numbers_and_the_upgrade_steps():
     text = read(CHANGELOG)
-    assert f"agentflow {AGENTFLOW_VERSION}, dev-core {CORE_VERSION}, dev-backend {BACKEND_VERSION}" in text
+    assert f"thanhtan {THANHTAN_VERSION}, dev-core {CORE_VERSION}, dev-backend {BACKEND_VERSION}" in text
     assert "uv tool install --force --reinstall ./foundation" in unreleased()
-    assert "agentflow workflow sync" in unreleased()
+    assert "thanhtan workflow sync" in unreleased()
 
 
 def test_the_release_notes_carry_the_same_numbers():
-    assert f"agentflow {AGENTFLOW_VERSION}" in read(RELEASE) and f"dev-core {CORE_VERSION}" in read(RELEASE) and f"dev-backend {BACKEND_VERSION}" in read(RELEASE)
+    assert f"thanhtan {THANHTAN_VERSION}" in read(RELEASE) and f"dev-core {CORE_VERSION}" in read(RELEASE) and f"dev-backend {BACKEND_VERSION}" in read(RELEASE)
 
 
 # ------------------------------------------------------------------ versions
 
 
-def test_agentflow_has_its_new_version():
-    assert re.search(rf'^version = "{re.escape(AGENTFLOW_VERSION)}"', read(REPO / "foundation" / "pyproject.toml"), flags=re.M)
+def test_thanhtan_has_its_new_version():
+    assert re.search(rf'^version = "{re.escape(THANHTAN_VERSION)}"', read(REPO / "foundation" / "pyproject.toml"), flags=re.M)
 
 
-def test_the_lock_file_of_agentflow_has_its_new_version():
-    assert re.search(rf'name = "agentflow"\s*\nversion = "{re.escape(AGENTFLOW_VERSION)}"', read(REPO / "foundation" / "uv.lock"))
+def test_the_lock_file_of_thanhtan_has_its_new_version():
+    assert re.search(rf'name = "thanhtan"\s*\nversion = "{re.escape(THANHTAN_VERSION)}"', read(REPO / "foundation" / "uv.lock"))
 
 
 @pytest.mark.parametrize(

@@ -1,4 +1,4 @@
-"""tools/install.py: one command installs or updates agentflow and the plugins, with a Python that uv manages.
+"""tools/install.py: one command installs or updates thanhtan and the plugins, with a Python that uv manages.
 
 The programs are faked: each test says what is on PATH and what each command answers, and reads the commands that ran.
 
@@ -12,12 +12,12 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).parent))
 import install  # noqa: E402
 
-AGENTFLOW = install.repo_version("agentflow")
+THANHTAN = install.repo_version("thanhtan")
 CORE = install.repo_version(install.CORE)
 
 
 class FakeRunner(install.Runner):
-    def __init__(self, on_path=("uv", "git", "docker", "agentflow", "claude", "agy"), answers=None):
+    def __init__(self, on_path=("uv", "git", "docker", "thanhtan", "claude", "agy"), answers=None):
         self.on_path = set(on_path)
         self.answers = answers or {}
         self.calls: list[list[str]] = []
@@ -31,8 +31,8 @@ class FakeRunner(install.Runner):
         for prefix, answer in self.answers.items():
             if key.startswith(prefix):
                 return answer(args) if callable(answer) else answer
-        if key == "agentflow --version":
-            return install.Result(0, f"agentflow {AGENTFLOW}\n")
+        if key == "thanhtan --version":
+            return install.Result(0, f"thanhtan {THANHTAN}\n")
         if key == "claude plugin list --json":
             return install.Result(0, json.dumps([{"id": f"dev-core@{install.MARKETPLACE}", "version": CORE, "enabled": True}]))
         if key == "claude plugin marketplace list":
@@ -45,7 +45,7 @@ class FakeRunner(install.Runner):
         return [call for call in self.calls if call[: len(prefix)] == list(prefix)]
 
 
-def test_agentflow_is_installed_with_a_python_that_uv_manages(capsys):
+def test_thanhtan_is_installed_with_a_python_that_uv_manages(capsys):
     runner = FakeRunner()
     assert install.main([], runner) == 0
     assert runner.ran("uv", "python", "install", "3.12")
@@ -64,7 +64,7 @@ def test_an_old_uv_without_managed_python_still_installs(capsys):
 
 
 def test_a_file_held_by_an_open_session_says_to_close_it(capsys):
-    runner = FakeRunner(answers={"uv tool install": install.Result(2, "error: failed to remove agentflow.exe: Access is denied. (os error 5)")})
+    runner = FakeRunner(answers={"uv tool install": install.Result(2, "error: failed to remove thanhtan.exe: Access is denied. (os error 5)")})
     assert install.main([], runner) == 1
     assert "close those sessions" in capsys.readouterr().out
     assert not runner.ran("claude")  # stops before the plugins
@@ -94,7 +94,7 @@ def test_backend_and_design_add_their_plugins(capsys):
 
 
 def test_check_changes_nothing_and_reports_an_old_version(capsys):
-    runner = FakeRunner(answers={"agentflow --version": install.Result(0, "agentflow 0.1.0\n")})
+    runner = FakeRunner(answers={"thanhtan --version": install.Result(0, "thanhtan 0.1.0\n")})
     assert install.main(["--check"], runner) == 1
     assert not runner.ran("uv", "tool") and not runner.ran("claude", "plugin", "install") and not runner.ran("agy", "plugin", "install")
     out = capsys.readouterr().out
@@ -102,7 +102,7 @@ def test_check_changes_nothing_and_reports_an_old_version(capsys):
 
 
 def test_a_missing_cli_is_skipped_with_a_warning(capsys):
-    runner = FakeRunner(on_path=("uv", "git", "docker", "agentflow", "claude"))
+    runner = FakeRunner(on_path=("uv", "git", "docker", "thanhtan", "claude"))
     assert install.main([], runner) == 0
     assert not runner.ran("agy")
     assert "[warn] agy on PATH" in capsys.readouterr().out
@@ -117,4 +117,4 @@ def test_without_uv_nothing_is_done(capsys):
 def test_projects_are_never_touched(capsys):
     runner = FakeRunner()
     install.main(["--backend", "--design"], runner)
-    assert not [call for call in runner.calls if call[0] == "agentflow" and call[1:] != ["--version"]]
+    assert not [call for call in runner.calls if call[0] == "thanhtan" and call[1:] != ["--version"]]

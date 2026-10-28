@@ -1,9 +1,9 @@
 {
-  "agentflow": {
+  "thanhtan": {
     "PreInvocation": [
       {
         "type": "command",
-        "command": "agentflow hook session-start --cli antigravity",
+        "command": "thanhtan hook session-start --cli antigravity",
         "timeout": 30
       }
     ],
@@ -13,7 +13,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "agentflow hook pre-tool --cli antigravity",
+            "command": "thanhtan hook pre-tool --cli antigravity",
             "timeout": 30
           }
         ]
@@ -22,7 +22,7 @@
     "Stop": [
       {
         "type": "command",
-        "command": "agentflow hook stop --cli antigravity",
+        "command": "thanhtan hook stop --cli antigravity",
         "timeout": 30
       }
     ]

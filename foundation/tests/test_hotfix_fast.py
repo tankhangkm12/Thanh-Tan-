@@ -6,7 +6,7 @@
   (the change goes straight to main). Confirm, test-spec and review still need a person.
 - ``task new --type hotfix`` does not warn that the task is not tied to a roadmap item: a hotfix is unplanned work.
 - A finished hotfix lists, in summary.md and on the command line, the commands a person runs to merge it into main
-  (with a tag) and back into develop. agentflow never runs them.
+  (with a tag) and back into develop. thanhtan never runs them.
 """
 
 import copy
@@ -16,13 +16,13 @@ from pathlib import Path
 import pytest
 from conftest import SAMPLE_WORKFLOW, git, write_workflow
 
-from agentflow.cli import main
-from agentflow.constants import ExitCode, StepStatus, TaskEvent, TaskStatus
-from agentflow.engine import needs_approval, start_task, transition
-from agentflow.models import CommitInfo, Task, workflow_from_dict
-from agentflow.summary import build_summary
-from agentflow.tasks import resolve_size
-from agentflow.workflow import load_workflow, parse_workflow
+from thanhtan.cli import main
+from thanhtan.constants import ExitCode, StepStatus, TaskEvent, TaskStatus
+from thanhtan.engine import needs_approval, start_task, transition
+from thanhtan.models import CommitInfo, Task, workflow_from_dict
+from thanhtan.summary import build_summary
+from thanhtan.tasks import resolve_size
+from thanhtan.workflow import load_workflow, parse_workflow
 
 REAL_WORKFLOW = Path(__file__).resolve().parents[2] / "families" / "software-dev" / "core" / "workflow.yaml"
 
@@ -186,7 +186,7 @@ def test_other_summaries_have_no_merge_section():
 
 @pytest.fixture(autouse=True)
 def _no_container(monkeypatch):
-    from agentflow.models import ScanResult
+    from thanhtan.models import ScanResult
 
     class Clean:
         def __init__(self, runner):
@@ -195,7 +195,7 @@ def _no_container(monkeypatch):
         def scan_staged(self, repo):
             return ScanResult(True, "")
 
-    monkeypatch.setattr("agentflow.cli.ContainerGitleaksScanner", Clean)
+    monkeypatch.setattr("thanhtan.cli.ContainerGitleaksScanner", Clean)
 
 
 @pytest.fixture
@@ -263,7 +263,7 @@ def test_finishing_a_hotfix_writes_the_merge_commands_to_the_summary(ws, monkeyp
     assert "## Merge the hotfix" in summary and "git merge --no-ff hotfix/T-001-fix-login" in summary
 
 
-def test_agentflow_merges_nothing_itself(ws, monkeypatch, capsys):
+def test_thanhtan_merges_nothing_itself(ws, monkeypatch, capsys):
     main_before = git(ws, "rev-parse", "main")
     develop_before = git(ws, "rev-parse", "develop")
     finish_hotfix(ws, monkeypatch, capsys)

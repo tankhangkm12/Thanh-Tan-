@@ -4,15 +4,15 @@ from pathlib import Path
 
 import pytest
 
-from agentflow.constants import SEMGREP_IMAGE, CheckKind, ExitCode, NetworkMode, ScanStatus
-from agentflow.convention_sources import load_effective_conventions, semgrep_rule_files
-from agentflow.errors import AgentflowError
-from agentflow.models import CommandResult, Workflow
-from agentflow.projectcontext import ProjectContext, RoleSet
-from agentflow.scan import ScanService, all_tools, tools_for_step
-from agentflow.scan_store import ScanStore
-from agentflow.scan_tools import SEMGREP, custom_semgrep_spec
-from agentflow.scan_types import ScanContext
+from thanhtan.constants import SEMGREP_IMAGE, CheckKind, ExitCode, NetworkMode, ScanStatus
+from thanhtan.convention_sources import load_effective_conventions, semgrep_rule_files
+from thanhtan.errors import ThanhTanError
+from thanhtan.models import CommandResult, Workflow
+from thanhtan.projectcontext import ProjectContext, RoleSet
+from thanhtan.scan import ScanService, all_tools, tools_for_step
+from thanhtan.scan_store import ScanStore
+from thanhtan.scan_tools import SEMGREP, custom_semgrep_spec
+from thanhtan.scan_types import ScanContext
 
 RULE = """rules:
   - id: no-literal-status
@@ -136,7 +136,7 @@ def test_a_finding_of_a_convention_rule_blocks(workspace, tmp_path):
 
 def test_rule_problems_stop_the_scan_loudly(workspace, tmp_path):
     spec = custom_semgrep_spec([], ["PC-01: the rule file is missing"])
-    with pytest.raises(AgentflowError) as exc:
+    with pytest.raises(ThanhTanError) as exc:
         ScanService(FakeRunner(), ScanStore(workspace)).run("T-001", [spec], context(tmp_path))
     assert exc.value.code is ExitCode.CONVENTIONS_INVALID and "PC-01" in str(exc.value)
 
@@ -145,8 +145,8 @@ def test_rule_problems_stop_the_scan_loudly(workspace, tmp_path):
 
 
 def workflow_with_scans():
-    from agentflow.constants import GateKind
-    from agentflow.models import Step
+    from thanhtan.constants import GateKind
+    from thanhtan.models import Step
 
     return Workflow(1, "f", 2, (Step("security", "Security", "security", gates=(GateKind.SCANS_CLEAN,)),))
 

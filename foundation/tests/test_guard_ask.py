@@ -1,14 +1,14 @@
 """Phase D-guard (D3): the guard asks a person before `task approve` / `task cancel`, in every way the command can be called.
 
-Two decisions the guard can give about an `agentflow` command in a project that has a workspace:
+Two decisions the guard can give about an `thanhtan` command in a project that has a workspace:
 
 - ``ask``  : `task approve`, `task cancel`. The CLI must show the person a prompt (Claude Code `permissionDecision: "ask"`,
              Antigravity `decision: "force_ask"`); the agent cannot answer it. Nothing is blocked.
 - ``deny`` : the commands only a person runs (`decide`, `ext add|sync`, `config set`, `task seal`, `project confirm`,
              `knowledge init|pull|push`, `role grant|revoke|sync`, `roadmap set`, `replan done|skip`), as before.
 
-Before this phase the guard looked for `agentflow` only as the first word of a command, so `uv run agentflow ...`,
-`python -m agentflow ...`, `timeout 5 agentflow ...` or `FOO=1 agentflow ...` got past every one of them. Tests marked
+Before this phase the guard looked for `thanhtan` only as the first word of a command, so `uv run thanhtan ...`,
+`python -m thanhtan ...`, `timeout 5 thanhtan ...` or `FOO=1 thanhtan ...` got past every one of them. Tests marked
 "Regression" are green before the phase and must stay green; the others describe the new behaviour.
 """
 
@@ -20,13 +20,13 @@ from pathlib import Path
 import pytest
 from conftest import git
 
-from agentflow.cli import main
-from agentflow.constants import CliKind, ExitCode, GuardDecision, GuardRule, HookEvent, ReplyKind
-from agentflow.git import GitBranchLookup
-from agentflow.guard import evaluate, verdict_to_dict
-from agentflow.hook import handle_hook
-from agentflow.hook_adapters import AntigravityAdapter, ClaudeAdapter
-from agentflow.models import HookReply
+from thanhtan.cli import main
+from thanhtan.constants import CliKind, ExitCode, GuardDecision, GuardRule, HookEvent, ReplyKind
+from thanhtan.git import GitBranchLookup
+from thanhtan.guard import evaluate, verdict_to_dict
+from thanhtan.hook import handle_hook
+from thanhtan.hook_adapters import AntigravityAdapter, ClaudeAdapter
+from thanhtan.models import HookReply
 
 PROJECT = "/proj"
 README = Path(__file__).resolve().parents[2] / "README.md"
@@ -81,78 +81,78 @@ ASK_COMMANDS = [
 
 # Ways of calling a program that the guard already recognises today (Regression for both lists above).
 KNOWN_FORMS = [
-    "agentflow {c}",
-    "AGENTFLOW.EXE {c}",
-    "agentflow  {c}",
-    "cd . && agentflow {c}",
-    "echo x; agentflow {c}",
-    "echo x | agentflow {c}",
-    "(agentflow {c})",
-    "& agentflow {c}",
-    "$env:X='1'; agentflow {c}",
-    "/usr/bin/agentflow {c}",
-    "./agentflow {c}",
-    r".\agentflow {c}",
-    r"C:\Users\x\.local\bin\agentflow.exe {c}",
-    '"C:\\Program Files\\x\\agentflow.exe" {c}',
-    'bash -c "agentflow {c}"',
-    "sh -c 'agentflow {c}'",
-    'powershell -Command "agentflow {c}"',
-    'cmd /c "agentflow {c}"',
-    'sh -c "bash -c \\"agentflow {c}\\""',
-    'eval "agentflow {c}"',
-    'iex "agentflow {c}"',
-    "Invoke-Expression 'agentflow {c}'",
+    "thanhtan {c}",
+    "THANHTAN.EXE {c}",
+    "thanhtan  {c}",
+    "cd . && thanhtan {c}",
+    "echo x; thanhtan {c}",
+    "echo x | thanhtan {c}",
+    "(thanhtan {c})",
+    "& thanhtan {c}",
+    "$env:X='1'; thanhtan {c}",
+    "/usr/bin/thanhtan {c}",
+    "./thanhtan {c}",
+    r".\thanhtan {c}",
+    r"C:\Users\x\.local\bin\thanhtan.exe {c}",
+    '"C:\\Program Files\\x\\thanhtan.exe" {c}',
+    'bash -c "thanhtan {c}"',
+    "sh -c 'thanhtan {c}'",
+    'powershell -Command "thanhtan {c}"',
+    'cmd /c "thanhtan {c}"',
+    'sh -c "bash -c \\"thanhtan {c}\\""',
+    'eval "thanhtan {c}"',
+    'iex "thanhtan {c}"',
+    "Invoke-Expression 'thanhtan {c}'",
 ]
 
 # Ways that get past the guard before this phase and must not any more.
 NEW_FORMS = [
     # uv and python launchers
-    "uv run agentflow {c}",
-    "uv run --project foundation agentflow {c}",
-    "uv run --with pyyaml agentflow {c}",
-    "uv run -- agentflow {c}",
-    "uvx agentflow {c}",
-    "uv tool run agentflow {c}",
-    "uv run python -m agentflow {c}",
-    "python -m agentflow {c}",
-    "python3 -m agentflow {c}",
-    "py -3 -m agentflow {c}",
-    "python.exe -m agentflow {c}",
-    r"C:\Python312\python.exe -m agentflow {c}",
-    "/usr/bin/python3 -m agentflow {c}",
+    "uv run thanhtan {c}",
+    "uv run --project foundation thanhtan {c}",
+    "uv run --with pyyaml thanhtan {c}",
+    "uv run -- thanhtan {c}",
+    "uvx thanhtan {c}",
+    "uv tool run thanhtan {c}",
+    "uv run python -m thanhtan {c}",
+    "python -m thanhtan {c}",
+    "python3 -m thanhtan {c}",
+    "py -3 -m thanhtan {c}",
+    "python.exe -m thanhtan {c}",
+    r"C:\Python312\python.exe -m thanhtan {c}",
+    "/usr/bin/python3 -m thanhtan {c}",
     # wrappers and environment prefixes
-    "timeout 5 agentflow {c}",
-    "nohup agentflow {c}",
-    "time agentflow {c}",
-    "nice agentflow {c}",
-    "command agentflow {c}",
-    "env agentflow {c}",
-    "env FOO=1 agentflow {c}",
-    "FOO=1 agentflow {c}",
-    "FOO=1 BAR=2 agentflow {c}",
-    "xargs agentflow {c}",
-    "timeout 5 uv run agentflow {c}",
-    "FOO=1 uv run python -m agentflow {c}",
+    "timeout 5 thanhtan {c}",
+    "nohup thanhtan {c}",
+    "time thanhtan {c}",
+    "nice thanhtan {c}",
+    "command thanhtan {c}",
+    "env thanhtan {c}",
+    "env FOO=1 thanhtan {c}",
+    "FOO=1 thanhtan {c}",
+    "FOO=1 BAR=2 thanhtan {c}",
+    "xargs thanhtan {c}",
+    "timeout 5 uv run thanhtan {c}",
+    "FOO=1 uv run python -m thanhtan {c}",
     # a shell inside a shell, other flags, evaluators, Start-Process
-    "bash -lc 'agentflow {c}'",
-    'bash -c "uv run agentflow {c}"',
-    'powershell -NoProfile -Command "uv run agentflow {c}"',
-    "Start-Process agentflow -ArgumentList '{c}'",
-    "Start-Process -FilePath agentflow -ArgumentList '{c}' -Wait",
-    "Start-Process -FilePath C:\\x\\agentflow.exe -ArgumentList '{c}'",
-    "echo T-001 | xargs -n1 uv run agentflow {c}",
-    "cd . && uv run agentflow {c}",
-    "echo x; python -m agentflow {c}",
+    "bash -lc 'thanhtan {c}'",
+    'bash -c "uv run thanhtan {c}"',
+    'powershell -NoProfile -Command "uv run thanhtan {c}"',
+    "Start-Process thanhtan -ArgumentList '{c}'",
+    "Start-Process -FilePath thanhtan -ArgumentList '{c}' -Wait",
+    "Start-Process -FilePath C:\\x\\thanhtan.exe -ArgumentList '{c}'",
+    "echo T-001 | xargs -n1 uv run thanhtan {c}",
+    "cd . && uv run thanhtan {c}",
+    "echo x; python -m thanhtan {c}",
 ]
 
-# `python -c "from agentflow.cli import main; main([...])"` carries the command as a list of quoted words.
+# `python -c "from thanhtan.cli import main; main([...])"` carries the command as a list of quoted words.
 PYTHON_C_FORMS = ['python -c "{py}"', 'python3 -c "{py}"', 'uv run python -c "{py}"', "python.exe -c \"{py}\""]
 PYTHON_C_COMMANDS = ["task approve", "task cancel", "task seal T-001", "replan done", "roadmap set R1 done", "project confirm mission", "decide --suppress x --reason y"]
 
 
 def python_call(words: str) -> str:
-    return f"from agentflow.cli import main; main({words.split()!r})"
+    return f"from thanhtan.cli import main; main({words.split()!r})"
 
 
 def deny(verdict, command=""):
@@ -171,19 +171,19 @@ def ask(verdict, command=""):
 
 def test_ask_is_a_decision_of_its_own_and_is_neither_allow_nor_deny():
     assert GuardDecision.ASK == "ask" and ReplyKind.ASK == "ask"
-    verdict = check("agentflow task approve")
+    verdict = check("thanhtan task approve")
     assert verdict.decision is not GuardDecision.ALLOW and verdict.decision is not GuardDecision.DENY
     assert verdict.asks is True and verdict.denied is False
 
 
 def test_the_reason_names_the_command_and_tells_the_agent_a_person_must_say_yes():
-    reason = check("agentflow task cancel --reason x").reason
+    reason = check("thanhtan task cancel --reason x").reason
     assert "task cancel" in reason
     assert "person" in reason.lower()
 
 
 def test_a_verdict_to_ask_serialises_like_the_others():
-    verdict = check("agentflow task approve")
+    verdict = check("thanhtan task approve")
     assert json.loads(json.dumps(verdict_to_dict(verdict))) == {
         "decision": "ask",
         "rule": "person-confirms",
@@ -193,25 +193,25 @@ def test_a_verdict_to_ask_serialises_like_the_others():
 
 @pytest.mark.parametrize("command", ASK_COMMANDS)
 def test_approving_or_cancelling_asks_a_person_in_a_project_with_a_workspace(command):
-    ask(check(f"agentflow {command}"), command)
+    ask(check(f"thanhtan {command}"), command)
 
 
 @pytest.mark.parametrize("command", ASK_COMMANDS)
 def test_approving_or_cancelling_is_not_asked_outside_a_workspace(command):
-    assert check(f"agentflow {command}", roots=()).decision is GuardDecision.ALLOW
-    assert check(f"uv run agentflow {command}", roots=()).decision is GuardDecision.ALLOW
-    assert check(f"agentflow {command}", cwd="/elsewhere").decision is GuardDecision.ALLOW
+    assert check(f"thanhtan {command}", roots=()).decision is GuardDecision.ALLOW
+    assert check(f"uv run thanhtan {command}", roots=()).decision is GuardDecision.ALLOW
+    assert check(f"thanhtan {command}", cwd="/elsewhere").decision is GuardDecision.ALLOW
 
 
 @pytest.mark.parametrize("command", PERSON_COMMANDS)
 def test_commands_only_a_person_runs_stay_denied_not_asked(command):
     """Regression: `decide` and the others are not softened to `ask` (a person types them with `!`)."""
-    deny(check(f"agentflow {command}"), command)
+    deny(check(f"thanhtan {command}"), command)
 
 
 def test_decide_stays_denied_and_is_not_among_the_asked_commands():
-    deny(check("agentflow decide --answer S1 --text x"))
-    assert check("agentflow decide --answer S1 --text x").decision is GuardDecision.DENY
+    deny(check("thanhtan decide --answer S1 --text x"))
+    assert check("thanhtan decide --answer S1 --text x").decision is GuardDecision.DENY
 
 
 # --------------------------------------------------------- every way of calling it
@@ -255,88 +255,88 @@ def test_calling_the_cli_from_python_dash_c_is_seen_too(form, command):
 
 
 def test_the_command_words_may_be_split_over_quoted_pieces():
-    ask(check("agentflow 'task' \"approve\""))
-    deny(check("uv run agentflow 'replan' 'done'"))
+    ask(check("thanhtan 'task' \"approve\""))
+    deny(check("uv run thanhtan 'replan' 'done'"))
 
 
 def test_options_before_the_words_do_not_hide_the_command():
-    ask(check("uv run agentflow --quiet task approve"))
-    deny(check("python -m agentflow --quiet roadmap set R1 done"))
+    ask(check("uv run thanhtan --quiet task approve"))
+    deny(check("python -m thanhtan --quiet roadmap set R1 done"))
 
 
 # --------------------------------------------------------------- what must not ask
 
 
-NOT_AGENTFLOW = [
-    "agentflow status",
-    "agentflow task new 'approve the design'",
-    "agentflow task advance --result pass",
-    "agentflow task",
-    "agentflow report --step plan",
-    "agentflow roadmap list",
-    "agentflow project status",
-    "agentflow replan status",
-    "agentflow replan write",
-    "uv run agentflow status",
-    "uv run agentflow task advance --result pass",
-    "python -m agentflow status",
+NOT_THANHTAN = [
+    "thanhtan status",
+    "thanhtan task new 'approve the design'",
+    "thanhtan task advance --result pass",
+    "thanhtan task",
+    "thanhtan report --step plan",
+    "thanhtan roadmap list",
+    "thanhtan project status",
+    "thanhtan replan status",
+    "thanhtan replan write",
+    "uv run thanhtan status",
+    "uv run thanhtan task advance --result pass",
+    "python -m thanhtan status",
     "uv run pytest",
     "uv run pytest tests/test_approve.py",
     "python -m pytest -k 'task and approve'",
-    "python -c \"import agentflow; print(agentflow.__version__)\"",
+    "python -c \"import thanhtan; print(thanhtan.__version__)\"",
     "uv tool install --force --reinstall ./foundation",
-    'echo "agentflow task approve"',
-    "echo agentflow task approve",
-    "printf '%s' 'uv run agentflow task cancel'",
-    'git log --grep "agentflow task approve"',
+    'echo "thanhtan task approve"',
+    "echo thanhtan task approve",
+    "printf '%s' 'uv run thanhtan task cancel'",
+    'git log --grep "thanhtan task approve"',
     "grep -rn 'task approve' docs",
     "grep approve README.md",
-    "cat agentflow-task-approve.md",
-    "ls agentflow",
-    "Select-String -Pattern 'agentflow task approve' README.md",
-    "agentflow commit 'document how task approve works'",
-    "agentflow commit 'fix uv run agentflow task cancel'",
+    "cat thanhtan-task-approve.md",
+    "ls thanhtan",
+    "Select-String -Pattern 'thanhtan task approve' README.md",
+    "thanhtan commit 'document how task approve works'",
+    "thanhtan commit 'fix uv run thanhtan task cancel'",
     "timeout 5 uv run pytest",
     "FOO=1 python -m pytest",
-    "xargs echo agentflow task approve",
+    "xargs echo thanhtan task approve",
 ]
 
 
-@pytest.mark.parametrize("command", NOT_AGENTFLOW)
-def test_commands_that_only_mention_approve_or_that_are_other_agentflow_commands_pass(command):
+@pytest.mark.parametrize("command", NOT_THANHTAN)
+def test_commands_that_only_mention_approve_or_that_are_other_thanhtan_commands_pass(command):
     verdict = check(command)
     assert verdict.decision is GuardDecision.ALLOW and verdict.rule is None, (command, verdict)
 
 
 def test_a_here_document_body_is_data_not_a_command():
-    body = "agentflow report --step review <<'EOF'\n## Next\nA person runs\nagentflow task approve\nuv run agentflow task cancel\nEOF"
+    body = "thanhtan report --step review <<'EOF'\n## Next\nA person runs\nthanhtan task approve\nuv run thanhtan task cancel\nEOF"
     assert check(body).decision is GuardDecision.ALLOW
-    keyed = "agentflow report --step review <<-EOF\n\tagentflow replan done\n\tEOF\necho ok"
+    keyed = "thanhtan report --step review <<-EOF\n\tthanhtan replan done\n\tEOF\necho ok"
     assert check(keyed).decision is GuardDecision.ALLOW
 
 
 def test_a_command_after_a_here_document_is_still_looked_at():
-    ask(check("agentflow report --step plan <<'EOF'\nbody\nEOF\nagentflow task approve"))
-    deny(check("agentflow report --step plan <<'EOF'\nbody\nEOF\nuv run agentflow replan done"))
+    ask(check("thanhtan report --step plan <<'EOF'\nbody\nEOF\nthanhtan task approve"))
+    deny(check("thanhtan report --step plan <<'EOF'\nbody\nEOF\nuv run thanhtan replan done"))
 
 
 # ------------------------------------------------------ several commands in one line
 
 
 def test_asking_is_found_in_a_chain_next_to_harmless_commands():
-    ask(check("agentflow status && agentflow task approve"))
-    ask(check("git status; uv run agentflow task cancel; echo done"))
-    ask(check("agentflow task approve | tee out.txt"))
+    ask(check("thanhtan status && thanhtan task approve"))
+    ask(check("git status; uv run thanhtan task cancel; echo done"))
+    ask(check("thanhtan task approve | tee out.txt"))
 
 
 @pytest.mark.parametrize(
     "command",
     [
-        "agentflow task approve && agentflow replan done",
-        "agentflow replan done; agentflow task approve",
-        "agentflow task approve && git push",
-        "git push; uv run agentflow task approve",
-        "uv run agentflow task cancel && uv run agentflow project confirm mission",
+        "thanhtan task approve && thanhtan replan done",
+        "thanhtan replan done; thanhtan task approve",
+        "thanhtan task approve && git push",
+        "git push; uv run thanhtan task approve",
+        "uv run thanhtan task cancel && uv run thanhtan project confirm mission",
     ],
 )
 def test_a_denial_wins_over_a_question_wherever_it_stands_in_the_line(command):
@@ -346,7 +346,7 @@ def test_a_denial_wins_over_a_question_wherever_it_stands_in_the_line(command):
 
 
 def test_two_questions_are_still_one_question():
-    ask(check("agentflow task approve && agentflow task cancel"))
+    ask(check("thanhtan task approve && thanhtan task cancel"))
 
 
 # ------------------------------------------------- what the guard cannot see (stated limits)
@@ -354,12 +354,12 @@ def test_two_questions_are_still_one_question():
 
 UNSEEN = [
     "& $exe task approve",
-    "$verb = 'approve'; agentflow task $verb",
-    "agentflow $args",
+    "$verb = 'approve'; thanhtan task $verb",
+    "thanhtan $args",
     "bash approve.sh",
     "make approve",
     "node run.js",
-    "alias go='agentflow task approve'; go",
+    "alias go='thanhtan task approve'; go",
 ]
 
 
@@ -431,41 +431,41 @@ def claude_decision(text):
 
 
 @pytest.mark.parametrize("tool", ["Bash", "PowerShell"])
-@pytest.mark.parametrize("command", ["agentflow task approve", "agentflow task cancel --reason x", "uv run agentflow task approve", "python -m agentflow task cancel"])
+@pytest.mark.parametrize("command", ["thanhtan task approve", "thanhtan task cancel --reason x", "uv run thanhtan task approve", "python -m thanhtan task cancel"])
 def test_claude_is_asked_to_prompt_a_person(project, tool, command):
     out = hook(CliKind.CLAUDE, claude(project, command, tool))
     assert claude_decision(out) == "ask"
     assert "person" in json.loads(out)["hookSpecificOutput"]["permissionDecisionReason"].lower()
 
 
-@pytest.mark.parametrize("command", ["agentflow task approve", "agentflow task cancel", "uv run agentflow task approve", "timeout 5 agentflow task cancel"])
+@pytest.mark.parametrize("command", ["thanhtan task approve", "thanhtan task cancel", "uv run thanhtan task approve", "timeout 5 thanhtan task cancel"])
 def test_antigravity_is_forced_to_ask(project, command):
     out = json.loads(hook(CliKind.ANTIGRAVITY, agy(project, command)))
     assert out["decision"] == "force_ask" and out["reason"]
 
 
 @pytest.mark.parametrize("cli", list(CliKind))
-@pytest.mark.parametrize("command", ["agentflow task approve", "uv run agentflow task cancel", "agentflow replan done", "uv run agentflow replan skip T-001 --reason x"])
+@pytest.mark.parametrize("command", ["thanhtan task approve", "uv run thanhtan task cancel", "thanhtan replan done", "uv run thanhtan replan skip T-001 --reason x"])
 def test_the_hook_never_answers_allow_for_these_commands(project, cli, command):
     payload = claude(project, command) if cli is CliKind.CLAUDE else agy(project, command)
     out = hook(cli, payload)
     assert out and '"allow"' not in out
 
 
-@pytest.mark.parametrize("command", ["agentflow replan done", "uv run agentflow roadmap set R1 done", "python -m agentflow project confirm mission", "FOO=1 agentflow task seal T-001"])
+@pytest.mark.parametrize("command", ["thanhtan replan done", "uv run thanhtan roadmap set R1 done", "python -m thanhtan project confirm mission", "FOO=1 thanhtan task seal T-001"])
 def test_person_only_commands_are_denied_by_the_hook_in_both_clis(project, command):
     assert claude_decision(hook(CliKind.CLAUDE, claude(project, command))) == "deny"
     assert json.loads(hook(CliKind.ANTIGRAVITY, agy(project, command)))["decision"] == "deny"
 
 
 def test_a_denial_in_the_same_line_wins_in_the_hook_too(project):
-    assert claude_decision(hook(CliKind.CLAUDE, claude(project, "agentflow task approve && git push"))) == "deny"
-    assert json.loads(hook(CliKind.ANTIGRAVITY, agy(project, "agentflow task approve && agentflow replan done")))["decision"] == "deny"
+    assert claude_decision(hook(CliKind.CLAUDE, claude(project, "thanhtan task approve && git push"))) == "deny"
+    assert json.loads(hook(CliKind.ANTIGRAVITY, agy(project, "thanhtan task approve && thanhtan replan done")))["decision"] == "deny"
 
 
 def test_other_commands_still_get_no_answer_from_the_hook(project):
     """Regression: silence lets the CLI use its own permission rules."""
-    for command in ("agentflow status", "uv run agentflow status", "uv run pytest", "git status"):
+    for command in ("thanhtan status", "uv run thanhtan status", "uv run pytest", "git status"):
         assert hook(CliKind.CLAUDE, claude(project, command)) == "", command
         assert "allow" not in hook(CliKind.ANTIGRAVITY, agy(project, command)), command
 
@@ -473,19 +473,19 @@ def test_other_commands_still_get_no_answer_from_the_hook(project):
 def test_a_subdirectory_of_the_project_is_still_the_project(project):
     sub = project / "src" / "deep"
     sub.mkdir(parents=True)
-    assert claude_decision(hook(CliKind.CLAUDE, claude(project, "agentflow task approve", cwd=sub))) == "ask"
+    assert claude_decision(hook(CliKind.CLAUDE, claude(project, "thanhtan task approve", cwd=sub))) == "ask"
 
 
 def test_outside_a_project_with_a_workspace_the_hook_is_silent(tmp_path):
     plain = tmp_path / "plain"
     plain.mkdir()
     git(plain, "init", "-q")
-    assert hook(CliKind.CLAUDE, claude(plain, "agentflow task approve")) == ""
-    assert hook(CliKind.ANTIGRAVITY, agy(plain, "uv run agentflow task approve")) == ""
+    assert hook(CliKind.CLAUDE, claude(plain, "thanhtan task approve")) == ""
+    assert hook(CliKind.ANTIGRAVITY, agy(plain, "uv run thanhtan task approve")) == ""
 
 
 def test_the_hook_command_exits_zero_when_it_asks(project, capsys, monkeypatch):
-    for cli, payload in ((CliKind.CLAUDE, claude(project, "agentflow task approve")), (CliKind.ANTIGRAVITY, agy(project, "agentflow task cancel"))):
+    for cli, payload in ((CliKind.CLAUDE, claude(project, "thanhtan task approve")), (CliKind.ANTIGRAVITY, agy(project, "thanhtan task cancel"))):
         monkeypatch.setattr("sys.stdin", io.StringIO(json.dumps(payload)))
         assert main(["hook", "pre-tool", "--cli", cli.value]) == ExitCode.OK
         assert capsys.readouterr().out.strip()
@@ -500,7 +500,7 @@ def test_regression_file_tools_are_judged_as_before(project):
 
 # ------------------------- text that an interpreter runs is scanned like a command (person's review, 18/10/2026)
 #
-# A here-document is data for `agentflow report`, `cat`, `tee`, `python script.py`: nothing runs it. When it (or a pipe,
+# A here-document is data for `thanhtan report`, `cat`, `tee`, `python script.py`: nothing runs it. When it (or a pipe,
 # a here-string, `-c`) feeds an interpreter that executes what it reads, the text IS a command line: a person-only
 # command in it is denied, approve/cancel in it asks. Text the guard cannot read (`curl ... | sh`, `bash < file`) asks.
 
@@ -509,21 +509,21 @@ SCRIPT_READERS = ["python", "python3", "python -", "python3 -", "uv run python",
 PIPE_READERS = SHELL_READERS + SCRIPT_READERS + ["pwsh", "powershell", "pwsh -Command -", "powershell -", "cmd"]
 
 SHELL_BODIES = [
-    ("agentflow task approve", ask),
-    ("uv run agentflow task cancel", ask),
-    ("echo start\nagentflow task approve\necho end", ask),
-    ("agentflow replan done", deny),
-    ("python -m agentflow roadmap set R1 done", deny),
-    ("agentflow task approve\nagentflow replan done", deny),
+    ("thanhtan task approve", ask),
+    ("uv run thanhtan task cancel", ask),
+    ("echo start\nthanhtan task approve\necho end", ask),
+    ("thanhtan replan done", deny),
+    ("python -m thanhtan roadmap set R1 done", deny),
+    ("thanhtan task approve\nthanhtan replan done", deny),
 ]
 SCRIPT_BODIES = [
-    ("import subprocess\nsubprocess.run(['agentflow', 'decide', '--suppress', 'x', '--reason', 'y'])", deny),
-    ("import subprocess\nsubprocess.run('agentflow task approve', shell=True)", ask),
-    ("import subprocess\nsubprocess.run([\n    'agentflow',\n    'task',\n    'approve',\n])", ask),
-    ("import os\nos.system('uv run agentflow replan skip T-001 --reason x')", deny),
-    ("from agentflow.cli import main\nmain(['task', 'cancel'])", ask),
+    ("import subprocess\nsubprocess.run(['thanhtan', 'decide', '--suppress', 'x', '--reason', 'y'])", deny),
+    ("import subprocess\nsubprocess.run('thanhtan task approve', shell=True)", ask),
+    ("import subprocess\nsubprocess.run([\n    'thanhtan',\n    'task',\n    'approve',\n])", ask),
+    ("import os\nos.system('uv run thanhtan replan skip T-001 --reason x')", deny),
+    ("from thanhtan.cli import main\nmain(['task', 'cancel'])", ask),
 ]
-HARMLESS_BODIES = ["echo hello", "ls -la\ngit status", "agentflow status\nagentflow task advance --result pass", "print('hello')", "import os\nprint(os.getcwd())"]
+HARMLESS_BODIES = ["echo hello", "ls -la\ngit status", "thanhtan status\nthanhtan task advance --result pass", "print('hello')", "import os\nprint(os.getcwd())"]
 
 
 @pytest.mark.parametrize("reader", SHELL_READERS)
@@ -534,53 +534,53 @@ def test_a_here_document_fed_to_a_shell_is_run_as_commands(reader, body, outcome
 
 @pytest.mark.parametrize("reader", SCRIPT_READERS)
 @pytest.mark.parametrize(("body", "outcome"), SCRIPT_BODIES + SHELL_BODIES[:1] + SHELL_BODIES[3:4])
-def test_a_here_document_fed_to_a_scripting_language_is_scanned_for_agentflow_calls(reader, body, outcome):
+def test_a_here_document_fed_to_a_scripting_language_is_scanned_for_thanhtan_calls(reader, body, outcome):
     outcome(check(f"{reader} <<'EOF'\n{body}\nEOF"), (reader, body))
 
 
 @pytest.mark.parametrize("marker", ["<<'EOF'", "<<EOF", '<<"EOF"', "<<-EOF"])
 def test_the_form_of_the_here_document_marker_does_not_matter(marker):
-    ask(check(f"bash {marker}\nagentflow task approve\nEOF"))
-    deny(check(f"python3 {marker}\nsubprocess.run(['agentflow','decide'])\nEOF"))
+    ask(check(f"bash {marker}\nthanhtan task approve\nEOF"))
+    deny(check(f"python3 {marker}\nsubprocess.run(['thanhtan','decide'])\nEOF"))
 
 
 def test_a_tab_indented_body_of_a_dash_here_document_is_scanned():
-    deny(check("bash <<-EOF\n\tagentflow replan done\n\tEOF"))
+    deny(check("bash <<-EOF\n\tthanhtan replan done\n\tEOF"))
 
 
 @pytest.mark.parametrize("reader", PIPE_READERS)
 def test_text_piped_into_an_interpreter_is_scanned(reader):
-    ask(check(f'echo "agentflow task approve" | {reader}'), reader)
-    deny(check(f"printf '%s\\n' 'uv run agentflow replan done' | {reader}"), reader)
+    ask(check(f'echo "thanhtan task approve" | {reader}'), reader)
+    deny(check(f"printf '%s\\n' 'uv run thanhtan replan done' | {reader}"), reader)
 
 
 @pytest.mark.parametrize("reader", ["python", "python3", "uv run python", "node"])
 def test_a_script_piped_into_a_scripting_language_is_scanned(reader):
-    ask(check(f"""echo "import os; os.system('agentflow task cancel')" | {reader}"""), reader)
-    deny(check(f"""echo "require('child_process').execSync('agentflow decide --suppress x')" | {reader}"""), reader)
+    ask(check(f"""echo "import os; os.system('thanhtan task cancel')" | {reader}"""), reader)
+    deny(check(f"""echo "require('child_process').execSync('thanhtan decide --suppress x')" | {reader}"""), reader)
 
 
 @pytest.mark.parametrize("reader", ["bash", "sh", "zsh", "python3", "node", "pwsh"])
 def test_a_here_string_is_scanned_too(reader):
-    ask(check(f'{reader} <<< "agentflow task approve"'), reader)
-    deny(check(f"{reader} <<< 'agentflow roadmap set R1 done'"), reader)
+    ask(check(f'{reader} <<< "thanhtan task approve"'), reader)
+    deny(check(f"{reader} <<< 'thanhtan roadmap set R1 done'"), reader)
 
 
 @pytest.mark.parametrize("reader", ["bash", "sh", "python3"])
 def test_a_here_document_piped_through_cat_into_an_interpreter_is_scanned(reader):
-    ask(check(f"cat <<'EOF' | {reader}\nagentflow task approve\nEOF"), reader)
-    deny(check(f"cat <<'EOF' | {reader}\nagentflow replan done\nEOF"), reader)
+    ask(check(f"cat <<'EOF' | {reader}\nthanhtan task approve\nEOF"), reader)
+    deny(check(f"cat <<'EOF' | {reader}\nthanhtan replan done\nEOF"), reader)
 
 
 @pytest.mark.parametrize(
     "command",
     [
-        """node -e "require('child_process').execSync('agentflow task approve')\"""",
-        """node --eval "require('child_process').execSync('uv run agentflow decide --answer S1')\"""",
-        """perl -e 'system("agentflow task cancel")'""",
-        """ruby -e 'system("agentflow replan done")'""",
-        """pwsh -c "agentflow task approve\"""",
-        """python3 -c "import subprocess; subprocess.run(['agentflow','task','approve'])\"""",
+        """node -e "require('child_process').execSync('thanhtan task approve')\"""",
+        """node --eval "require('child_process').execSync('uv run thanhtan decide --answer S1')\"""",
+        """perl -e 'system("thanhtan task cancel")'""",
+        """ruby -e 'system("thanhtan replan done")'""",
+        """pwsh -c "thanhtan task approve\"""",
+        """python3 -c "import subprocess; subprocess.run(['thanhtan','task','approve'])\"""",
     ],
 )
 def test_code_given_with_dash_c_or_dash_e_is_scanned(command):
@@ -589,11 +589,11 @@ def test_code_given_with_dash_c_or_dash_e_is_scanned(command):
     assert verdict.rule is not None
 
 
-@pytest.mark.parametrize("body", ["agentflow task approve", "agentflow replan done", "uv run agentflow decide --answer S1"])
+@pytest.mark.parametrize("body", ["thanhtan task approve", "thanhtan replan done", "uv run thanhtan decide --answer S1"])
 @pytest.mark.parametrize(
     "receiver",
     [
-        "agentflow report --step review",
+        "thanhtan report --step review",
         "cat > notes.md",
         "cat",
         "tee notes.md",
@@ -671,27 +671,27 @@ def test_text_that_cannot_be_read_ahead_asks_a_person(command):
 
 @pytest.mark.parametrize("reader", ["bash", "sh", "python3", "node"])
 def test_the_interpreter_rules_apply_only_in_a_project_with_a_workspace(reader):
-    assert check(f"{reader} <<'EOF'\nagentflow task approve\nEOF", roots=()).decision is GuardDecision.ALLOW
-    assert check(f"echo 'agentflow replan done' | {reader}", cwd="/elsewhere").decision is GuardDecision.ALLOW
+    assert check(f"{reader} <<'EOF'\nthanhtan task approve\nEOF", roots=()).decision is GuardDecision.ALLOW
+    assert check(f"echo 'thanhtan replan done' | {reader}", cwd="/elsewhere").decision is GuardDecision.ALLOW
 
 
 def test_a_person_only_command_inside_the_text_wins_over_an_asked_one_and_over_other_commands():
-    deny(check("echo a | bash; agentflow task approve && bash <<'EOF'\nagentflow replan done\nEOF"))
-    pushed = check("bash <<'EOF'\nagentflow task approve\ngit push\nEOF")
+    deny(check("echo a | bash; thanhtan task approve && bash <<'EOF'\nthanhtan replan done\nEOF"))
+    pushed = check("bash <<'EOF'\nthanhtan task approve\ngit push\nEOF")
     assert pushed.denied and pushed.decision is GuardDecision.DENY
 
 
 def test_a_command_after_the_here_document_of_an_interpreter_is_still_checked():
-    ask(check("bash <<'EOF'\necho hi\nEOF\nuv run agentflow task approve"))
+    ask(check("bash <<'EOF'\necho hi\nEOF\nuv run thanhtan task approve"))
 
 
 def test_a_second_here_document_on_the_same_line_is_not_a_way_around():
-    ask(check("cat <<'A' > notes.md; bash <<'B'\nplain note\nA\nagentflow task approve\nB"))
+    ask(check("cat <<'A' > notes.md; bash <<'B'\nplain note\nA\nthanhtan task approve\nB"))
 
 
 def test_shell_text_inside_the_text_is_followed_into_nested_shells():
-    ask(check("bash <<'EOF'\nbash -c \"uv run agentflow task approve\"\nEOF"))
-    deny(check("echo \"sh -c 'agentflow replan done'\" | bash"))
+    ask(check("bash <<'EOF'\nbash -c \"uv run thanhtan task approve\"\nEOF"))
+    deny(check("echo \"sh -c 'thanhtan replan done'\" | bash"))
 
 
 def test_the_interpreter_text_is_also_checked_for_writes_into_the_workspace(tmp_path):
@@ -705,20 +705,20 @@ def test_the_interpreter_text_is_also_checked_for_writes_into_the_workspace(tmp_
 
 @pytest.mark.parametrize("cli", list(CliKind))
 def test_the_hook_asks_about_text_that_an_interpreter_runs(project, cli):
-    command = "bash <<'EOF'\nagentflow task approve\nEOF"
+    command = "bash <<'EOF'\nthanhtan task approve\nEOF"
     out = hook(cli, claude(project, command) if cli is CliKind.CLAUDE else agy(project, command))
     assert (claude_decision(out) if cli is CliKind.CLAUDE else json.loads(out)["decision"]) in {"ask", "force_ask"}
 
 
 @pytest.mark.parametrize("cli", list(CliKind))
 def test_the_hook_denies_a_person_only_command_in_piped_text(project, cli):
-    command = "echo 'agentflow replan done' | bash"
+    command = "echo 'thanhtan replan done' | bash"
     out = hook(cli, claude(project, command) if cli is CliKind.CLAUDE else agy(project, command))
     assert (claude_decision(out) if cli is CliKind.CLAUDE else json.loads(out)["decision"]) == "deny"
 
 
 def test_the_hook_stays_silent_for_a_report_whose_text_names_approve(project):
-    command = "agentflow report --step review <<'EOF'\nA person runs agentflow task approve.\nEOF"
+    command = "thanhtan report --step review <<'EOF'\nA person runs thanhtan task approve.\nEOF"
     assert hook(CliKind.CLAUDE, claude(project, command)) == ""
 
 
@@ -738,7 +738,7 @@ def test_every_ask_rule_of_the_readme_is_a_command_the_guard_also_asks_about():
     asks = readme_step4_rules()["ask"]
     assert asks, "README Bước 4 has no ask rules"
     for rule in asks:
-        match = re.fullmatch(r"(?:Bash|PowerShell)\((agentflow [a-z ]+?) \*\)", rule)
+        match = re.fullmatch(r"(?:Bash|PowerShell)\((thanhtan [a-z ]+?) \*\)", rule)
         assert match, f"unexpected ask rule {rule!r}"
         ask(check(match.group(1)), rule)
 
@@ -747,6 +747,6 @@ def test_every_ask_rule_of_the_readme_is_a_command_the_guard_also_asks_about():
 def test_the_readme_asks_for_approve_and_cancel_in_both_shells_and_allows_neither():
     rules = readme_step4_rules()
     for shell in ("Bash", "PowerShell"):
-        for command in ("agentflow task approve", "agentflow task cancel"):
+        for command in ("thanhtan task approve", "thanhtan task cancel"):
             assert f"{shell}({command} *)" in rules["ask"]
             assert f"{shell}({command} *)" not in rules["allow"]

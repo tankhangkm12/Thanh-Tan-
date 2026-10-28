@@ -67,7 +67,7 @@ def test_the_antigravity_section_says_there_is_no_ask_rule_and_what_remains_when
 @pytest.mark.parametrize("name", DOCS)
 def test_the_antigravity_section_lists_the_other_layers_that_still_hold(name):
     body = find(name, "Antigravity", "giới hạn")
-    assert "agentflow commit" in body
+    assert "thanhtan commit" in body
     assert re.search(r"\.ThanhTan/", body)
     assert re.search(r"secret|bí mật", body, flags=re.I)
 
@@ -80,9 +80,9 @@ def test_the_readme_no_longer_says_antigravity_has_nothing_like_an_ask_rule():
 # ------------------------------------------------------------- what the hook does and does not read
 
 
-def test_the_architecture_lists_the_ways_of_calling_agentflow_that_the_hook_reads():
+def test_the_architecture_lists_the_ways_of_calling_thanhtan_that_the_hook_reads():
     body = find("architecture", "bảo vệ") if _has("architecture", "bảo vệ") else read("architecture")
-    for form in ("uv run agentflow", "python -m agentflow", "uvx", "timeout", "Start-Process"):
+    for form in ("uv run thanhtan", "python -m thanhtan", "uvx", "timeout", "Start-Process"):
         assert form in body, form
 
 

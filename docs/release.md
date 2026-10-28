@@ -2,13 +2,13 @@
 
 Các bước dưới đây do **bạn** chạy. Agent không merge vào `main`, không tạo tag, không push `main`. Ví dụ dùng bản `1.0.0`; thay số khi phát hành bản khác.
 
-Số phiên bản hiện tại: agentflow 0.8.0 (`foundation/pyproject.toml`), dev-core 0.7.0, dev-backend 0.4.0 (`.claude-plugin/plugin.json` của từng plugin). Chưa nâng lên 1.0.0.
+Số phiên bản hiện tại: thanhtan 0.8.0 (`foundation/pyproject.toml`), dev-core 0.7.0, dev-backend 0.4.0 (`.claude-plugin/plugin.json` của từng plugin). Chưa nâng lên 1.0.0.
 
 ## 0. Chuẩn bị
 
 1. `develop` đã chứa mọi thay đổi muốn phát hành, cây làm việc sạch: `git status`.
 2. Mục `[Unreleased]` của [CHANGELOG.md](../CHANGELOG.md) đã đúng.
-3. Đóng mọi phiên Antigravity (phiên đang chạy giữ file `agentflow.exe`).
+3. Đóng mọi phiên Antigravity (phiên đang chạy giữ file `thanhtan.exe`).
 
 ## 1. Nhánh release
 
@@ -99,7 +99,7 @@ Xóa nhánh release khi xong: `git branch -d release/1.0.0` và `git push origin
 `.claude-plugin/marketplace.json` không ghi số phiên bản, Claude Code đọc `version` trong `plugin.json` của từng plugin. Sau khi push:
 
 - Hiện mọi plugin dùng nguồn đường dẫn tương đối (`./families/...`), nên người dùng nhận đúng nhánh mà marketplace được thêm từ đó (mặc định nhánh mặc định của repo). Nguồn đường dẫn tương đối không ghim được `ref`/`sha`. Muốn ghim vào tag `v1.0.0`, đổi `source` của từng plugin sang dạng object `git-subdir` (`url`, `path`, `ref`) theo [tài liệu marketplace](https://code.claude.com/docs/en/plugins/marketplace-reference#plugin-sources); đây là quyết định của bạn, không bắt buộc.
-- Cài lại agentflow: `uv tool install --force --reinstall ./foundation` (đóng phiên Antigravity trước).
+- Cài lại thanhtan: `uv tool install --force --reinstall ./foundation` (đóng phiên Antigravity trước).
 - Claude Code: `claude plugin marketplace update thanh-tan-plugins`, rồi `claude plugin update dev-core@thanh-tan-plugins` và `claude plugin update dev-backend@thanh-tan-plugins`.
 - Antigravity: `agy plugin install` lại từng plugin (lệnh cài chép một bản vào máy).
 - Kiểm: `claude plugin list`, `agy plugin list`, `agy agents`.

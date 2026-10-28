@@ -5,11 +5,11 @@ import pytest
 import yaml
 from conftest import write_workflow
 
-from agentflow.constants import ExitCode, StepStatus, TaskStatus
-from agentflow.errors import AgentflowError
-from agentflow.models import State, Task
-from agentflow.state import JsonStateStore
-from agentflow.workspace import (
+from thanhtan.constants import ExitCode, StepStatus, TaskStatus
+from thanhtan.errors import ThanhTanError
+from thanhtan.models import State, Task
+from thanhtan.state import JsonStateStore
+from thanhtan.workspace import (
     WorkspacePaths,
     ensure_excluded,
     find_workspace,
@@ -64,7 +64,7 @@ def test_init_from_subdirectory_uses_repo_root(git_repo, workflow_file):
 def test_init_outside_git_fails_and_writes_nothing(tmp_path, workflow_file):
     plain = tmp_path / "plain"
     plain.mkdir()
-    with pytest.raises(AgentflowError) as exc:
+    with pytest.raises(ThanhTanError) as exc:
         init_workspace(plain, workflow_file)
     assert exc.value.code is ExitCode.NOT_GIT_REPO
     assert not (plain / ".ThanhTan").exists()
@@ -73,7 +73,7 @@ def test_init_outside_git_fails_and_writes_nothing(tmp_path, workflow_file):
 def test_invalid_workflow_fails_before_writing(git_repo, tmp_path, workflow_data):
     del workflow_data["family"]
     bad = write_workflow(tmp_path / "bad" / "workflow.yaml", workflow_data)
-    with pytest.raises(AgentflowError) as exc:
+    with pytest.raises(ThanhTanError) as exc:
         init_workspace(git_repo, bad)
     assert exc.value.code is ExitCode.INVALID_WORKFLOW
     assert not (git_repo / ".ThanhTan").exists()
@@ -112,7 +112,7 @@ def test_rerun_with_other_family_is_refused(git_repo, workflow_file, tmp_path, w
     config_before = paths.config.read_bytes()
     workflow_data["family"] = "other"
     other = write_workflow(tmp_path / "other" / "workflow.yaml", workflow_data)
-    with pytest.raises(AgentflowError) as exc:
+    with pytest.raises(ThanhTanError) as exc:
         init_workspace(git_repo, other)
     assert exc.value.code is ExitCode.WORKFLOW_MISMATCH
     assert paths.config.read_bytes() == config_before
@@ -136,7 +136,7 @@ def test_ensure_excluded_respects_existing_forms(tmp_path):
 
 
 def test_find_workspace(git_repo, workflow_file):
-    with pytest.raises(AgentflowError) as exc:
+    with pytest.raises(ThanhTanError) as exc:
         find_workspace(git_repo)
     assert exc.value.code is ExitCode.NO_WORKSPACE
     init_workspace(git_repo, workflow_file)

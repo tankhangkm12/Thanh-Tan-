@@ -15,12 +15,12 @@ from pathlib import Path
 import pytest
 from replan_helpers import review_report, run, run_task, start_workspace, summary, task_dir
 
-from agentflow.constants import DRIFT_HEADING, NO_REVIEW_REPORT_TEXT, SUMMARY_FILE, TASKS_DIR, ExitCode
-from agentflow.errors import AgentflowError
-from agentflow.git import SubprocessGit
-from agentflow.models import FileChange
-from agentflow.replan import set_summary_replan
-from agentflow.specdelta import reviewer_proposals
+from thanhtan.constants import DRIFT_HEADING, NO_REVIEW_REPORT_TEXT, SUMMARY_FILE, TASKS_DIR, ExitCode
+from thanhtan.errors import ThanhTanError
+from thanhtan.git import SubprocessGit
+from thanhtan.models import FileChange
+from thanhtan.replan import set_summary_replan
+from thanhtan.specdelta import reviewer_proposals
 
 # ------------------------------------------------------- set_summary_replan, old summary
 
@@ -127,7 +127,7 @@ class FakeDiff:
 
 
 def entries(monkeypatch, tmp_path, *fields: str) -> list[FileChange]:
-    monkeypatch.setattr("agentflow.git.run_git", FakeDiff(*fields))
+    monkeypatch.setattr("thanhtan.git.run_git", FakeDiff(*fields))
     return SubprocessGit(tmp_path).changed_entries("develop", "feature/t")
 
 
@@ -146,8 +146,8 @@ def test_a_copy_between_other_entries_does_not_shift_the_ones_after_it(monkeypat
 
 
 def test_a_failing_diff_is_a_git_error_with_the_message(monkeypatch, tmp_path):
-    monkeypatch.setattr("agentflow.git.run_git", FakeDiff(code=128))
-    with pytest.raises(AgentflowError) as exc:
+    monkeypatch.setattr("thanhtan.git.run_git", FakeDiff(code=128))
+    with pytest.raises(ThanhTanError) as exc:
         SubprocessGit(tmp_path).changed_entries("develop", "feature/t")
     assert exc.value.code is ExitCode.GIT_FAILED and "boom" in str(exc.value)
 

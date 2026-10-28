@@ -2,12 +2,12 @@ from pathlib import Path
 
 import pytest
 
-from agentflow.constants import GITLEAKS_IMAGE, GITLEAKS_LEAKS_EXIT_CODE, ExitCode
-from agentflow.errors import AgentflowError
-from agentflow.interfaces import CommandRunner, SecretScanner
-from agentflow.models import CommandResult
-from agentflow.runner import NOT_RUN, SubprocessRunner
-from agentflow.scanner import ContainerGitleaksScanner, gitleaks_command
+from thanhtan.constants import GITLEAKS_IMAGE, GITLEAKS_LEAKS_EXIT_CODE, ExitCode
+from thanhtan.errors import ThanhTanError
+from thanhtan.interfaces import CommandRunner, SecretScanner
+from thanhtan.models import CommandResult
+from thanhtan.runner import NOT_RUN, SubprocessRunner
+from thanhtan.scanner import ContainerGitleaksScanner, gitleaks_command
 
 REPO = Path("/work/repo")
 
@@ -59,21 +59,21 @@ def test_leaks_found():
 
 def test_scanner_failure_is_a_hard_error():
     runner = FakeRunner(scan=CommandResult(1, "", "image pull failed"))
-    with pytest.raises(AgentflowError) as exc:
+    with pytest.raises(ThanhTanError) as exc:
         ContainerGitleaksScanner(runner).scan_staged(REPO)
     assert exc.value.code is ExitCode.SCAN_FAILED
     assert "image pull failed" in str(exc.value)
 
 
 def test_no_container_tool_installed():
-    with pytest.raises(AgentflowError) as exc:
+    with pytest.raises(ThanhTanError) as exc:
         ContainerGitleaksScanner(FakeRunner(installed=())).scan_staged(REPO)
     assert exc.value.code is ExitCode.MISSING_REQUIREMENT
 
 
 def test_engine_not_running_is_a_hard_error_and_scan_never_starts():
     runner = FakeRunner(engines_up=())
-    with pytest.raises(AgentflowError) as exc:
+    with pytest.raises(ThanhTanError) as exc:
         ContainerGitleaksScanner(runner).scan_staged(REPO)
     assert exc.value.code is ExitCode.ENGINE_NOT_RUNNING
     assert all(call[0][1:] == ["info"] for call in runner.calls)

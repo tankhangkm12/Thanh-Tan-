@@ -4,15 +4,15 @@ import io
 import pytest
 from conftest import SAMPLE_WORKFLOW, write_workflow
 
-from agentflow.cli import main
-from agentflow.constants import ExitCode, StepStatus, TaskEvent, TaskStatus
-from agentflow.engine import needs_approval, start_task, transition
-from agentflow.models import state_from_dict, state_to_dict, workflow_from_dict
-from agentflow.plan import check_plan, parse_plan
-from agentflow.plan_rules import MaxPlanItemsRule
-from agentflow.projectcontext import ProjectContext, RoleSet
-from agentflow.scan import all_tools, tools_for_step
-from agentflow.workflow import parse_workflow
+from thanhtan.cli import main
+from thanhtan.constants import ExitCode, StepStatus, TaskEvent, TaskStatus
+from thanhtan.engine import needs_approval, start_task, transition
+from thanhtan.models import state_from_dict, state_to_dict, workflow_from_dict
+from thanhtan.plan import check_plan, parse_plan
+from thanhtan.plan_rules import MaxPlanItemsRule
+from thanhtan.projectcontext import ProjectContext, RoleSet
+from thanhtan.scan import all_tools, tools_for_step
+from thanhtan.workflow import parse_workflow
 
 SIZES = {
     "default": "normal",
@@ -81,7 +81,7 @@ def test_a_task_keeps_its_size_in_the_state():
 
 
 def state_to_dict_task(task):
-    from agentflow.models import State
+    from thanhtan.models import State
 
     return state_to_dict(State(tasks=(task,)))["tasks"][0]
 
@@ -141,7 +141,7 @@ class Tool:
 
 
 def test_a_size_limits_the_scan_tools_of_a_step(monkeypatch):
-    from agentflow import scan
+    from thanhtan import scan
 
     workflow = workflow_from_dict(workflow_data())
     tools = [Tool("semgrep"), Tool("trivy"), Tool("gitleaks"), Tool("semgrep-conventions")]
@@ -155,7 +155,7 @@ def test_a_size_limits_the_scan_tools_of_a_step(monkeypatch):
 
 
 def test_extension_tools_of_another_step_are_not_limited_by_a_filter_for_this_step(monkeypatch):
-    from agentflow import scan
+    from thanhtan import scan
 
     workflow = workflow_from_dict(workflow_data())
     monkeypatch.setattr(scan, "BUILTIN_TOOLS", [Tool("semgrep")])

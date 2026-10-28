@@ -1,7 +1,7 @@
 """Phase B3 and B4: tasks are tied to roadmap items, and `status` suggests the next item.
 
-`agentflow task new "T" --roadmap R3` ties the task to R3 and moves R3 to `doing`. Finishing or approving a task never
-moves an item to `done`: an item may need several tasks, and `done` is a person's call (`agentflow roadmap set R3 done`;
+`thanhtan task new "T" --roadmap R3` ties the task to R3 and moves R3 to `doing`. Finishing or approving a task never
+moves an item to `done`: an item may need several tasks, and `done` is a person's call (`thanhtan roadmap set R3 done`;
 later through the replan and the last approval checklist).
 """
 
@@ -12,11 +12,11 @@ from conftest import git
 from mcp_helpers import call
 from sdd_helpers import INVALID_INPUT, ROADMAP, finish_task, init_workspace, project_dir, run, sample_workflow, say, statuses
 
-from agentflow.mcp_server import build_server
-from agentflow.models import ScanResult
-from agentflow.services import WorkspaceServices
-from agentflow.validation import schema_errors
-from agentflow.workspace import find_workspace
+from thanhtan.mcp_server import build_server
+from thanhtan.models import ScanResult
+from thanhtan.services import WorkspaceServices
+from thanhtan.validation import schema_errors
+from thanhtan.workspace import find_workspace
 
 
 @pytest.fixture(autouse=True)
@@ -28,7 +28,7 @@ def _no_container(monkeypatch):
         def scan_staged(self, repo):
             return ScanResult(True, "")
 
-    monkeypatch.setattr("agentflow.cli.ContainerGitleaksScanner", Clean)
+    monkeypatch.setattr("thanhtan.cli.ContainerGitleaksScanner", Clean)
 
 
 @pytest.fixture

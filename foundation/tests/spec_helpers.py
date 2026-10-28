@@ -13,10 +13,10 @@ Not a test module. Design these helpers rest on (the tests that use them pin it)
       - output: |
           <the tail of the output>
 
-- At ``task advance --result pass`` agentflow runs each command itself and needs it to fail (exit code other than 0, and
+- At ``task advance --result pass`` thanhtan runs each command itself and needs it to fail (exit code other than 0, and
   not 126/127, and not a timeout). It writes ``.ThanhTan/tasks/<task>/verify-red.json``. The same runner serves the gate
   ``tests-pass``, which runs the project's test command and writes ``tasks/<task>/tests-pass.json``.
-- The command of ``tests-pass``: setting ``test_command`` (``agentflow config set``), else the line
+- The command of ``tests-pass``: setting ``test_command`` (``thanhtan config set``), else the line
   ``- test-command: <command>`` of a *confirmed* ``project/profile.md``. Timeout: setting ``test_timeout_minutes``,
   default 15.
 - Exit code 25 (GATE_FAILED) when a gate refuses.
@@ -31,7 +31,7 @@ from checklist_helpers import checklist_path, tick
 from conftest import git, write_workflow
 from sdd_helpers import PLAN, init_workspace, project_dir, run, say
 
-from agentflow.constants import ExitCode
+from thanhtan.constants import ExitCode
 
 GATE_FAILED = 25
 INVALID_INPUT = 22
@@ -176,7 +176,7 @@ def write_profile(repo: Path, text: str, *, confirm: bool = True, capsys=None) -
 
 
 def say_confirm(capsys) -> int:
-    from agentflow.cli import main
+    from thanhtan.cli import main
 
     code = main(["project", "confirm", "profile"])
     if capsys is not None:

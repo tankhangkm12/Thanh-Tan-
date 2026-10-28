@@ -17,7 +17,7 @@ CORE = Path(__file__).resolve().parents[1] / build.DEFAULT_PLUGIN
 SCOUT = CORE / build.ROLES_DIR / "scout.md"
 SETUP = CORE / "skills" / "setup" / "SKILL.md"
 SECTIONS = ("profile", "architecture", "sources", "conventions")
-COMMANDS_THAT_ARE_A_PERSONS = ("agentflow project confirm", "agentflow decide")
+COMMANDS_THAT_ARE_A_PERSONS = ("thanhtan project confirm", "thanhtan decide")
 
 
 def text(path: Path) -> str:
@@ -49,7 +49,7 @@ def test_scout_is_a_read_only_role_for_the_builder_checks():
         "never confirm",
         "file:line",
         "knowledge/semgrep",
-        "agentflow config get",
+        "thanhtan config get",
     ],
 )
 def test_the_scout_prompt_covers(needle):
@@ -77,7 +77,7 @@ def test_the_setup_skill_runs_the_scout_and_leaves_confirming_to_the_person():
     assert "scout" in skill and "`status`" in skill
     for section in SECTIONS:
         assert section in skill
-    assert "agentflow project confirm" in skill and "you never run" in skill.lower()
+    assert "thanhtan project confirm" in skill and "you never run" in skill.lower()
     assert "no task is open" in skill.lower() or "no open task" in skill.lower()
 
 

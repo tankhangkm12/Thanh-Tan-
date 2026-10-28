@@ -13,9 +13,9 @@ import pytest
 import yaml
 from conftest import SAMPLE_WORKFLOW, write_workflow
 
-from agentflow.cli import main
-from agentflow.constants import ExitCode
-from agentflow.workflow import parse_workflow
+from thanhtan.cli import main
+from thanhtan.constants import ExitCode
+from thanhtan.workflow import parse_workflow
 
 REPO = Path(__file__).resolve().parents[2]
 HEADING = "## Đề xuất cập nhật hồ sơ"

@@ -1,8 +1,8 @@
-# yaml-language-server: $schema=../../../foundation/src/agentflow/schemas/extension.schema.json
+# yaml-language-server: $schema=../../../foundation/src/thanhtan/schemas/extension.schema.json
 #
-# Hợp đồng plugin của dev-backend, đọc bởi agentflow: `agentflow ext add <đường dẫn file này>`.
+# Hợp đồng plugin của dev-backend, đọc bởi thanhtan: `thanhtan ext add <đường dẫn file này>`.
 # Mọi thông tin kỹ thuật của dự án (loại DB, thư mục migration, lệnh test, ...) nằm trong cấu hình dự án
-# (`agentflow config set backend.<khóa> <giá trị>`), không nằm ở đây.
+# (`thanhtan config set backend.<khóa> <giá trị>`), không nằm ở đây.
 schema_version: 1
 name: dev-backend
 family: software-dev

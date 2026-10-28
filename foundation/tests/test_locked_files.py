@@ -1,10 +1,10 @@
 """Chặng E-lock (E2 + E3): approving the tests locks them, and the steps after refuse a changed one.
 
-When a person approves a step that has ``lock_on_approval`` (the real workflow: ``test-spec``), agentflow writes
+When a person approves a step that has ``lock_on_approval`` (the real workflow: ``test-spec``), thanhtan writes
 ``.ThanhTan/tasks/<task>/locked-files.json``: the test files of the report, the test infrastructure the tester declared
 under ``## Hạ tầng test``, and the test configuration files already in the project; each with the sha256 of its bytes.
 The gate ``locked-files-intact`` and the gate ``tests-pass`` compare the working tree and HEAD with those hashes before
-anything else; ``agentflow tests check`` does it on request. ``agentflow commit`` refuses a commit that changes a locked
+anything else; ``thanhtan tests check`` does it on request. ``thanhtan commit`` refuses a commit that changes a locked
 file or adds a test configuration file. The hook that keeps agents out of the files is tested in test_lock_guard.py,
 the ways round the lock in test_lock_bypass.py and the person's way to change a locked test in test_tests_amend.py.
 """
@@ -62,7 +62,7 @@ from lock_helpers import (
 from sdd_helpers import run, say
 from spec_helpers import at_spec_step, block, no_test_block
 
-from agentflow.constants import ExitCode
+from thanhtan.constants import ExitCode
 
 
 @pytest.fixture
@@ -273,7 +273,7 @@ def test_the_lines_of_the_lock_must_be_ticked_like_the_others(repo, monkeypatch,
     assert code == 36 and "L1" in err and not lock_path(repo).exists()
 
 
-# ------------------------------------------------------------------ a stack agentflow does not know
+# ------------------------------------------------------------------ a stack thanhtan does not know
 
 
 def foreign_block(repo, name: str) -> str:
@@ -282,7 +282,7 @@ def foreign_block(repo, name: str) -> str:
 
 
 @pytest.mark.parametrize("name", ["tests/flip_test.go", "tests/flip_spec.rb", "tests/FlipTest.java"])
-def test_tests_in_a_language_agentflow_does_not_know_get_a_warning_and_are_still_locked(repo, monkeypatch, capsys, name):
+def test_tests_in_a_language_thanhtan_does_not_know_get_a_warning_and_are_still_locked(repo, monkeypatch, capsys, name):
     to_awaiting(repo, monkeypatch, capsys, blocks=(foreign_block(repo, name), no_test_block("C2", "Test it")))
     code, _out, err = approve_spec(repo, capsys)
     assert code == ExitCode.OK
@@ -291,7 +291,7 @@ def test_tests_in_a_language_agentflow_does_not_know_get_a_warning_and_are_still
 
 
 @pytest.mark.parametrize("name", ["tests/flip.spec.ts", "tests/flip.test.js", "tests/flip.py"])
-def test_tests_in_a_language_agentflow_knows_get_no_warning(repo, monkeypatch, capsys, name):
+def test_tests_in_a_language_thanhtan_knows_get_no_warning(repo, monkeypatch, capsys, name):
     blocks = None
     if name != "tests/flip.py":
         commit_files(repo, {name: "it('x', () => {});\n"})
@@ -315,7 +315,7 @@ def test_a_hand_edited_lock_file_stops_advance_and_approve(repo, monkeypatch, ca
     lock_tests(repo, monkeypatch, capsys)
     tamper(repo, lambda data: data["files"].pop(LOCKED2))
     code, _out, err = run(capsys, *command)
-    assert code == INTEGRITY_FAILED and "locked-files.json" in err and "agentflow state accept" in err
+    assert code == INTEGRITY_FAILED and "locked-files.json" in err and "thanhtan state accept" in err
 
 
 def test_a_lock_file_with_a_hash_swapped_by_hand_is_caught(repo, monkeypatch, capsys):
@@ -407,7 +407,7 @@ def test_a_change_to_every_locked_file_names_every_one(locked, capsys):
 def test_a_file_that_differs_at_head_but_was_put_back_in_the_working_tree_is_still_caught(locked, capsys):
     original = (locked / LOCKED).read_bytes()
     (locked / LOCKED).write_bytes(original + b"# weaker\n")
-    git(locked, "commit", "-q", "-am", "weaken the test behind agentflow's back")
+    git(locked, "commit", "-q", "-am", "weaken the test behind thanhtan's back")
     (locked / LOCKED).write_bytes(original)
     code, out, err = run(capsys, "tests", "check")
     assert code == GATE_FAILED and LOCKED in out + err
@@ -509,7 +509,7 @@ def test_the_review_step_checks_the_lock_too(locked, monkeypatch, capsys):
     assert code == GATE_FAILED and LOCKED in err
 
 
-# ------------------------------------------------------------------ agentflow commit
+# ------------------------------------------------------------------ thanhtan commit
 
 
 def test_a_commit_that_changes_a_locked_file_is_refused_and_nothing_is_committed(locked, monkeypatch, capsys):

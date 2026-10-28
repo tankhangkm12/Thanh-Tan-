@@ -2,7 +2,7 @@
 
 Each item is `### R<n> - title` with `- status: todo|doing|done|dropped`, `- goal:` and `- docs:`. An agent proposes the
 list through the `project_write` tool (section `roadmap`); only a person confirms items (`project confirm R1`) or changes
-a status (`agentflow roadmap set R4 dropped`). The order of the file is the order of priority.
+a status (`thanhtan roadmap set R4 dropped`). The order of the file is the order of priority.
 """
 
 import json
@@ -11,14 +11,14 @@ import pytest
 from mcp_helpers import call
 from sdd_helpers import PROJECT_WRITE_REFUSED, ROADMAP, ROADMAP_INVALID, init_workspace, project_dir, roadmap_text, run, sample_workflow, statuses
 
-from agentflow.constants import CliKind, ExitCode, GuardDecision, GuardRule, HookEvent
-from agentflow.errors import AgentflowError
-from agentflow.git import GitBranchLookup
-from agentflow.guard import evaluate
-from agentflow.hook import handle_hook
-from agentflow.mcp_server import build_server
-from agentflow.services import WorkspaceServices
-from agentflow.workspace import find_workspace
+from thanhtan.constants import CliKind, ExitCode, GuardDecision, GuardRule, HookEvent
+from thanhtan.errors import ThanhTanError
+from thanhtan.git import GitBranchLookup
+from thanhtan.guard import evaluate
+from thanhtan.hook import handle_hook
+from thanhtan.mcp_server import build_server
+from thanhtan.services import WorkspaceServices
+from thanhtan.workspace import find_workspace
 
 # Spelled as a string so these tests do not need the ProjectSection member that phase B adds.
 SECTION = "roadmap"
@@ -39,7 +39,7 @@ def write(service, text=ROADMAP):
 
 
 def refuses(service, text, code):
-    with pytest.raises(AgentflowError) as exc:
+    with pytest.raises(ThanhTanError) as exc:
         write(service, text)
     assert int(exc.value.code) == code, str(exc.value)
     return str(exc.value)
@@ -397,19 +397,19 @@ class OnFeature:
         return True
 
 
-@pytest.mark.parametrize("command", ["agentflow roadmap set R1 done", "agentflow roadmap set R2 dropped", "cd . && agentflow roadmap set R1 doing"])
+@pytest.mark.parametrize("command", ["thanhtan roadmap set R1 done", "thanhtan roadmap set R2 dropped", "cd . && thanhtan roadmap set R1 doing"])
 def test_changing_a_roadmap_status_is_a_persons_command(ws, command):
     verdict = evaluate(command, ws, OnFeature(), Workspaces(ws))
     assert verdict.decision is GuardDecision.DENY and verdict.rule is GuardRule.PERSON_ONLY
 
 
-@pytest.mark.parametrize("command", ["agentflow project confirm R1", "agentflow project confirm mission R2"])
+@pytest.mark.parametrize("command", ["thanhtan project confirm R1", "thanhtan project confirm mission R2"])
 def test_confirming_roadmap_items_and_the_mission_stays_a_persons_command(ws, command):
     """Regression: `project confirm` was already for a person; the new codes must not open a way round it."""
     assert evaluate(command, ws, OnFeature(), Workspaces(ws)).rule is GuardRule.PERSON_ONLY
 
 
-@pytest.mark.parametrize("command", ["agentflow roadmap list", "agentflow project status"])
+@pytest.mark.parametrize("command", ["thanhtan roadmap list", "thanhtan project status"])
 def test_reading_the_roadmap_and_the_project_status_is_allowed(ws, command):
     """Regression: green before phase B; the new read commands must not be swept up with the person-only ones."""
     assert evaluate(command, ws, OnFeature(), Workspaces(ws)).decision is GuardDecision.ALLOW

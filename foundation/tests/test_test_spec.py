@@ -1,9 +1,9 @@
-"""Chặng E-spec: the step where tests are written first, and the gate `test-spec-valid` that agentflow runs itself.
+"""Chặng E-spec: the step where tests are written first, and the gate `test-spec-valid` that thanhtan runs itself.
 
 See ``spec_helpers`` for the report format. At `task advance --result pass` the gate checks the report against the
 plan, checks the test files are committed, then RUNS every command itself and needs each to fail; what the tester wrote
 under `output:` is only for the person to read. The result is kept in `tasks/<task>/verify-red.json`.
-`agentflow tests verify-red` does the same on demand.
+`thanhtan tests verify-red` does the same on demand.
 """
 
 import json
@@ -34,9 +34,9 @@ from spec_helpers import (
     write_spec,
 )
 
-from agentflow.constants import ExitCode, GateKind
-from agentflow.errors import AgentflowError
-from agentflow.workflow import parse_workflow
+from thanhtan.constants import ExitCode, GateKind
+from thanhtan.errors import ThanhTanError
+from thanhtan.workflow import parse_workflow
 
 
 @pytest.fixture
@@ -77,7 +77,7 @@ def test_spec_items_is_a_known_source_of_checklist_lines():
 
 
 def test_an_unknown_gate_is_still_rejected():
-    with pytest.raises(AgentflowError):
+    with pytest.raises(ThanhTanError):
         workflow_with(gates=["test-spec-valids"])
 
 
@@ -235,7 +235,7 @@ def test_a_test_path_outside_the_project_is_refused(repo, monkeypatch, capsys, p
     assert "C1" in refused(capsys)
 
 
-# ------------------------------------------------------------------ agentflow runs the commands itself
+# ------------------------------------------------------------------ thanhtan runs the commands itself
 
 
 def test_a_command_that_passes_is_refused_whatever_the_report_claims(repo, monkeypatch, capsys):
@@ -263,7 +263,7 @@ def test_a_command_that_fails_passes_the_gate_and_the_result_is_kept(repo, monke
     assert set(record["results"]) == {"C1", "C2"}
 
 
-def test_a_report_that_lies_about_the_output_does_not_matter_the_record_is_agentflows(repo, monkeypatch, capsys):
+def test_a_report_that_lies_about_the_output_does_not_matter_the_record_is_thanhtans(repo, monkeypatch, capsys):
     write_spec(monkeypatch, block("C1", "Build it", output="everything is fine"), block("C2", "Test it"))
     assert advance(capsys)[0] == ExitCode.OK
     assert "everything is fine" not in verify_red_record(repo)["results"]["C1"]["output"]
@@ -305,7 +305,7 @@ def test_a_command_that_runs_too_long_is_refused_with_the_timeout(repo, monkeypa
 
 def test_the_same_command_for_two_items_is_run_once(repo, monkeypatch, capsys):
     calls = []
-    from agentflow import testrun
+    from thanhtan import testrun
 
     real = testrun.run_command
 
@@ -313,7 +313,7 @@ def test_the_same_command_for_two_items_is_run_once(repo, monkeypatch, capsys):
         calls.append(command)
         return real(command, *args, **kwargs)
 
-    monkeypatch.setattr("agentflow.testrun.run_command", counting)
+    monkeypatch.setattr("thanhtan.testrun.run_command", counting)
     write_spec(monkeypatch, *both_red())
     assert advance(capsys)[0] == ExitCode.OK
     assert calls == [FLIP]
@@ -328,7 +328,7 @@ def test_the_gate_does_not_run_anything_when_the_step_is_failed_not_passed(repo,
     assert not (repo / "ran.marker").exists()
 
 
-# ------------------------------------------------------------------ `agentflow tests verify-red`
+# ------------------------------------------------------------------ `thanhtan tests verify-red`
 
 
 def test_verify_red_runs_the_commands_and_keeps_the_same_record(repo, monkeypatch, capsys):
@@ -361,7 +361,7 @@ def test_verify_red_without_a_task_is_refused(gitflow_repo, tmp_path, monkeypatc
 # ------------------------------------------------------------------ the person's checklist for the step
 
 
-def test_the_checklist_has_a_line_per_plan_item_with_the_command_and_what_agentflow_saw(repo, monkeypatch, capsys):
+def test_the_checklist_has_a_line_per_plan_item_with_the_command_and_what_thanhtan_saw(repo, monkeypatch, capsys):
     write_spec(monkeypatch, *both_red())
     assert advance(capsys)[0] == ExitCode.OK
     text = checklist_path(repo, "test-spec").read_text(encoding="utf-8")

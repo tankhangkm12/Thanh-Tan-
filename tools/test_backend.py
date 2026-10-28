@@ -1,6 +1,6 @@
 """Run with: uv run --with pyyaml --with pytest pytest tools
 
-Checks on the dev-backend plugin that do not need agentflow itself (the extension contract is checked by
+Checks on the dev-backend plugin that do not need thanhtan itself (the extension contract is checked by
 foundation/tests/test_backend_extension.py).
 """
 
@@ -61,8 +61,8 @@ def test_prompts_do_not_assume_a_stack(path):
 
 def test_the_migration_skill_reads_the_commands_from_the_project_settings():
     text = (BACKEND / "skills" / "db-migration" / "SKILL.md").read_text(encoding="utf-8")
-    assert "agentflow config get backend.migrate_up_command" in text
-    assert "agentflow config get backend.migrate_down_command" in text
+    assert "thanhtan config get backend.migrate_up_command" in text
+    assert "thanhtan config get backend.migrate_down_command" in text
 
 
 def test_dev_core_knows_nothing_about_db_engineer():

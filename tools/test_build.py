@@ -156,7 +156,7 @@ def test_real_skills_use_only_portable_frontmatter():
         data = frontmatter(path)
         assert set(data) == {"name", "description"} and data["name"] == name
         body = path.read_text(encoding="utf-8")
-        assert "agentflow" in body
+        assert "thanhtan" in body
 
 
 def test_tool_lists_in_real_agents_are_documented_names():
@@ -178,8 +178,8 @@ SKILL_AND_ROLE_FILES = sorted(
 )
 
 
-def agentflow_command_lines(text: str) -> list[str]:
-    """Every fenced line and inline code span that is an agentflow command line."""
+def thanhtan_command_lines(text: str) -> list[str]:
+    """Every fenced line and inline code span that is an thanhtan command line."""
     import re
 
     found = []
@@ -188,16 +188,16 @@ def agentflow_command_lines(text: str) -> list[str]:
         if line.strip().startswith("```"):
             in_fence = not in_fence
             continue
-        if in_fence and line.strip().startswith("agentflow"):
+        if in_fence and line.strip().startswith("thanhtan"):
             found.append(line.strip())
         elif not in_fence:
-            found += [span for span in re.findall(r"`([^`]+)`", line) if span.startswith("agentflow")]
+            found += [span for span in re.findall(r"`([^`]+)`", line) if span.startswith("thanhtan")]
     return found
 
 
 @pytest.mark.parametrize("path", SKILL_AND_ROLE_FILES, ids=lambda p: f"{p.parent.name}/{p.name}")
-def test_agentflow_commands_are_never_chained(path):
-    for command in agentflow_command_lines(path.read_text(encoding="utf-8")):
+def test_thanhtan_commands_are_never_chained(path):
+    for command in thanhtan_command_lines(path.read_text(encoding="utf-8")):
         assert not any(token in command for token in CHAINING), command
 
 
@@ -215,14 +215,14 @@ def test_every_prompt_says_to_run_commands_separately(path):
 
 def test_the_planner_documents_the_plan_shape_and_runs_the_checker():
     text = (REAL_PLUGIN / build.ROLES_DIR / "planner.md").read_text(encoding="utf-8")
-    assert "agentflow plan check" in text and "### C1" in text and "done-when" in text and "docs:" in text
+    assert "thanhtan plan check" in text and "### C1" in text and "done-when" in text and "docs:" in text
 
 
 # README permission rules ----------------------------------------------------------
 
 README = REPO / "README.md"
-RULE = __import__("re").compile(r"^(Bash|PowerShell)\(agentflow( [a-z-]+)+ \*\)$")
-MCP_PREFIX = "mcp__plugin_dev-core_agentflow__"
+RULE = __import__("re").compile(r"^(Bash|PowerShell)\(thanhtan( [a-z-]+)+ \*\)$")
+MCP_PREFIX = "mcp__plugin_dev-core_thanhtan__"
 WORKSPACE_TOOL_NAMES = build.WORKSPACE_TOOL_NAMES
 MANDATORY_ASK = {"task approve", "task cancel"}
 
@@ -249,14 +249,14 @@ def test_readme_asks_for_the_commands_that_carry_a_persons_authority():
     permissions = readme_permissions()
     for tool in ("Bash", "PowerShell"):
         for command in MANDATORY_ASK:
-            assert f"{tool}(agentflow {command} *)" in permissions["ask"]
+            assert f"{tool}(thanhtan {command} *)" in permissions["ask"]
     allowed = " ".join(permissions["allow"])
-    assert not any(f"agentflow {command}" in allowed for command in MANDATORY_ASK | {"decide"})
+    assert not any(f"thanhtan {command}" in allowed for command in MANDATORY_ASK | {"decide"})
 
 
-# ------------------------------------------------------------- agentflow MCP tools
+# ------------------------------------------------------------- thanhtan MCP tools
 
-MCP_PREFIX = "mcp__plugin_dev-core_agentflow__"
+MCP_PREFIX = "mcp__plugin_dev-core_thanhtan__"
 WORKSPACE_TOOL_NAMES = ["status", "next_step", "plan_check", "report_write", "scan_summary", "conventions", "knowledge_search", "knowledge_read"]
 
 
@@ -296,7 +296,7 @@ def test_every_real_agent_can_use_the_workspace_tools(plugin_dir):
 def test_roles_save_reports_with_the_tool_and_keep_the_command_as_fallback(role):
     text = (CORE_DIR / build.ROLES_DIR / f"{role}.md").read_text(encoding="utf-8")
     assert "`report_write`" in text and "Only if that tool is not available" in text
-    assert text.index("`report_write`") < text.index("agentflow report --step"), "the tool comes first, the command is the fallback"
+    assert text.index("`report_write`") < text.index("thanhtan report --step"), "the tool comes first, the command is the fallback"
 
 
 def test_the_continue_skill_prefers_the_tool_too():

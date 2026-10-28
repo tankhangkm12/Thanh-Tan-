@@ -18,7 +18,7 @@ USAGE = REPO / "families" / "software-dev" / "USAGE.md"
 ARCHITECTURE = REPO / "docs" / "architecture.md"
 README = REPO / "README.md"
 CHANGELOG = REPO / "CHANGELOG.md"
-MCP_PREFIX = "mcp__plugin_dev-core_agentflow__"
+MCP_PREFIX = "mcp__plugin_dev-core_thanhtan__"
 DONE_HEADING = "## Mục roadmap đã hoàn thành"
 PROCESS_HEADING = "## Đề xuất cải tiến quy trình"
 
@@ -89,8 +89,8 @@ def test_there_is_a_replan_skill_with_the_usual_frontmatter():
 
 def test_the_replan_skill_checks_the_state_first_and_only_goes_on_when_it_is_pending():
     text = skill("replan")
-    assert "agentflow replan status" in text
-    assert text.index("agentflow replan status") < text.index("scout")
+    assert "thanhtan replan status" in text
+    assert text.index("thanhtan replan status") < text.index("scout")
     for state in ("pending", "proposed", "task-open", "not-sealed", "done", "skipped", "no-finished-task"):
         assert state in text, state
 
@@ -102,7 +102,7 @@ def test_the_replan_skill_hands_the_work_to_the_scout_and_names_the_report():
 
 def test_the_replan_skill_leaves_confirming_and_closing_items_to_the_person():
     text = skill("replan")
-    for needle in ("agentflow project confirm", "agentflow roadmap set", "agentflow replan done", "agentflow replan skip"):
+    for needle in ("thanhtan project confirm", "thanhtan roadmap set", "thanhtan replan done", "thanhtan replan skip"):
         assert needle in text, needle
     assert "never run" in text.lower()
 
@@ -110,7 +110,7 @@ def test_the_replan_skill_leaves_confirming_and_closing_items_to_the_person():
 def test_the_replan_skill_stops_at_proposed_and_asks_the_person_to_read_replan_md_first():
     text = skill("replan")
     assert "proposed" in text and "replan.md" in text
-    assert text.index("replan.md") < text.index("agentflow replan done")
+    assert text.index("replan.md") < text.index("thanhtan replan done")
 
 
 def test_the_replan_skill_follows_the_rules_of_every_skill():
@@ -129,7 +129,7 @@ def test_the_continue_skill_suggests_the_replan_when_a_task_is_done():
 
 
 def test_the_status_skill_reports_the_replan_state():
-    assert "agentflow replan status" in skill("status")
+    assert "thanhtan replan status" in skill("status")
 
 
 def test_the_start_skill_mentions_the_replan_warning():
@@ -146,13 +146,13 @@ def test_the_approve_skill_points_at_the_replan_after_the_last_approval():
 
 def test_usage_has_a_section_on_the_replan():
     text = section(read(USAGE), "Replan sau mỗi task")
-    for needle in ("/dev-core:replan", "spec-delta.md", "replan.md", "agentflow replan status", "agentflow replan skip", "agentflow replan done", "proposed", "agentflow roadmap set", DONE_HEADING.removeprefix("## ")):
+    for needle in ("/dev-core:replan", "spec-delta.md", "replan.md", "thanhtan replan status", "thanhtan replan skip", "thanhtan replan done", "proposed", "thanhtan roadmap set", DONE_HEADING.removeprefix("## ")):
         assert needle in text, needle
 
 
 def test_usage_lists_the_replan_commands_of_a_person_among_the_persons_commands():
     text = section(read(USAGE), "Lệnh của người")
-    assert "agentflow replan skip" in text and "agentflow replan done" in text
+    assert "thanhtan replan skip" in text and "thanhtan replan done" in text
 
 
 def test_usage_explains_the_replan_warning_and_the_blocked_task_limit():
@@ -174,7 +174,7 @@ def test_the_work_cycle_in_usage_ends_with_the_replan():
 
 def test_the_architecture_document_describes_the_new_files_commands_and_tool():
     text = read(ARCHITECTURE)
-    for needle in ("spec-delta.md", "replan.md", "replanned_at", "proposed", "agentflow replan status", "agentflow replan write", "agentflow replan done", "agentflow replan skip", "replan_write"):
+    for needle in ("spec-delta.md", "replan.md", "replanned_at", "proposed", "thanhtan replan status", "thanhtan replan write", "thanhtan replan done", "thanhtan replan skip", "replan_write"):
         assert needle in text, needle
 
 

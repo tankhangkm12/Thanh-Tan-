@@ -6,7 +6,7 @@
 
     uv run tools/smoke_modes.py
 
-Uses the installed `agentflow` and the real dev-core workflow. A fake MCP server (fake_mcp_server.py) stands in for a
+Uses the installed `thanhtan` and the real dev-core workflow. A fake MCP server (fake_mcp_server.py) stands in for a
 project's own MCP server. Needs git and a running Docker or Podman engine (the small task runs real scans).
 """
 
@@ -20,7 +20,7 @@ from pathlib import Path
 
 import yaml
 from fake_mcp_server import READ_TOOL, SERVER_NAME, TOOL_NAMES, WRITE_TOOL
-from smoke_support import AGENTFLOW, ENCODING, Failure, Session, _make_writable_and_retry, expect
+from smoke_support import THANHTAN, ENCODING, Failure, Session, _make_writable_and_retry, expect
 
 ROOT = Path(__file__).resolve().parents[1]
 WORKFLOW = ROOT / "families" / "software-dev" / "core" / "workflow.yaml"
@@ -123,7 +123,7 @@ def role_grants(s: Session, repo: Path) -> None:
     listing = s.af("role", "list").stdout
     expect("project-implementer-fast (current)" in listing and "Antigravity" in listing, "role list shows the agents and the Antigravity note", listing)
 
-    verdict = json.loads(s.af("guard", stdin=json.dumps({"command": f"agentflow role grant reviewer {SERVER_PREFIX}*", "cwd": str(repo)})).stdout)
+    verdict = json.loads(s.af("guard", stdin=json.dumps({"command": f"thanhtan role grant reviewer {SERVER_PREFIX}*", "cwd": str(repo)})).stdout)
     expect(verdict["rule"] == "person-only", "an agent cannot run role grant", str(verdict))
     write = json.loads(
         s.af("hook", "pre-tool", "--cli", "claude", stdin=json.dumps({"cwd": str(repo), "tool_name": "Write", "tool_input": {"file_path": str(agents / "project-implementer-fast.md")}})).stdout
@@ -175,14 +175,14 @@ def small_task(s: Session, repo: Path) -> None:
 
 
 def main() -> int:
-    if shutil.which(AGENTFLOW) is None or shutil.which("git") is None:
+    if shutil.which(THANHTAN) is None or shutil.which("git") is None:
         print("git must be on PATH", file=sys.stderr)
         return 2
-    base = Path(tempfile.mkdtemp(prefix="agentflow-modes-"))
+    base = Path(tempfile.mkdtemp(prefix="thanhtan-modes-"))
     repo = base / "sample"
     repo.mkdir()
     os.environ["GIT_CEILING_DIRECTORIES"] = str(base)
-    os.environ["AGENTFLOW_HOME"] = str(base / "user-home")  # nothing here may touch the real ~/.ThanhTan
+    os.environ["THANHTAN_HOME"] = str(base / "user-home")  # nothing here may touch the real ~/.ThanhTan
     try:
         s = Session(repo)
         s.git("init", "-q", "-b", MAIN)

@@ -1,5 +1,5 @@
 [project]
-name = "agentflow"
+name = "thanhtan"
 version = "0.8.0"
 description = "Shared, domain-agnostic engine for the plugin families in this repo"
 authors = [
@@ -13,7 +13,9 @@ dependencies = [
 ]
 
 [project.scripts]
-agentflow = "agentflow.cli:main"
+thanhtan = "thanhtan.cli:main"
+# The name before 1.0.0, kept as an alias: the same program, with a reminder of the new name.
+agentflow = "thanhtan.cli:legacy_main"
 
 [build-system]
 requires = ["uv_build>=0.12.17,<0.13.0"]

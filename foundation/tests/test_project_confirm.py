@@ -1,7 +1,7 @@
 import pytest
 
-from agentflow.cli import main
-from agentflow.constants import ExitCode
+from thanhtan.cli import main
+from thanhtan.constants import ExitCode
 
 DOC = """# Quy ước
 

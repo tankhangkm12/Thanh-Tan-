@@ -71,7 +71,7 @@ def test_the_scout_gives_roadmap_items_a_docs_line():
 def test_the_scout_is_told_that_it_confirms_nothing_and_cannot_change_a_status():
     body = role("scout").lower()
     assert "mission" in body and "roadmap" in body
-    assert "agentflow project confirm" in body and "never confirm" in body
+    assert "thanhtan project confirm" in body and "never confirm" in body
     assert "status" in body and "person" in body
 
 
@@ -81,13 +81,13 @@ def test_the_scout_is_told_that_it_confirms_nothing_and_cannot_change_a_status()
 def test_the_setup_skill_asks_for_the_mission_and_roadmap_documents_and_tells_the_person_what_to_confirm():
     text = skill("setup")
     assert "mission" in text and "roadmap" in text
-    assert "agentflow project confirm mission" in text and "R1" in text
-    assert "agentflow project status" in text
+    assert "thanhtan project confirm mission" in text and "R1" in text
+    assert "thanhtan project status" in text
 
 
 def test_the_start_skill_ties_the_task_to_a_roadmap_item():
     text = skill("start")
-    assert "--roadmap" in text and "agentflow roadmap list" in text
+    assert "--roadmap" in text and "thanhtan roadmap list" in text
     assert "warn" in text.lower()
 
 
@@ -100,7 +100,7 @@ def test_the_status_skill_mentions_the_roadmap_suggestion():
 
 def test_usage_tells_a_new_project_to_set_up_the_mission_and_the_roadmap():
     text = section(read(USAGE), "Chuẩn bị một lần cho mỗi dự án")
-    for needle in ("Mission", "roadmap.md", "agentflow project confirm mission", "agentflow project status", "agentflow project confirm R1"):
+    for needle in ("Mission", "roadmap.md", "thanhtan project confirm mission", "thanhtan project status", "thanhtan project confirm R1"):
         assert needle in text, needle
 
 
@@ -112,7 +112,7 @@ def test_the_task_template_has_a_roadmap_line():
 
 def test_usage_lists_the_new_commands_a_person_runs():
     text = section(read(USAGE), "Lệnh của người")
-    for needle in ("agentflow roadmap set", "agentflow project confirm mission"):
+    for needle in ("thanhtan roadmap set", "thanhtan project confirm mission"):
         assert needle in text, needle
 
 
@@ -131,7 +131,7 @@ def test_usage_explains_unconfirmed_mission_and_roadmap_in_the_situations_sectio
 
 def test_the_architecture_document_describes_the_new_files_and_commands():
     text = read(ARCHITECTURE)
-    for needle in ("roadmap.md", "confirmations.json", "agentflow roadmap list", "agentflow roadmap set", "agentflow project status", "history/", "removed:"):
+    for needle in ("roadmap.md", "confirmations.json", "thanhtan roadmap list", "thanhtan roadmap set", "thanhtan project status", "history/", "removed:"):
         assert needle in text, needle
 
 

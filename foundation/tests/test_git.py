@@ -1,10 +1,10 @@
 import pytest
 from conftest import git
 
-from agentflow.constants import ExitCode
-from agentflow.errors import AgentflowError
-from agentflow.git import GitBranchLookup, SubprocessGit
-from agentflow.interfaces import BranchLookup, GitClient
+from thanhtan.constants import ExitCode
+from thanhtan.errors import ThanhTanError
+from thanhtan.git import GitBranchLookup, SubprocessGit
+from thanhtan.interfaces import BranchLookup, GitClient
 
 
 @pytest.fixture
@@ -47,7 +47,7 @@ def test_branch_exists_and_create(client):
 
 
 def test_create_branch_from_missing_base_fails(client):
-    with pytest.raises(AgentflowError) as exc:
+    with pytest.raises(ThanhTanError) as exc:
         client.create_branch("feature/x", "nope")
     assert exc.value.code is ExitCode.GIT_FAILED
 
@@ -65,7 +65,7 @@ def test_staged_changes_and_commit(client, gitflow_repo):
 
 
 def test_commit_with_nothing_staged_fails(client):
-    with pytest.raises(AgentflowError) as exc:
+    with pytest.raises(ThanhTanError) as exc:
         client.commit("empty")
     assert exc.value.code is ExitCode.GIT_FAILED
 

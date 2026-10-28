@@ -66,7 +66,7 @@ def test_bypass_mode_is_switched_off_in_the_block():
 
 
 @pytest.mark.parametrize("shell", SHELLS)
-@pytest.mark.parametrize("command", ["agentflow task approve", "agentflow task cancel"])
+@pytest.mark.parametrize("command", ["thanhtan task approve", "thanhtan task cancel"])
 def test_approving_and_cancelling_are_asked_in_both_shells(shell, command):
     assert f"{shell}({command} *)" in rules()["ask"]
 
@@ -92,14 +92,14 @@ def test_no_allow_rule_opens_the_door_to_arbitrary_code():
 @pytest.mark.parametrize("command", PERSON_COMMANDS)
 def test_no_allow_rule_covers_a_command_of_a_person(command):
     for rule in rules()["allow"]:
-        assert f"agentflow {command}" not in rule, rule
+        assert f"thanhtan {command}" not in rule, rule
 
 
-def test_every_allow_rule_for_the_shells_starts_with_agentflow():
+def test_every_allow_rule_for_the_shells_starts_with_thanhtan():
     for rule in rules()["allow"]:
         match = re.fullmatch(r"(?:Bash|PowerShell)\((.*)\)", rule)
         if match:
-            assert match.group(1).startswith("agentflow "), rule
+            assert match.group(1).startswith("thanhtan "), rule
 
 
 # ------------------------------------------------------------------ the text around it
@@ -144,4 +144,4 @@ def test_the_old_claim_that_a_python_rule_was_tried_and_is_fine_is_gone():
 def test_the_text_does_not_promise_that_decide_asks():
     text = step4()
     intro = text.split("```json")[0]
-    assert "agentflow decide" not in intro.split("**ask**")[-1].split(".")[0]
+    assert "thanhtan decide" not in intro.split("**ask**")[-1].split(".")[0]

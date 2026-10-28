@@ -1,18 +1,18 @@
 # /// script
 # requires-python = ">=3.12"
 # ///
-"""Install or update everything this repository gives a machine, in one command: the `agentflow` engine and the plugins of
+"""Install or update everything this repository gives a machine, in one command: the `thanhtan` engine and the plugins of
 Claude Code and Antigravity. It never touches a project.
 
-    uv run tools/install.py                  # install or update agentflow, dev-core in Claude Code and in Antigravity
+    uv run tools/install.py                  # install or update thanhtan, dev-core in Claude Code and in Antigravity
     uv run tools/install.py --backend        # also dev-backend
     uv run tools/install.py --design         # also design-core and design-architecture
-    uv run tools/install.py --only claude    # only Claude Code (or: agy); agentflow is always installed
+    uv run tools/install.py --only claude    # only Claude Code (or: agy); thanhtan is always installed
     uv run tools/install.py --check          # change nothing: say what is installed and what is out of date
 
 Run it from anywhere; it finds the repository from its own place. After `git pull`, run it again.
 
-Python: agentflow is installed with a Python that uv manages (3.12, downloaded once by uv), never the one on PATH. On
+Python: thanhtan is installed with a Python that uv manages (3.12, downloaded once by uv), never the one on PATH. On
 Windows `python` is often only the Microsoft Store shortcut ("Python was not found"), or a tool environment still points
 to a Python that was removed; a uv-managed Python avoids both.
 """
@@ -85,7 +85,7 @@ class Step:
 
 
 def repo_version(name: str) -> str:
-    if name == "agentflow":
+    if name == "thanhtan":
         text = (FOUNDATION / "pyproject.toml").read_text(encoding=ENCODING)
         found = re.search(r'^version\s*=\s*"([^"]+)"', text, re.MULTILINE)
         return found.group(1) if found else "?"
@@ -110,7 +110,7 @@ def tail(output: str, lines: int = 6) -> str:
 def check_prerequisites(runner: Runner, clis: Sequence[str]) -> list[Step]:
     steps = [Step(f"{name} on PATH", runner.which(name) is not None, "" if runner.which(name) else f"install {name} first") for name in ("uv", "git")]
     if runner.which("docker") is None:
-        steps.append(Step("docker", False, "not found: `agentflow commit` needs Docker Desktop (or Podman) to scan for secrets", warning=True))
+        steps.append(Step("docker", False, "not found: `thanhtan commit` needs Docker Desktop (or Podman) to scan for secrets", warning=True))
     else:
         info = runner.run(["docker", "info"])
         steps.append(Step("docker engine running", info.returncode == 0, "" if info.returncode == 0 else "start Docker Desktop", warning=info.returncode != 0))
@@ -120,7 +120,7 @@ def check_prerequisites(runner: Runner, clis: Sequence[str]) -> list[Step]:
     return steps
 
 
-def install_agentflow(runner: Runner) -> Step:
+def install_thanhtan(runner: Runner) -> Step:
     python = runner.run(["uv", "python", "install", PYTHON_VERSION])
     if python.returncode != 0:
         return Step(f"uv-managed Python {PYTHON_VERSION}", False, tail(python.output))
@@ -130,20 +130,20 @@ def install_agentflow(runner: Runner) -> Step:
         # uv older than 0.7 has no --managed-python; the Python it just installed is still the one picked first.
         done = runner.run([part for part in command if part != "--managed-python"])
     if done.returncode != 0:
-        return Step("install agentflow", False, IN_USE_HINT if in_use(done.output) else tail(done.output))
-    return Step("install agentflow", True, f"Python {PYTHON_VERSION} managed by uv")
+        return Step("install thanhtan", False, IN_USE_HINT if in_use(done.output) else tail(done.output))
+    return Step("install thanhtan", True, f"Python {PYTHON_VERSION} managed by uv")
 
 
-def check_agentflow(runner: Runner) -> Step:
-    wanted = repo_version("agentflow")
-    if runner.which("agentflow") is None:
-        return Step("agentflow on PATH", False, "not found: run `uv tool update-shell`, then open a new terminal")
-    done = runner.run(["agentflow", "--version"])
+def check_thanhtan(runner: Runner) -> Step:
+    wanted = repo_version("thanhtan")
+    if runner.which("thanhtan") is None:
+        return Step("thanhtan on PATH", False, "not found: run `uv tool update-shell`, then open a new terminal")
+    done = runner.run(["thanhtan", "--version"])
     found = VERSION_PATTERN.search(done.output)
     have = found.group(1) if found else "?"
     if done.returncode != 0:
-        return Step("agentflow runs", False, tail(done.output) + "\n(a broken tool environment: run this script without --check)")
-    return Step(f"agentflow {wanted}", have == wanted, f"PATH has {have}" if have != wanted else "")
+        return Step("thanhtan runs", False, tail(done.output) + "\n(a broken tool environment: run this script without --check)")
+    return Step(f"thanhtan {wanted}", have == wanted, f"PATH has {have}" if have != wanted else "")
 
 
 def claude_listing(runner: Runner) -> dict[str, dict]:
@@ -232,11 +232,11 @@ def run(args: argparse.Namespace, runner: Runner) -> list[Step]:
     if not all(step.ok or step.warning for step in steps):
         return steps
     if not args.check:
-        installed = install_agentflow(runner)
+        installed = install_thanhtan(runner)
         steps.append(installed)
         if not installed.ok:
             return steps
-    steps.append(check_agentflow(runner))
+    steps.append(check_thanhtan(runner))
     for cli in clis:
         if runner.which(cli) is None:
             continue
@@ -257,15 +257,15 @@ def report(steps: Sequence[Step], check: bool) -> int:
         print(f"\n{len(failed)} problem(s).", "Run without --check to install or update." if check else "")
         return 1
     print("\nAll good." + ("" if check else " Open a new Claude Code / Antigravity session to load the new plugins."))
-    print("Projects are not touched: in each project the next `agentflow` command moves an old .agentflow/ to .ThanhTan/, "
-          "and `agentflow doctor` says when `agentflow workflow sync` is needed.")
+    print("Projects are not touched: in each project the next `thanhtan` command moves an old .agentflow/ to .ThanhTan/, "
+          "and `thanhtan doctor` says when `thanhtan workflow sync` is needed.")
     return 0
 
 
 def main(argv: list[str] | None = None, runner: Runner | None = None) -> int:
-    parser = argparse.ArgumentParser(description="Install or update agentflow and the plugins of this repository.")
+    parser = argparse.ArgumentParser(description="Install or update thanhtan and the plugins of this repository.")
     parser.add_argument("--check", action="store_true", help="change nothing; say what is installed and what is out of date")
-    parser.add_argument("--only", choices=(CLAUDE, AGY), help="only this CLI (agentflow is always handled)")
+    parser.add_argument("--only", choices=(CLAUDE, AGY), help="only this CLI (thanhtan is always handled)")
     parser.add_argument("--backend", action="store_true", help="also dev-backend")
     parser.add_argument("--design", action="store_true", help="also design-core and design-architecture")
     args = parser.parse_args(argv)

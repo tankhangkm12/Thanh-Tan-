@@ -16,7 +16,7 @@ import build  # noqa: E402
 
 REPO = Path(__file__).resolve().parents[1]
 CORE = REPO / build.DEFAULT_PLUGIN
-FOUNDATION = REPO / "foundation" / "src" / "agentflow"
+FOUNDATION = REPO / "foundation" / "src" / "thanhtan"
 USAGE = REPO / "families" / "software-dev" / "USAGE.md"
 ARCHITECTURE = REPO / "docs" / "architecture.md"
 SOFTWARE_DEV_README = REPO / "families" / "software-dev" / "README.md"
