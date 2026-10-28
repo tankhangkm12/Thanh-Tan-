@@ -90,8 +90,11 @@ def new_task(
     clock: Clock,
     size: str | None = None,
     roadmap: str | None = None,
+    base: str | None = None,
 ) -> Task:
-    """Create the task's gitflow branch from its base, switch to it, and record the task as active."""
+    """Create the task's branch from its base, switch to it, and record the task as active.
+
+    ``base`` is the branch to start from (the built-in one for the task type when none is given); it is kept in the task."""
     title = title.strip()
     if not title:
         raise AgentflowError("the task title is empty", ExitCode.INVALID_INPUT)
@@ -109,10 +112,12 @@ def new_task(
             "the working tree has uncommitted or untracked changes; commit, stash or remove them first",
             ExitCode.DIRTY_WORKING_TREE,
         )
-    base = TASK_BASE_BRANCH[task_type]
+    base = base or TASK_BASE_BRANCH[task_type]
     if not git.branch_exists(base):
         raise AgentflowError(
-            f"base branch '{base}' for a {task_type} task does not exist locally", ExitCode.BRANCH_PROBLEM
+            f"base branch '{base}' for a {task_type} task does not exist locally: create it, or choose another "
+            "(`agentflow task new --base <branch>`, or `agentflow config set git.base.default <branch>`)",
+            ExitCode.BRANCH_PROBLEM,
         )
     task_id = next_task_id(state)
     branch = branch_name(task_type, task_id, title)
@@ -120,7 +125,7 @@ def new_task(
         raise AgentflowError(f"branch '{branch}' already exists", ExitCode.BRANCH_PROBLEM)
 
     git.create_branch(branch, base)
-    task = start_task(workflow, task_id, title, branch, clock(), size, roadmap, str(task_type))
+    task = start_task(workflow, task_id, title, branch, clock(), size, roadmap, str(task_type), base)
     store.save(replace(state, active_task_id=task.id, tasks=(*state.tasks, task)))
     return task
 

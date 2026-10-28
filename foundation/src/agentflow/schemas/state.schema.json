@@ -47,6 +47,7 @@
         "size": { "type": "string", "pattern": "^[a-z][a-z0-9-]*$" },
         "roadmap": { "type": "string", "pattern": "^R[0-9]+$" },
         "type": { "type": "string", "pattern": "^[a-z][a-z0-9-]*$" },
+        "base": { "type": "string", "minLength": 1 },
         "replanned_at": { "type": "string" },
         "history": {
           "type": "array",

@@ -14,6 +14,7 @@ import json
 import os
 import re
 import shlex
+from collections.abc import Collection
 from dataclasses import dataclass, field, replace
 from pathlib import Path
 from typing import Any
@@ -230,6 +231,8 @@ class _Context:
     # Branches the command line itself switched to, per repository directory (None = detached).
     switched: dict[Path, str | None] = field(default_factory=dict)
     writes: WriteTargetPolicy = field(default_factory=GuardedPaths)
+    # Branches nobody commits on but a person: main and develop, plus the ones the project named (see gitconfig.py).
+    protected: frozenset[str] = PROTECTED_BRANCHES
 
     def in_workspace(self, directory: Path) -> bool:
         return self.workspaces is not None and self.workspaces.has_workspace(directory)
@@ -246,9 +249,11 @@ def evaluate(
     branches: BranchLookup,
     workspaces: WorkspaceLookup | None = None,
     writes: WriteTargetPolicy | None = None,
+    protected_branches: Collection[str] | None = None,
 ) -> GuardVerdict:
     start = Path(os.path.normpath(cwd))
-    context = _Context(start, branches, workspaces, writes=writes or GuardedPaths())
+    protected = PROTECTED_BRANCHES | frozenset(protected_branches or ())
+    context = _Context(start, branches, workspaces, writes=writes or GuardedPaths(), protected=protected)
     verdict = _evaluate_whole(command, context, depth=0)
     if verdict.denied:
         return verdict
@@ -783,7 +788,7 @@ def _evaluate_git(args: list[str], context: _Context) -> GuardVerdict:
         return _deny(GuardRule.DIRECT_COMMIT)
     if subcommand in _COMMITTING and not _STOP_FLAGS.intersection(rest):
         branch = context.branch_of(directory)
-        if branch in PROTECTED_BRANCHES:
+        if branch in context.protected:
             return _deny(GuardRule.PROTECTED_BRANCH, subcommand=subcommand, branch=branch)
     if subcommand == _SWITCH:
         _track_switch(rest, directory, context)
@@ -837,7 +842,7 @@ def _track_checkout(args: list[str], directory: Path, context: _Context) -> None
     elif _END_OF_OPTIONS not in args:
         # `git checkout <name>` is a branch switch only if such a branch exists; otherwise it restores files.
         target = _first_positional(args)
-        if target is not None and (target in PROTECTED_BRANCHES or context.branches.branch_exists(directory, target)):
+        if target is not None and (target in context.protected or context.branches.branch_exists(directory, target)):
             context.switched[directory] = target
 
 

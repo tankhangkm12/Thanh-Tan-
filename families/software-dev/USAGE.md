@@ -154,6 +154,26 @@ Tài liệu: không có
 Roadmap: không có
 ```
 
+## Nhánh gốc của task
+
+Mặc định mỗi task tách nhánh từ `develop` (riêng `hotfix` từ `main`). Công ty hay giai đoạn của bạn khác đi (làm tiếp từ `feature/login`, nhánh `release/2`, trunk `master`...) thì **bạn** chọn, theo ba tầng, tầng trên thắng:
+
+| Tầng | Lệnh | Dùng khi |
+|---|---|---|
+| Từng task | `agentflow task new "<tiêu đề>" --base feature/login` (hoặc nói với skill: `/dev-core:start làm R3, tách từ feature/login`) | Một việc riêng tách từ nhánh khác |
+| Từng loại task | `agentflow config set git.base.bugfix release/2` (loại: `feature`, `bugfix`, `hotfix`, `refactor`, `chore`) | Mỗi loại một nhánh gốc |
+| Cả dự án | `agentflow config set git.base.default feature/login` | Cả giai đoạn làm trên một nhánh |
+| Mặc định | không đặt gì | `develop`; `hotfix` từ `main` |
+
+Nếu công ty đặt tên khác cho hai nhánh chính, nói cho agentflow biết: `agentflow config set git.main_branch master` và `agentflow config set git.develop_branch dev`. Các lệnh `config set` là việc của người; agent chỉ đọc được (`agentflow config get git.base.default`).
+
+- **Task nhớ nhánh gốc của nó** (`agentflow status` hiện `base:`). Đổi cài đặt sau đó không làm task đang chạy đổi nhánh gốc.
+- **Review chỉ thấy phần task làm:** `agentflow scope`, `review-map`, `spec-delta.md` và `summary.md` so với nhánh gốc đó, nên code có sẵn trong `feature/login` không bị tính là của task.
+- **Nhánh gốc phải có trên máy.** Thiếu thì `task new` báo lỗi và gợi ý. Nếu nhánh gốc trên máy tụt so với `origin` (đồng nghiệp đã push), `task new` cảnh báo: hủy task (`agentflow task cancel`), `git switch <nhánh>`, `git pull`, rồi tạo lại.
+- **Agent không commit, merge, rebase trên các nhánh gốc**: ngoài `main` và `develop`, hook còn bảo vệ tên bạn đặt ở `git.*` và nhánh gốc của task đang mở.
+- Đẩy lên review: PR của bạn trỏ vào đúng nhánh gốc (ví dụ `feature/login`), không phải `develop`. Task mới nên bắt đầu sau khi nhánh gốc đã có phần task trước (đã merge và `git pull`).
+- Kiểm tra cài đặt: `agentflow config check` báo tên nhánh sai hoặc khóa lạ trong `git.*`.
+
 ## Chọn chế độ
 
 **Cỡ task: `small` hay `normal`.** Chọn `small` cho thay đổi nhỏ, rõ ràng, vừa trong tối đa 3 mục kế hoạch. Task `small` bỏ duyệt ở bước `plan` (`agentflow plan check` vẫn chạy và chặn), nhưng vẫn cần bạn duyệt ở `confirm` và `review`; bước `security` chỉ chạy Gitleaks và Semgrep, không chạy Trivy. Không chắc thì chọn `normal`. Kế hoạch dài hơn 3 mục thì bắt đầu lại bằng `normal`. Chi tiết: [README gốc](../../README.md#chế-độ-nhẹ-task-nhỏ).

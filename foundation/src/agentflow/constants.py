@@ -801,6 +801,8 @@ class StateKey(StrEnum):
     BRANCH = "branch"
     SIZE = "size"
     TYPE = "type"
+    # The branch the task was started from (the one its review, scope and summary compare against).
+    BASE = "base"
     ROADMAP = "roadmap"
     REPLANNED_AT = "replanned_at"
     HISTORY = "history"

@@ -139,6 +139,8 @@ def render_state_md(state: State, workflow: Workflow) -> str:
             f"- Rework rounds: {task.loop_round}/{workflow.max_rounds}",
             f"- Branch: {task.branch or NONE_TEXT}",
         ]
+        if task.base:
+            lines.append(f"- Base: {task.base}")
         if task.size:
             lines.append(f"- Size: {task.size}")
         if task.type:

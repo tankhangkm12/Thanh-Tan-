@@ -127,7 +127,7 @@ Task trong `state.json` có `id` (`T-001`), `title`, `status` (`open`/`blocked`/
 | `agentflow status` | Task đang mở, bước hiện tại, việc tiếp theo | Chưa có workspace, state hỏng |
 | `agentflow next` | Bước tiếp theo, dạng `<loại>: <mô tả>` | Như `status` |
 | `agentflow workflow sync [--force]` | Thay bản chép workflow bằng bản gốc đã kiểm | Bản gốc lỗi hoặc mất, khác nhóm, có task đang chạy |
-| `agentflow task new "<tiêu đề>" --type feature\|bugfix\|hotfix [--size <cỡ>] [--roadmap Rn]` | Tạo nhánh gitflow `<type>/T-001-<slug>` và ghi task; `--roadmap` gắn task với một mục roadmap (chuyển mục sang `doing`). Không có `--size` thì lấy cỡ của loại task (mục `types`), rồi cỡ mặc định. Cảnh báo (không chặn) khi thiếu mission/roadmap, chưa xác nhận, hoặc không có `--roadmap` (trừ task `hotfix`) | Cây làm việc chưa sạch, đã có task mở, thiếu nhánh gốc; `--roadmap` sai mã, không có roadmap, mục `done`/`dropped` |
+| `agentflow task new "<tiêu đề>" --type feature\|bugfix\|hotfix\|refactor\|chore [--size <cỡ>] [--roadmap Rn] [--base <nhánh>]` | Tạo nhánh `<type>/T-001-<slug>` từ nhánh gốc (`--base`, rồi `git.base.<loại>`, rồi `git.base.default`, rồi `develop`; `main` cho hotfix) và ghi task cùng nhánh gốc (`base` trong `state.json`); `--roadmap` gắn task với một mục roadmap (chuyển mục sang `doing`). Không có `--size` thì lấy cỡ của loại task (mục `types`), rồi cỡ mặc định. Cảnh báo (không chặn) khi thiếu mission/roadmap, chưa xác nhận, hoặc không có `--roadmap` (trừ task `hotfix`) | Cây làm việc chưa sạch, đã có task mở, thiếu nhánh gốc; `--roadmap` sai mã, không có roadmap, mục `done`/`dropped` |
 | `agentflow task advance --result pass\|fail` | Ghi kết quả bước hiện tại | Không có task, bước không ở trạng thái cho phép |
 | `agentflow task approve [--reason ...]` | Duyệt bước đang chờ; với task `blocked` là người cho làm tiếp (ghi `decisions/`) | Như trên |
 | `agentflow task cancel` | Hủy task đang mở | Không có task đang mở |
@@ -162,6 +162,10 @@ Task trong `state.json` có `id` (`T-001`), `title`, `status` (`open`/`blocked`/
 ### Vòng đời task
 
 `task new` → mỗi bước: `task advance --result pass` → (bước cần duyệt) `task approve` → bước kế. Fail ở `test`/`security`/`review` quay thẳng về `implement`, đếm vòng; hết `max_rounds` (mặc định 3) thì task `blocked` và chỉ người mới `task approve` để cho làm tiếp (vòng reset về 0, ghi một file vào `decisions/`) hoặc `task cancel`. Đi hết bước cuối thì task `done`. Chỉ một task mở tại một thời điểm.
+
+### Nhánh gốc của task (`git.*`)
+
+Nhánh một task tách ra là lựa chọn của dự án (`gitconfig.py`), không còn cố định là `develop`. Thứ tự chọn, mạnh nhất trước: `task new --base <nhánh>`, `git.base.<loại task>`, `git.base.default`, rồi mặc định `git.develop_branch` (hotfix: `git.main_branch`); hai tên này mặc định là `develop` và `main`. Cài đặt bằng `agentflow config set` (việc của người, guard từ chối agent); `config set` chỉ nhận khóa `git.*` đã biết và tên nhánh hợp lệ, `config check` báo giá trị sai viết tay vào `config.yaml`. Nhánh gốc được ghi vào task (`base` trong `state.json`, schema `state.schema.json`) lúc tạo; đổi cài đặt sau đó không dời task. `seal.base_branch` đọc `task.base`, task cũ không có thì suy ra từ tiền tố nhánh như trước; từ đó `scope`, `review-map`, `scan` (phạm vi file đổi), `spec-delta.md` và `summary.md` so với đúng nhánh gốc. `task new` đòi nhánh gốc có trên máy và cảnh báo (không chặn) khi nó tụt so với `origin/<nhánh>`. Guard bảo vệ thêm các nhánh bạn đặt tên và nhánh gốc của task đang mở (`hook.protected_branches`, cũng dùng cho `agentflow guard`); `main` và `develop` luôn được bảo vệ. Giới hạn: task cũ không có `base` vẫn suy ra `develop` hay `main` theo tên cố định, không theo `git.*`; và hash chống sửa ngoài của `config.yaml` chỉ bao `test_command`, `test_timeout_minutes`, còn `git.*` dựa vào việc hook chặn agent ghi vào `.agentflow/`.
 
 ### commit và guard
 

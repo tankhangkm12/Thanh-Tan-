@@ -9,7 +9,7 @@ from dataclasses import dataclass, replace
 from importlib.metadata import version
 from pathlib import Path
 
-from agentflow import amend, diagnosis, docpin, lockfiles, lockflow, stats
+from agentflow import amend, diagnosis, docpin, gitconfig, lockfiles, lockflow, stats
 from agentflow.assign import ProjectAgentNames, WorkflowAgentNames, assignment_lines
 from agentflow.convention_sources import load_effective_conventions
 from agentflow.services import WorkspaceServices
@@ -65,7 +65,7 @@ from agentflow.errors import AgentflowError
 from agentflow.gates import GateContext, WorkspaceGates, plan_problems, plan_report_path
 from agentflow.git import GitBranchLookup, SubprocessGit, run_git
 from agentflow.guard import evaluate, parse_request, verdict_to_dict
-from agentflow.hook import handle_hook
+from agentflow.hook import handle_hook, protected_branches
 from agentflow.models import State, ToolCheck, Workflow
 from agentflow.plan import PlanItem, parse_plan
 from agentflow.projectcontext import load_project_context
@@ -110,6 +110,7 @@ from agentflow.workspace import (
 CLI_OPTION = "--cli"
 TYPE_OPTION = "--type"
 SIZE_OPTION = "--size"
+BASE_OPTION = "--base"
 ROADMAP_OPTION = "--roadmap"
 RESULT_OPTION = "--result"
 REASON_OPTION = "--reason"
@@ -155,6 +156,10 @@ def build_parser() -> argparse.ArgumentParser:
     new.add_argument(TYPE_OPTION, type=TaskType, choices=list(TaskType), default=TaskType.FEATURE)
     new.add_argument(SIZE_OPTION, help="task size, one of the sizes the workflow defines (default: the workflow's default size)")
     new.add_argument(ROADMAP_OPTION, help="the roadmap item (R1, R2 ...) the task serves; moves it to doing")
+    new.add_argument(
+        BASE_OPTION,
+        help="the branch to start from (default: git.base.<type> or git.base.default of the project settings, else develop; main for a hotfix)",
+    )
     advance = task_commands.add_parser(TaskCommand.ADVANCE, help="record that the current step passed or failed")
     advance.add_argument(RESULT_OPTION, required=True, type=TaskEvent, choices=list(STEP_RESULTS))
     approve = task_commands.add_parser(TaskCommand.APPROVE, help="approve the step, or resume a blocked task")
@@ -389,6 +394,8 @@ def cmd_status(args: argparse.Namespace) -> ExitCode:
         print(f"task status: {task.status}; rework rounds: {rounds}; branch: {task.branch or NONE_TEXT}")
         if task.size:
             print(f"size: {task.size}")
+        if task.base:
+            print(f"base: {task.base}")
         if task.type:
             keeps = " (keeps the behaviour: its tests must pass before and after the change)" if workflow.test_spec_mode(task) is TestSpecMode.GREEN else ""
             print(f"type: {task.type}{keeps}")
@@ -494,12 +501,16 @@ def cmd_task(args: argparse.Namespace) -> ExitCode:
             if args.roadmap is not None:
                 require_linkable(opened.paths.dir, args.roadmap)
             before = replan_status(opened.paths.dir, opened.state, SubprocessGit(opened.paths.root))
-            task = new_task(store, opened.workflow, SubprocessGit(opened.paths.root), args.title, args.type, utc_now, args.size, args.roadmap)
+            if args.base is not None and (problem := gitconfig.name_problem(args.base)):
+                raise AgentflowError(f"{BASE_OPTION}: {problem}", ExitCode.INVALID_INPUT)
+            base = gitconfig.names_from(load_config(opened.paths).settings).base_for(args.type, args.base)
+            _warn_base_behind(opened.paths.root, base)
+            task = new_task(store, opened.workflow, SubprocessGit(opened.paths.root), args.title, args.type, utc_now, args.size, args.roadmap, base)
             if task.roadmap:
                 set_status(opened.paths.dir, task.roadmap, RoadmapStatus.DOING)
             size_note = f" (size {task.size})" if task.size else ""
             roadmap_note = f" (roadmap {task.roadmap})" if task.roadmap else ""
-            print(f"{task.id} created on branch {task.branch}{size_note}{roadmap_note}")
+            print(f"{task.id} created on branch {task.branch} from {task.base}{size_note}{roadmap_note}")
             unconfirmed = unconfirmed_conventions(opened.paths.dir)
             if unconfirmed:
                 _err(
@@ -550,6 +561,16 @@ def cmd_task(args: argparse.Namespace) -> ExitCode:
     state = store.load()
     print(f"next: {describe_action(next_action(opened.workflow, state.active_task()))}")
     return ExitCode.OK
+
+
+def _warn_base_behind(root: Path, base: str) -> None:
+    """The branch a task starts from may be behind its copy on origin (a colleague pushed): the task would start on old code."""
+    behind = run_git(root, "rev-list", "--count", f"{base}..origin/{base}")
+    if behind.returncode == 0 and behind.stdout.strip().isdigit() and int(behind.stdout) > 0:
+        _err(
+            f"{WARNING_PREFIX}'{base}' is {behind.stdout.strip()} commit(s) behind origin/{base}: the task would start on code that is not "
+            f"the latest. Cancel it and run `git switch {base}` then `git pull` first, unless that is what you want"
+        )
 
 
 def _warn_skipped_tests(opened: _Opened, result: TaskEvent) -> None:
@@ -625,7 +646,8 @@ def _sealer(opened: _Opened) -> TaskSealer:
     def scan_lines(task: Task) -> list[str]:
         return summary_lines(ScanStore(opened.paths.dir), opened.paths.dir, task.id) or NOT_SCANNED
 
-    return TaskSealer(SubprocessGit(opened.paths.root), opened.paths.dir, opened.workflow, utc_now, scan_lines)
+    develop = gitconfig.names_from(load_config(opened.paths).settings).develop
+    return TaskSealer(SubprocessGit(opened.paths.root), opened.paths.dir, opened.workflow, utc_now, scan_lines, develop)
 
 
 def _plan_items(opened: _Opened) -> dict[str, PlanItem] | None:
@@ -702,6 +724,8 @@ def cmd_config(args: argparse.Namespace) -> ExitCode:
                 raise AgentflowError(f"setting '{args.key}' is not set", ExitCode.SETTINGS_INVALID)
             print(value if isinstance(value, str) else json.dumps(value, ensure_ascii=False))
         case ConfigCommand.SET:
+            if gitconfig.is_git_key(args.key):
+                gitconfig.check_assignment(args.key, args.value)
             value = coerce(extensions, args.key, args.value)
             updated = set_value(config.settings, args.key, value)
             save_config(paths, replace(config, settings=updated))
@@ -709,7 +733,7 @@ def cmd_config(args: argparse.Namespace) -> ExitCode:
                 Integrity(paths.dir).record_settings(lockflow.settings_digest(updated))
             print(f"{args.key} set")
         case ConfigCommand.CHECK:
-            problems = settings_problems(extensions, config.settings)
+            problems = [*settings_problems(extensions, config.settings), *gitconfig.settings_problems(config.settings)]
             for problem in problems:
                 print(f"- {problem}")
             if problems:
@@ -990,7 +1014,12 @@ def cmd_commit(args: argparse.Namespace) -> ExitCode:
 
 def cmd_guard(args: argparse.Namespace) -> ExitCode:
     request = parse_request(sys.stdin.read())
-    verdict = evaluate(request.command, request.cwd or Path.cwd(), GitBranchLookup(), GitWorkspaceLookup())
+    cwd = request.cwd or Path.cwd()
+    try:
+        protected = protected_branches(find_workspace(cwd))
+    except AgentflowError:  # no workspace here: the built-in protected branches
+        protected = None
+    verdict = evaluate(request.command, cwd, GitBranchLookup(), GitWorkspaceLookup(), protected_branches=protected)
     print(json.dumps(verdict_to_dict(verdict), ensure_ascii=False))
     return ExitCode.OK
 
