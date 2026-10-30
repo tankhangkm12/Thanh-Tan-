@@ -280,7 +280,7 @@ Claude Code (theo tài liệu sub-agents và plugins-reference): `tools` của a
 
 Không có tool cho việc của người: duyệt, hủy, seal, `decide`, extension, `config set`, push kiến thức. Một test giữ danh sách tool là danh sách đóng.
 
-Plugin khai báo server ở `.mcp.json` (Claude Code) và `mcp_config.json` (Antigravity), cùng lệnh `thanhtan mcp serve`. Điều đã thử thật nằm trong [mcp-notes.md](mcp-notes.md): tên tool ở Claude Code, tên tool của agent plugin, việc Antigravity chạy server ở thư mục plugin (nên server tìm dự án qua `cwd`, `THANHTAN_PROJECT_DIR`, `PWD`, rồi con trỏ `~/.ThanhTan/active-project.txt` mà hook Antigravity để lại), và việc Antigravity không cho giới hạn tool MCP theo role.
+Plugin khai báo server ở `claude/mcp.json` (Claude Code, trỏ tới từ `mcpServers` trong `.claude-plugin/plugin.json`) và `mcp_config.json` (Antigravity), cùng lệnh `thanhtan mcp serve`. Điều đã thử thật nằm trong [mcp-notes.md](mcp-notes.md): tên tool ở Claude Code, tên tool của agent plugin, việc Antigravity chạy server ở thư mục plugin (nên server tìm dự án qua `cwd`, `THANHTAN_PROJECT_DIR`, `PWD`, rồi con trỏ `~/.ThanhTan/active-project.txt` mà hook Antigravity để lại), và việc Antigravity không cho giới hạn tool MCP theo role.
 
 ### Spec delta và replan
 

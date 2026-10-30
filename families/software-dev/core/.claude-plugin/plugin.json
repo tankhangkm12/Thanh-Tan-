@@ -6,6 +6,9 @@
     "name": "tankhangkm12"
   },
   "license": "MIT",
+  "icon": "./assets/logo.png",
+  "hooks": "./claude/hooks.json",
+  "mcpServers": "./claude/mcp.json",
   "agents": [
     "./claude/agents/debugger.md",
     "./claude/agents/implementer-deep.md",

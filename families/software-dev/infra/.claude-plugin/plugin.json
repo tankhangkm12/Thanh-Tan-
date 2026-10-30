@@ -6,6 +6,7 @@
     "name": "tankhangkm12"
   },
   "license": "MIT",
+  "icon": "./assets/logo.png",
   "dependencies": [
     "dev-core"
   ]

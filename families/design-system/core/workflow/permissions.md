@@ -30,7 +30,7 @@ Mỗi việc giao cho một agent chạy trong ngữ cảnh riêng, chỉ đư�
 
 ## Thực thi bằng hook
 
-`hooks/hooks.json` của design-core gắn `scripts/guard_write.py` vào `PreToolUse` (matcher `Write|Edit|Bash|PowerShell`). Hook đọc `agent_type` (dạng `design-core:<agent>`, cả khi chạy `claude --agent design-core:orchestrator`) và chặn bằng exit 2 khi:
+`claude/hooks.json` của design-core (khai ở `hooks` trong `.claude-plugin/plugin.json`) gắn `scripts/guard_write.py` vào `PreToolUse` (matcher `Write|Edit|Bash|PowerShell`). Hook đọc `agent_type` (dạng `design-core:<agent>`, cả khi chạy `claude --agent design-core:orchestrator`) và chặn bằng exit 2 khi:
 
 - Agent ghi ngoài vùng của mình trong bảng trên, hoặc ngoài `.agent-workspace/` (`architecture/` đóng với mọi agent).
 - Orchestrator sửa file task ngoài dòng "Trạng thái", hoặc sửa `decision.md` ngoài khối `BEGIN:user`/`END:user`.

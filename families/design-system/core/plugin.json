@@ -2,6 +2,7 @@
   "$schema": "https://antigravity.google/schemas/v1/plugin.json",
   "name": "design-core",
   "displayName": "ThanhTan Design Core",
+  "logo": "assets/logo.png",
   "version": "0.1.0",
   "description": "Core of the design-system family: shared workflow, quality criteria, agents, templates and scripts for all design-* plugins",
   "author": {

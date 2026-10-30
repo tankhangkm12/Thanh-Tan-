@@ -12,9 +12,12 @@ Repo chứa nhiều thành phần có số phiên bản riêng: `thanhtan` (foun
 - `plugin.json` (Antigravity) của cả sáu plugin có thêm `version` (theo manifest Claude Code), `displayName`, `author`, `license`, `homepage`, `repository`, `keywords`, và `suggestedPrompts` cho dev-core và dev-backend: các trường Plugin Marketplace của Antigravity (ra mắt 29/10/2026) dùng; marketplace bỏ qua plugin không có `version`. Test `tools/test_plugin_manifests.py` giữ hai manifest khớp nhau.
 - `tools/install.py --from-github`: cài plugin từ GitHub (nhánh `develop`) thay vì bản clone; Antigravity dùng `agy plugin install https://github.com/tankhangkm12/Thanh-Tan-/tree/develop/<thư mục plugin>`. README Bước 2b có cách cài từ GitHub và ghi chú về marketplace của Antigravity.
 
+- Logo cho cả sáu plugin (`assets/logo.png`, 512×512): `logo` trong `plugin.json` (Antigravity) và `icon` trong `.claude-plugin/plugin.json`.
+
 ### Changed
 
 - `docs/release.md`: nâng `version` ở cả `plugin.json` của Antigravity; kiểm bằng `agy plugin validate --strict`.
+- File riêng của Claude Code chuyển vào `claude/` để `agy plugin validate --strict` qua (trước đó báo "never loaded" và trả lỗi): `dev-core/.mcp.json` thành `claude/mcp.json`, `hooks/hooks.json` của dev-core và design-core thành `claude/hooks.json`; `.claude-plugin/plugin.json` trỏ tới chúng qua `mcpServers` và `hooks`. Claude Code vẫn nạp đủ 3 hook và server MCP `thanhtan` (đã thử bằng `claude plugin details`). Nâng cấp: `claude plugin marketplace update thanh-tan-plugins` rồi `claude plugin update dev-core@thanh-tan-plugins` (và `design-core@thanh-tan-plugins`).
 
 ## [1.0.0] - 2026-10-29
 
