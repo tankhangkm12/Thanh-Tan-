@@ -8,6 +8,7 @@ Claude Code and Antigravity. It never touches a project.
     uv run tools/install.py --backend        # also dev-backend
     uv run tools/install.py --design         # also design-core and design-architecture
     uv run tools/install.py --only claude    # only Claude Code (or: agy); thanhtan is always installed
+    uv run tools/install.py --from-github    # plugins from GitHub (branch develop) instead of this clone
     uv run tools/install.py --check          # change nothing: say what is installed and what is out of date
 
 Run it from anywhere; it finds the repository from its own place. After `git pull`, run it again.
@@ -30,6 +31,9 @@ from pathlib import Path
 REPO = Path(__file__).resolve().parents[1]
 FOUNDATION = REPO / "foundation"
 MARKETPLACE = "thanh-tan-plugins"
+GITHUB_REPO = "tankhangkm12/Thanh-Tan-"
+GITHUB_URL = f"https://github.com/{GITHUB_REPO}"
+GITHUB_BRANCH = "develop"  # the repository's default branch
 PYTHON_VERSION = "3.12"
 ENCODING = "utf-8"
 TIMEOUT_SECONDS = 900
@@ -223,12 +227,20 @@ def claude_listing(runner: Runner) -> dict[str, dict]:
     return {item.get("id", ""): item for item in data if isinstance(item, dict)}
 
 
-def install_claude(runner: Runner, plugins: Sequence[str]) -> list[Step]:
+def plugin_source(name: str, from_github: bool) -> str:
+    """Where agy installs a plugin from: this clone's folder, or the same folder on GitHub (`tree/<branch>/<path>`)."""
+    if not from_github:
+        return str(PLUGIN_DIRS[name])
+    return f"{GITHUB_URL}/tree/{GITHUB_BRANCH}/{PLUGIN_DIRS[name].relative_to(REPO).as_posix()}"
+
+
+def install_claude(runner: Runner, plugins: Sequence[str], from_github: bool = False) -> list[Step]:
     marketplaces = runner.run([CLAUDE, "plugin", "marketplace", "list"])
     if MARKETPLACE in marketplaces.output:
+        # Updates from wherever the marketplace was added; to switch between clone and GitHub, remove it first.
         done = runner.run([CLAUDE, "plugin", "marketplace", "update", MARKETPLACE])
     else:
-        done = runner.run([CLAUDE, "plugin", "marketplace", "add", str(REPO)])
+        done = runner.run([CLAUDE, "plugin", "marketplace", "add", GITHUB_REPO if from_github else str(REPO)])
     steps = [Step(f"Claude Code marketplace {MARKETPLACE}", done.returncode == 0, "" if done.returncode == 0 else tail(done.output))]
     if done.returncode != 0:
         return steps
@@ -258,10 +270,10 @@ def check_claude(runner: Runner, plugins: Sequence[str]) -> list[Step]:
     return steps
 
 
-def install_agy(runner: Runner, plugins: Sequence[str]) -> list[Step]:
+def install_agy(runner: Runner, plugins: Sequence[str], from_github: bool = False) -> list[Step]:
     steps = []
     for name in plugins:
-        done = runner.run([AGY, "plugin", "install", str(PLUGIN_DIRS[name])])
+        done = runner.run([AGY, "plugin", "install", plugin_source(name, from_github)])
         detail = "" if done.returncode == 0 else (IN_USE_HINT if in_use(done.output) else tail(done.output))
         steps.append(Step(f"Antigravity install {name}", done.returncode == 0, detail))
     return steps
@@ -304,7 +316,8 @@ def run(args: argparse.Namespace, runner: Runner) -> list[Step]:
         if runner.which(cli) is None:
             continue
         if not args.check:
-            steps += install_claude(runner, plugins) if cli == CLAUDE else install_agy(runner, plugins)
+            install_cli = install_claude if cli == CLAUDE else install_agy
+            steps += install_cli(runner, plugins, args.from_github)
         steps += check_claude(runner, plugins) if cli == CLAUDE else check_agy(runner, plugins)
     return steps
 
@@ -331,6 +344,10 @@ def main(argv: list[str] | None = None, runner: Runner | None = None) -> int:
     parser.add_argument("--only", choices=(CLAUDE, AGY), help="only this CLI (thanhtan is always handled)")
     parser.add_argument("--backend", action="store_true", help="also dev-backend")
     parser.add_argument("--design", action="store_true", help="also design-core and design-architecture")
+    parser.add_argument(
+        "--from-github", action="store_true",
+        help=f"install the plugins from {GITHUB_URL} (branch {GITHUB_BRANCH}) instead of this clone; thanhtan still comes from the clone",
+    )
     args = parser.parse_args(argv)
     return report(run(args, runner or Runner()), args.check)
 

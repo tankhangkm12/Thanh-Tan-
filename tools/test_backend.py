@@ -50,7 +50,7 @@ def test_generated_agents_are_up_to_date_and_declared_in_the_manifest():
     assert manifest["agents"] == ["./claude/agents/db-engineer.md"]
     assert manifest["dependencies"] == ["dev-core"] and manifest["version"] == "1.0.0"
     antigravity = json.loads((BACKEND / "plugin.json").read_text(encoding="utf-8"))
-    assert set(antigravity) == {"$schema", "name", "description"}
+    assert antigravity["name"] == "dev-backend" and antigravity["version"] == manifest["version"]
 
 
 @pytest.mark.parametrize("path", PROMPTS, ids=lambda p: f"{p.parent.name}/{p.name}")

@@ -26,7 +26,11 @@ Sửa cùng một số phiên bản (hoặc số riêng cho từng thành phần
 |---|---|
 | `foundation/pyproject.toml` | `version` |
 | `families/software-dev/core/.claude-plugin/plugin.json` | `version` |
+| `families/software-dev/core/plugin.json` (Antigravity) | `version` |
 | `families/software-dev/backend/.claude-plugin/plugin.json` | `version` |
+| `families/software-dev/backend/plugin.json` (Antigravity) | `version` |
+
+Hai manifest của một plugin phải cùng `version` (test `tools/test_plugin_manifests.py` kiểm). Marketplace của Antigravity bỏ qua plugin không có `version` hợp lệ, và `agy plugin install` chép một bản vào máy, nên mỗi bản phát hành phải nâng số ở cả hai file.
 
 Rồi:
 
@@ -52,8 +56,8 @@ uv run tools/build.py --check
 uv run tools/build.py --plugin families/software-dev/backend --check
 claude plugin validate families/software-dev/core --strict
 claude plugin validate families/software-dev/backend --strict
-agy plugin validate families/software-dev/core
-agy plugin validate families/software-dev/backend
+agy plugin validate --strict families/software-dev/core
+agy plugin validate --strict families/software-dev/backend
 uv run tools/smoke.py
 uv run tools/smoke_backend.py
 uv run tools/smoke_modes.py

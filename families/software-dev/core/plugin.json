@@ -1,5 +1,25 @@
 {
   "$schema": "https://antigravity.google/schemas/v1/plugin.json",
   "name": "dev-core",
-  "description": "Core of the software-dev family: shared workflow, standards and gates for all dev-* plugins"
+  "displayName": "ThanhTan Dev Core",
+  "version": "1.0.0",
+  "description": "Core of the software-dev family: shared workflow, standards and gates for all dev-* plugins",
+  "author": {
+    "name": "tankhangkm12"
+  },
+  "license": "MIT",
+  "homepage": "https://github.com/tankhangkm12/Thanh-Tan-/tree/develop/families/software-dev/core",
+  "repository": "https://github.com/tankhangkm12/Thanh-Tan-",
+  "keywords": [
+    "workflow",
+    "code-review",
+    "security",
+    "gitflow",
+    "agents"
+  ],
+  "suggestedPrompts": [
+    "Use the setup skill to profile this project for thanhtan",
+    "Use the start skill to begin a new feature task",
+    "Use the status skill to show where the current task stands"
+  ]
 }

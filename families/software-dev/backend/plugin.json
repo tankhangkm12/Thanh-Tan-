@@ -1,5 +1,25 @@
 {
   "$schema": "https://antigravity.google/schemas/v1/plugin.json",
   "name": "dev-backend",
-  "description": "Backend development for the software-dev family: services, APIs and data storage"
+  "displayName": "ThanhTan Dev Backend",
+  "version": "1.0.0",
+  "description": "Backend development for the software-dev family: services, APIs and data storage",
+  "author": {
+    "name": "tankhangkm12"
+  },
+  "license": "MIT",
+  "homepage": "https://github.com/tankhangkm12/Thanh-Tan-/tree/develop/families/software-dev/backend",
+  "repository": "https://github.com/tankhangkm12/Thanh-Tan-",
+  "keywords": [
+    "backend",
+    "api",
+    "database",
+    "migrations",
+    "testing"
+  ],
+  "suggestedPrompts": [
+    "Use the db-migration skill to write a safe migration for this schema change",
+    "Use the api-implementation skill to add this endpoint to match the API contract",
+    "Use the query-review skill to review the queries this change adds"
+  ]
 }

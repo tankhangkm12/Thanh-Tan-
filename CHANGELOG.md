@@ -6,6 +6,16 @@ Repo chứa nhiều thành phần có số phiên bản riêng: `thanhtan` (foun
 
 ## [Unreleased]
 
+### Added
+
+- Giấy phép MIT (`LICENSE`); mọi manifest plugin khai `"license": "MIT"`.
+- `plugin.json` (Antigravity) của cả sáu plugin có thêm `version` (theo manifest Claude Code), `displayName`, `author`, `license`, `homepage`, `repository`, `keywords`, và `suggestedPrompts` cho dev-core và dev-backend: các trường Plugin Marketplace của Antigravity (ra mắt 29/10/2026) dùng; marketplace bỏ qua plugin không có `version`. Test `tools/test_plugin_manifests.py` giữ hai manifest khớp nhau.
+- `tools/install.py --from-github`: cài plugin từ GitHub (nhánh `develop`) thay vì bản clone; Antigravity dùng `agy plugin install https://github.com/tankhangkm12/Thanh-Tan-/tree/develop/<thư mục plugin>`. README Bước 2b có cách cài từ GitHub và ghi chú về marketplace của Antigravity.
+
+### Changed
+
+- `docs/release.md`: nâng `version` ở cả `plugin.json` của Antigravity; kiểm bằng `agy plugin validate --strict`.
+
 ## [1.0.0] - 2026-10-29
 
 thanhtan 1.0.0, dev-core 1.0.0, dev-backend 1.0.0.
