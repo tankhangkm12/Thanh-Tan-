@@ -2,6 +2,7 @@
   "$schema": "https://antigravity.google/schemas/v1/plugin.json",
   "name": "dev-frontend",
   "displayName": "ThanhTan Dev Frontend",
+  "logo": "assets/logo.png",
   "version": "0.1.0",
   "description": "Frontend development for the software-dev family: UI, client state and browser tests",
   "author": {

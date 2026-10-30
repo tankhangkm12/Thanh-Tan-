@@ -60,7 +60,7 @@ def test_neither_status_line_says_the_work_is_unpushed_when_it_is_merged_into_de
 def test_what_the_readme_says_exists_does_exist():
     assert stage_of(FAMILY_README) >= 3
     core = FAMILY / "core"
-    for name in ("USAGE.md", "plugin.json", "scripts", "agents", "hooks", "workflow"):
+    for name in ("USAGE.md", "plugin.json", "scripts", "agents", "claude/hooks.json", "workflow"):
         assert (core / name).exists(), f"the README claims stage {stage_of(FAMILY_README)} but core/{name} is missing"
     assert any((core / "scripts").glob("*.py"))
 

@@ -9,8 +9,8 @@ Plugin lõi của nhóm **software-dev**. Giữ những gì mọi plugin `dev-*`
 | Workflow 6 bước | `workflow.yaml` | Đọc bởi `thanhtan init --workflow`; khai báo `tiered_roles` và hai cỡ task `normal`/`small` (xem [README gốc](../../../README.md#chế-độ-nhẹ-task-nhỏ)) |
 | 5 skill | `skills/{setup,start,continue,status,approve}/SKILL.md` | Hồ sơ hóa dự án (hỏi người đường dẫn tài liệu rồi giao cho scout), bắt đầu task, làm tiếp, xem trạng thái, duyệt |
 | 8 role, 9 agent | nguồn `src/roles/*.md` | `orchestrator`, `planner`, `implementer` (agent `implementer-fast` và `implementer-deep`), `tester`, `security`, `reviewer`, `scout` (đọc dự án, chỉ ghi qua `project_write`), `debugger` (tái hiện lỗi, tìm nguyên nhân, chỉ ghi chẩn đoán qua `diagnosis_write`) |
-| Server MCP | `.mcp.json` (Claude Code), `mcp_config.json` (Antigravity) | Chạy `thanhtan mcp serve`: 9 tool cho agent (xem [architecture](../../../docs/architecture.md#tool-mcp)) |
-| Hook | `hooks/hooks.json` (Claude Code), `hooks.json` (Antigravity) | Chặn lệnh git nguy hiểm, `git commit` trực tiếp và mọi ghi vào `.ThanhTan/` (tool ghi file; lệnh shell ở mức cố gắng tốt nhất), nạp tóm tắt task đầu phiên, nhắc cập nhật trạng thái khi dừng (chỉ khi bước đang chạy và đã có báo cáo mới) |
+| Server MCP | `claude/mcp.json` (Claude Code), `mcp_config.json` (Antigravity) | Chạy `thanhtan mcp serve`: 9 tool cho agent (xem [architecture](../../../docs/architecture.md#tool-mcp)) |
+| Hook | `claude/hooks.json` (Claude Code), `hooks.json` (Antigravity) | Chặn lệnh git nguy hiểm, `git commit` trực tiếp và mọi ghi vào `.ThanhTan/` (tool ghi file; lệnh shell ở mức cố gắng tốt nhất), nạp tóm tắt task đầu phiên, nhắc cập nhật trạng thái khi dừng (chỉ khi bước đang chạy và đã có báo cáo mới) |
 
 `workflow.yaml` còn khai báo `read_only_roles` (đồng bộ với `READ_ONLY_ROLES` của `build.py`, một test giữ hai danh sách bằng nhau) và `agent_dirs` (`claude/agents`, `agents`) để `thanhtan role grant` biết chép agent nào sang `.claude/agents/` của dự án. Xem [Cấp tool theo dự án](../../../README.md#cấp-tool-theo-dự-án-cho-role).
 

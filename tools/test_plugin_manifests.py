@@ -17,7 +17,11 @@ REPO = Path(__file__).resolve().parents[1]
 REPO_URL = "https://github.com/tankhangkm12/Thanh-Tan-"
 LICENSE = "MIT"
 PLUGINS = sorted(path.parent.parent for path in REPO.glob("families/*/*/.claude-plugin/plugin.json"))
-MARKETPLACE_FIELDS = {"$schema", "name", "displayName", "version", "description", "author", "license", "homepage", "repository", "keywords"}
+MARKETPLACE_FIELDS = {"$schema", "name", "displayName", "logo", "version", "description", "author", "license", "homepage", "repository", "keywords"}
+# Claude Code's default file names; `agy plugin validate --strict` fails on them ("never loaded"), so Claude Code reads
+# its hooks and MCP servers from claude/, named in `.claude-plugin/plugin.json`.
+ANTIGRAVITY_WARNS_ON = (".mcp.json", "hooks/hooks.json")
+CLAUDE_PATH_KEYS = ("hooks", "mcpServers", "icon")
 SEMVER = re.compile(r"^\d+\.\d+\.\d+$")
 
 
@@ -54,3 +58,19 @@ def test_the_antigravity_manifest_has_what_the_marketplace_lists(plugin):
     assert antigravity["homepage"] == f"{REPO_URL}/tree/develop/{plugin.relative_to(REPO).as_posix()}"
     assert antigravity["displayName"].strip() and antigravity["keywords"]
     assert all(isinstance(prompt, str) and prompt for prompt in antigravity.get("suggestedPrompts", []))
+
+
+@pytest.mark.parametrize("plugin", PLUGINS, ids=lambda p: p.name)
+def test_no_claude_code_file_makes_the_strict_antigravity_check_fail(plugin):
+    for name in ANTIGRAVITY_WARNS_ON:
+        assert not (plugin / name).exists(), name
+
+
+@pytest.mark.parametrize("plugin", PLUGINS, ids=lambda p: p.name)
+def test_the_files_the_manifests_name_exist(plugin):
+    claude, antigravity = manifests(plugin)
+    for key in CLAUDE_PATH_KEYS:
+        if key in claude:
+            assert (plugin / claude[key]).is_file(), key
+    assert (plugin / antigravity["logo"]).is_file()
+    assert antigravity["logo"].endswith((".png", ".svg", ".jpg", ".jpeg", ".webp"))

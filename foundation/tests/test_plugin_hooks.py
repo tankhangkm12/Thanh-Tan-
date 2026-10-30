@@ -10,7 +10,7 @@ from thanhtan.cli import build_parser
 from thanhtan.constants import MCP_SERVER_NAME, PACKAGE_NAME, CliKind, Command, HookEvent, ToolName
 
 CORE = Path(__file__).resolve().parents[2] / "families" / "software-dev" / "core"
-CLAUDE_HOOKS = CORE / "hooks" / "hooks.json"
+CLAUDE_HOOKS = CORE / "claude" / "hooks.json"
 ANTIGRAVITY_HOOKS = CORE / "hooks.json"
 
 pytestmark = pytest.mark.skipif(not CORE.is_dir(), reason="plugin sources are not next to foundation/")
@@ -64,7 +64,7 @@ def test_antigravity_pre_tool_matcher_covers_the_shell_and_file_tools():
 
 
 def test_both_clis_start_the_same_thanhtan_mcp_server():
-    for name in (".mcp.json", "mcp_config.json"):
+    for name in ("claude/mcp.json", "mcp_config.json"):
         data = json.loads((CORE / name).read_text(encoding="utf-8"))
         assert data == {"mcpServers": {MCP_SERVER_NAME: {"command": "thanhtan", "args": ["mcp", "serve"]}}}, name
 

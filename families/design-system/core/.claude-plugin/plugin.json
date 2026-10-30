@@ -6,6 +6,8 @@
     "name": "tankhangkm12"
   },
   "license": "MIT",
+  "icon": "./assets/logo.png",
+  "hooks": "./claude/hooks.json",
   "agents": [
     "./claude/agents/council/cost-ops.md",
     "./claude/agents/council/evolution.md",

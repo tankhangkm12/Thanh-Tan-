@@ -532,7 +532,7 @@ def test_relative_file_path_is_resolved_against_cwd(ws):
 
 
 def test_hooks_json_wires_the_script():
-    config = json.loads((CORE / "hooks" / "hooks.json").read_text(encoding="utf-8"))
+    config = json.loads((CORE / "claude" / "hooks.json").read_text(encoding="utf-8"))
     (entry,) = config["hooks"]["PreToolUse"]
     assert entry["matcher"] == "Write|Edit|Bash|PowerShell"
     (hook,) = entry["hooks"]
