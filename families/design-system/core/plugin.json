@@ -1,5 +1,18 @@
 {
   "$schema": "https://antigravity.google/schemas/v1/plugin.json",
   "name": "design-core",
-  "description": "Core of the design-system family: shared workflow, quality criteria, agents, templates and scripts for all design-* plugins"
+  "displayName": "ThanhTan Design Core",
+  "version": "0.1.0",
+  "description": "Core of the design-system family: shared workflow, quality criteria, agents, templates and scripts for all design-* plugins",
+  "author": {
+    "name": "tankhangkm12"
+  },
+  "license": "MIT",
+  "homepage": "https://github.com/tankhangkm12/Thanh-Tan-/tree/develop/families/design-system/core",
+  "repository": "https://github.com/tankhangkm12/Thanh-Tan-",
+  "keywords": [
+    "design",
+    "architecture",
+    "documentation"
+  ]
 }

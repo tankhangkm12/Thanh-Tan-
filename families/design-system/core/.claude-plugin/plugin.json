@@ -5,6 +5,7 @@
   "author": {
     "name": "tankhangkm12"
   },
+  "license": "MIT",
   "agents": [
     "./claude/agents/council/cost-ops.md",
     "./claude/agents/council/evolution.md",

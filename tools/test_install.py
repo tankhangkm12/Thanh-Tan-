@@ -93,6 +93,18 @@ def test_backend_and_design_add_their_plugins(capsys):
     assert installed == [str(install.PLUGIN_DIRS[name]) for name in ("dev-core", "dev-backend", "design-core", "design-architecture")]
 
 
+def test_from_github_installs_each_plugin_from_its_folder_on_github(capsys):
+    runner = FakeRunner(answers={"claude plugin marketplace list": install.Result(0, ""), "claude plugin list --json": install.Result(0, "[]")})
+    install.main(["--from-github", "--backend"], runner)
+    assert runner.ran("claude", "plugin", "marketplace", "add", install.GITHUB_REPO)
+    installed = [call[-1] for call in runner.ran("agy", "plugin", "install")]
+    assert installed == [
+        "https://github.com/tankhangkm12/Thanh-Tan-/tree/develop/families/software-dev/core",
+        "https://github.com/tankhangkm12/Thanh-Tan-/tree/develop/families/software-dev/backend",
+    ]
+    assert runner.ran("uv", "tool", "install")  # thanhtan still comes from the clone
+
+
 def test_check_changes_nothing_and_reports_an_old_version(capsys):
     runner = FakeRunner(answers={"thanhtan --version": install.Result(0, "thanhtan 0.1.0\n")})
     assert install.main(["--check"], runner) == 1

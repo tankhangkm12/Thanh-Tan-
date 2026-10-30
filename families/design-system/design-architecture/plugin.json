@@ -1,5 +1,18 @@
 {
   "$schema": "https://antigravity.google/schemas/v1/plugin.json",
   "name": "design-architecture",
-  "description": "Solution architecture design for the design-system family: turns BA documents into a complete architecture document set with real figures"
+  "displayName": "ThanhTan Design Architecture",
+  "version": "0.1.0",
+  "description": "Solution architecture design for the design-system family: turns BA documents into a complete architecture document set with real figures",
+  "author": {
+    "name": "tankhangkm12"
+  },
+  "license": "MIT",
+  "homepage": "https://github.com/tankhangkm12/Thanh-Tan-/tree/develop/families/design-system/design-architecture",
+  "repository": "https://github.com/tankhangkm12/Thanh-Tan-",
+  "keywords": [
+    "design",
+    "solution-architecture",
+    "documentation"
+  ]
 }

@@ -5,6 +5,7 @@
   "author": {
     "name": "tankhangkm12"
   },
+  "license": "MIT",
   "dependencies": [
     "dev-core"
   ]

@@ -355,8 +355,9 @@ def test_the_lock_file_of_thanhtan_has_its_new_version():
     ids=["dev-core", "dev-backend"],
 )
 def test_a_plugin_manifest_has_the_new_version(plugin, version):
-    """The manifest of Claude Code; the one of Antigravity (`plugin.json` at the plugin root) carries no version."""
+    """Both manifests: Claude Code's and Antigravity's (`plugin.json` at the plugin root)."""
     assert json.loads(read(plugin / ".claude-plugin" / "plugin.json"))["version"] == version
+    assert json.loads(read(plugin / "plugin.json"))["version"] == version
 
 
 def test_the_backend_readme_names_its_version():

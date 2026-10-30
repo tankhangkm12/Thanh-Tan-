@@ -1,5 +1,19 @@
 {
   "$schema": "https://antigravity.google/schemas/v1/plugin.json",
   "name": "dev-infra",
-  "description": "Infrastructure for the software-dev family: CI/CD, containers and deployment"
+  "displayName": "ThanhTan Dev Infra",
+  "version": "0.1.0",
+  "description": "Infrastructure for the software-dev family: CI/CD, containers and deployment",
+  "author": {
+    "name": "tankhangkm12"
+  },
+  "license": "MIT",
+  "homepage": "https://github.com/tankhangkm12/Thanh-Tan-/tree/develop/families/software-dev/infra",
+  "repository": "https://github.com/tankhangkm12/Thanh-Tan-",
+  "keywords": [
+    "infrastructure",
+    "ci-cd",
+    "containers",
+    "deployment"
+  ]
 }

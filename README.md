@@ -32,6 +32,7 @@ Cần `git`, [`uv`](https://docs.astral.sh/uv/getting-started/installation/) và
 uv run --python 3.12 tools/install.py              # thanhtan + dev-core cho Claude Code và Antigravity
 uv run --python 3.12 tools/install.py --backend    # thêm dev-backend (--design: design-core, design-architecture)
 uv run --python 3.12 tools/install.py --check      # chỉ kiểm, không đổi gì
+uv run --python 3.12 tools/install.py --from-github  # plugin lấy từ GitHub (nhánh develop) thay vì bản clone
 ```
 
 Script cài `thanhtan` bằng Python 3.12 **do uv quản lý**, không dùng `python` trên PATH: trên Windows `python` thường chỉ là lối tắt Microsoft Store ("Python was not found"), hoặc môi trường tool cũ trỏ tới Python đã gỡ. Claude Code hay `agy` không có trên máy thì bỏ qua phần của nó (`--only claude` hoặc `--only agy` để chọn). Báo "Access is denied" hay "being used by another process": đóng các phiên Claude Code và Antigravity rồi chạy lại. Script không đụng tới dự án: sau mỗi `git pull` chỉ cần chạy lại nó, mở phiên mới, và ở dự án chạy `thanhtan workflow sync` khi `thanhtan doctor` nhắc.
@@ -93,19 +94,35 @@ Kiểm tra: `claude plugin list` phải thấy `dev-core@thanh-tan-plugins` ở 
 
 **KHÔNG dùng `agy --dangerously-skip-permissions` với plugin này.** Đã thử (agy 1.4.0, 18/10/2026): ở chế độ đó lệnh vẫn chạy và `force_ask` của hook không có tác dụng, nên mọi bước duyệt (`task approve`, `task cancel`) bị bỏ qua. Dùng chế độ mặc định `request-review`.
 
+Cách 1, từ GitHub (mỗi plugin là một thư mục con của repo, nên đưa đường dẫn `tree/<nhánh>/<thư mục>`):
+
+```
+agy plugin install https://github.com/tankhangkm12/Thanh-Tan-/tree/develop/families/software-dev/core
+```
+
+Cách 2, từ bản clone local:
+
 ```
 agy plugin install "<repo>/families/software-dev/core"
+```
+
+Kiểm tra:
+
+```
 agy plugin list
 agy agents
 ```
 
-`agy plugin list` phải có `dev-core` với `skills`, `agents`, `hooks`; `agy agents` liệt kê các agent của dev-core (8 role, `implementer` thành `implementer-fast` và `implementer-deep`) (thêm `db-engineer` khi cài dev-backend). `agy plugin install` chép một bản vào máy, nên sau mỗi lần `git pull` hãy chạy lại lệnh cài. Cách cài thẳng từ GitHub cho repo nhiều plugin chưa được xác nhận.
+`agy plugin list` phải có `dev-core` với `skills`, `agents`, `hooks`; `agy agents` liệt kê các agent của dev-core (8 role, `implementer` thành `implementer-fast` và `implementer-deep`) (thêm `db-engineer` khi cài dev-backend). `agy plugin install` chép một bản vào máy, nên sau mỗi lần `git pull` (hoặc khi GitHub có bản mới) hãy chạy lại lệnh cài.
+
+**Marketplace của Antigravity (từ 29/10/2026).** Antigravity có Plugin Marketplace (tab Plugins trong Customizations, hoặc `agy plugin install <tên>`), nhưng danh mục do Google quản lý; khác Claude Code, chưa có lệnh thêm marketplace riêng nên `agy` không đọc `.claude-plugin/marketplace.json`. Các plugin ở đây chưa có trong danh mục đó: cài bằng đường dẫn GitHub hay thư mục như trên. Mỗi `plugin.json` (Antigravity) đã có các trường danh mục cần (`version`, `displayName`, `author`, `license`, `keywords`); kiểm bằng `agy plugin validate --strict families/software-dev/core`. Cài từ đường dẫn `tree/...` mới theo tài liệu cộng đồng, chưa thử với `agy` thật: nếu lỗi, dùng Cách 2.
 
 ### Cài thêm dev-backend
 
 ```
 claude plugin install dev-backend@thanh-tan-plugins
 agy plugin install "<repo>/families/software-dev/backend"
+# hoặc: agy plugin install https://github.com/tankhangkm12/Thanh-Tan-/tree/develop/families/software-dev/backend
 ```
 
 Rồi trong dự án, **bạn** đăng ký extension và đặt cài đặt (xem [dev-backend](families/software-dev/backend/README.md)): `thanhtan ext add`, `thanhtan config set backend.*`, `thanhtan config check`.

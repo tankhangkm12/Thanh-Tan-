@@ -1,5 +1,18 @@
 {
   "$schema": "https://antigravity.google/schemas/v1/plugin.json",
   "name": "dev-frontend",
-  "description": "Frontend development for the software-dev family: UI, client state and browser tests"
+  "displayName": "ThanhTan Dev Frontend",
+  "version": "0.1.0",
+  "description": "Frontend development for the software-dev family: UI, client state and browser tests",
+  "author": {
+    "name": "tankhangkm12"
+  },
+  "license": "MIT",
+  "homepage": "https://github.com/tankhangkm12/Thanh-Tan-/tree/develop/families/software-dev/frontend",
+  "repository": "https://github.com/tankhangkm12/Thanh-Tan-",
+  "keywords": [
+    "frontend",
+    "ui",
+    "browser-tests"
+  ]
 }
